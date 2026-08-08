@@ -291,6 +291,27 @@ fresh session (no host identity at all) picked up the new default and got forms
 blocked. Both test artifacts (`.env`, `config/packages.json`) reverted to their
 pre-test state afterward.
 
+### License key activation (this session)
+
+Per explicit direction: "enter your license key to unlock Ultra features," stored
+simply in JSON, admin-managed, no login-to-use-the-app conflation. This is a friendlier
+front door onto the entitlement system above, not a separate mechanism.
+
+| Area | File(s) | Status |
+|---|---|---|
+| **Top package renamed** | `enterprise` → **`ultra`** everywhere in `config/packages.json`, matching the product's own name. Nothing in PHP code hardcoded the old id, so this was a safe rename | Done |
+| **⚠️ Default package changed: `basic`, not `ultra`** | This is a deliberate behavior change, not a bug: the whole point of a license-key-gated product is that the *unlicensed* state is the free/Basic tier. A fresh install now starts with search only — forms, memory, attachments, imports and DB connections are locked until a valid key is entered. Anyone testing this standalone from here on will see that, unlike every prior session which defaulted to everything unlocked | Done — **flagging clearly since it changes what "out of the box" means** |
+| **License list** | `data/licenses.json` — a flat list of `{key, package, status}`, checked with `hash_equals()` (no timing side-channel). No remote activation server, no network call — consistent with the zero-DB philosophy everywhere else in this build. Two demo keys ship for testing (`KILI-PRO-DEMO-0001`, `KILI-ULTRA-DEMO-0001`) | Done |
+| **Activation** | `core/LicenseManager.php` (validate a key → package) + `kili_activate_license()` in `bootstrap.php`, which — on a valid key — calls the *same* `kili_set_default_package()` the admin dropdown already used, and records the active key in `.env` as `KILI_ACTIVE_LICENSE_KEY` (not a secret, but instance-specific activation state, so it lives alongside other per-install config rather than in version-controlled JSON) | Done |
+| **Admin UI** | New "Activate a license key" section in the existing "Licensing / packages" card — shows the currently activated key (or "none"), one field, one button. Invalid keys get a clear rejection message | Done |
+
+**Verified end to end**: fresh/unactivated install — search works, forms don't. An
+invalid key is rejected cleanly. Activating the demo **Pro** key unlocks forms/memory
+but `data_sources.php` (a `multi_source`/db-tier feature) still correctly 403s.
+Activating the demo **Ultra** key on top of that unlocks it. All through the real admin
+UI, not just the underlying functions. Test artifacts (`.env`, `config/packages.json`)
+reverted to their shipped state (unactivated, `basic` default) afterward.
+
 ## Suggested next phase
 
 1. **Admin FAQ-promotion screen** — a small page listing `query_log.json` sorted by

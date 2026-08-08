@@ -13,6 +13,7 @@ require_once __DIR__ . '/core/DataSourceEngine.php';
 require_once __DIR__ . '/core/SchemaDetector.php';
 require_once __DIR__ . '/core/ConnectionManager.php';
 require_once __DIR__ . '/core/EntitlementManager.php';
+require_once __DIR__ . '/core/LicenseManager.php';
 
 use Kili\Adapters\JsonAdapter;
 use Kili\Core\SearchEngine;
@@ -26,6 +27,7 @@ use Kili\Core\DataSourceEngine;
 use Kili\Core\SchemaDetector;
 use Kili\Core\ConnectionManager;
 use Kili\Core\EntitlementManager;
+use Kili\Core\LicenseManager;
 
 /** Reads a JSON config file, returning [] if it doesn't exist or is invalid. */
 function kili_read_json(string $path): array
@@ -312,6 +314,42 @@ function kili_set_default_package(string $packageId): void
     $config = kili_read_json($path);
     $config['default_package'] = $packageId;
     file_put_contents($path, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+function kili_license_manager(): LicenseManager
+{
+    static $manager = null;
+    if ($manager === null) {
+        $manager = new LicenseManager(kili_read_json(__DIR__ . '/data/licenses.json'));
+    }
+
+    return $manager;
+}
+
+/**
+ * Enters a "your license key" flow, per direction: validates against
+ * data/licenses.json and, on success, unlocks the matching package for
+ * the whole installation via the same kili_set_default_package() used by
+ * the admin dropdown — this is just a friendlier, product-appropriate
+ * front door onto the same mechanism, not a separate system.
+ */
+function kili_activate_license(string $key): array
+{
+    $result = kili_license_manager()->activate($key);
+
+    if ($result['success']) {
+        kili_set_default_package($result['package']);
+        kili_save_env_value('KILI_ACTIVE_LICENSE_KEY', $key);
+    }
+
+    return $result;
+}
+
+function kili_active_license_key(): ?string
+{
+    $key = kili_load_env()['KILI_ACTIVE_LICENSE_KEY'] ?? '';
+
+    return $key !== '' ? $key : null;
 }
 
 function kili_data_source_engine(): DataSourceEngine

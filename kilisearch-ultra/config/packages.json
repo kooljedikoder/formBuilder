@@ -1,5 +1,5 @@
 {
-  "default_package": "enterprise",
+  "default_package": "basic",
   "packages": [
     {
       "id": "basic",
@@ -12,8 +12,8 @@
       "features": ["search", "forms", "memory", "attachments"]
     },
     {
-      "id": "enterprise",
-      "name": "Enterprise",
+      "id": "ultra",
+      "name": "Ultra",
       "features": ["search", "forms", "memory", "attachments", "import", "db_connections", "multi_source"]
     }
   ]

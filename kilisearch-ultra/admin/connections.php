@@ -109,6 +109,9 @@ if ($do === 'set_app_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         kili_set_default_package($packageId);
         $notice = ['type' => 'success', 'text' => "Default package set to \"$packageId\". Applies to anyone Kili doesn't recognize a host-app identity for."];
     }
+} elseif ($do === 'activate_license' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $result = kili_activate_license(trim($_POST['license_key'] ?? ''));
+    $notice = ['type' => $result['success'] ? 'success' : 'error', 'text' => $result['success'] ? 'License activated — unlocked the "' . $result['package'] . '" package.' : $result['message']];
 } elseif ($do === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     if ($name === '' || !preg_match('/^[A-Za-z0-9_]+$/', $name)) {
@@ -219,13 +222,22 @@ foreach ($profiles as $profile) {
       <?php endforeach; ?>
     </table>
     <form method="post" action="?do=set_default_package">
-      <label>Default package</label>
+      <label>Default package (manual override)</label>
       <select name="default_package">
         <?php foreach ($packagesConfig['packages'] ?? [] as $pkg): ?>
           <option value="<?= htmlspecialchars($pkg['id']) ?>" <?= $pkg['id'] === ($packagesConfig['default_package'] ?? '') ? 'selected' : '' ?>><?= htmlspecialchars($pkg['name']) ?></option>
         <?php endforeach; ?>
       </select>
       <button type="submit">Save default</button>
+    </form>
+
+    <h2>Activate a license key</h2>
+    <p style="font-size:13px;color:#5f6368">Enter the license key for this installation to unlock the package it's licensed for — simplest way to move off the free/Basic tier, no dropdown-picking required.</p>
+    <?php $activeKey = kili_active_license_key(); ?>
+    <p style="font-size:13px">Currently activated: <?= $activeKey ? '<code>' . htmlspecialchars($activeKey) . '</code>' : '<em>none</em>' ?></p>
+    <form method="post" action="?do=activate_license">
+      <input name="license_key" placeholder="e.g. KILI-ULTRA-XXXX-XXXX" value="<?= htmlspecialchars($activeKey ?? '') ?>" required>
+      <button type="submit">Activate</button>
     </form>
   </div>
 
