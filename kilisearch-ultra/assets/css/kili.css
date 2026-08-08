@@ -125,6 +125,12 @@ body {
   margin-left: 6px;
 }
 
+.kili-card-source {
+  font-size: 11px;
+  color: #9aa0a6;
+  margin-bottom: 8px;
+}
+
 .kili-card-actions {
   display: flex;
   flex-wrap: wrap;

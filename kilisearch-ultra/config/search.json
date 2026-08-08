@@ -11,10 +11,11 @@
     "it support": ["it services", "networking", "computer repair"],
     "phone repair": ["gadget repair", "screen replacement"]
   },
-  "stop_words": ["a", "an", "the", "in", "at", "for", "of", "near", "me", "please", "is", "there", "any"],
+  "stop_words": ["a", "an", "the", "in", "at", "for", "of", "near", "me", "close", "to", "please", "is", "there", "any", "good"],
   "fuzzy_max_distance": 2,
   "fuzzy_min_word_length": 4,
   "default_limit": 20,
+  "default_near_radius_km": 15,
   "weights": {
     "exact_phrase": 100,
     "exact_token": 40,
@@ -23,6 +24,10 @@
     "fuzzy_token": 15,
     "phonetic_token": 10,
     "location_bonus": 15,
-    "verified_bonus": 3
+    "verified_bonus": 3,
+    "context_location_bonus": 35,
+    "context_sector_bonus": 20,
+    "context_category_bonus": 30,
+    "context_subcategory_bonus": 35
   }
 }

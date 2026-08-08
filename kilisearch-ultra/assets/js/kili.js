@@ -67,7 +67,12 @@
     card.appendChild(top);
 
     var metaParts = [record.subcategory || record.category, record.location].filter(Boolean);
+    if (record._distance_km !== undefined) metaParts.push(record._distance_km + ' km away');
     card.appendChild(el('div', 'kili-card-meta', escapeHtml(metaParts.join(' · '))));
+
+    if (record.source && record.source.name) {
+      card.appendChild(el('div', 'kili-card-source', 'Source: ' + escapeHtml(record.source.name)));
+    }
 
     var actions = el('div', 'kili-card-actions');
     if (record.phone) {
@@ -108,11 +113,25 @@
     return wrap;
   }
 
+  function detectedBreadcrumb(detected) {
+    if (!detected) return '';
+    var parts = [];
+    if (detected.sector) parts.push('Sector: ' + detected.sector);
+    if (detected.category) parts.push('Category: ' + (detected.subcategory || detected.category));
+    if (detected.location) parts.push('Location: ' + detected.location);
+    return parts.join(' · ');
+  }
+
   function runSearch(query, filters) {
     filters = filters || {};
     var params = new URLSearchParams({ q: query, limit: '10' });
     if (filters.category) params.set('category', filters.category);
+    if (filters.sector) params.set('sector', filters.sector);
     if (filters.location) params.set('location', filters.location);
+    if (filters.lat != null && filters.lng != null) {
+      params.set('lat', filters.lat);
+      params.set('lng', filters.lng);
+    }
 
     return fetch(API_BASE + 'search.php?' + params.toString())
       .then(function (res) { return res.json(); })
@@ -123,14 +142,17 @@
         }
         lastResults = payload.data;
         var count = payload.meta.total;
+        var breadcrumb = detectedBreadcrumb(payload.meta.detected);
+        if (breadcrumb) addBubble('ai', breadcrumb);
+
         var summary = count === 0
           ? 'I couldn’t find anything for “' + query + '”.'
-          : 'I found ' + count + (count === 1 ? ' result' : ' results') + ' for “' + query + '”.';
+          : 'I found ' + count + (count === 1 ? ' result' : ' results') + (payload.meta.near ? ' near you' : ' for “' + query + '”') + '.';
         addBubble('ai', summary);
         renderResults(payload.data);
 
         if (count > 1) {
-          addQuickReplies([
+          var replies = [
             {
               label: 'Highest rated',
               onClick: function () {
@@ -149,7 +171,24 @@
                 renderResults(verified);
               },
             },
-          ]);
+          ];
+          if (!payload.meta.near && navigator.geolocation) {
+            replies.push({
+              label: 'Near me',
+              onClick: function () {
+                addBubble('user', 'Near me');
+                navigator.geolocation.getCurrentPosition(
+                  function (pos) {
+                    runSearch(query, { lat: pos.coords.latitude, lng: pos.coords.longitude });
+                  },
+                  function () {
+                    addBubble('ai', 'I couldn’t access your location — please allow location access and try again.');
+                  }
+                );
+              },
+            });
+          }
+          addQuickReplies(replies);
         }
       })
       .catch(function () {

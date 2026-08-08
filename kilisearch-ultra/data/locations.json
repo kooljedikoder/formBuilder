@@ -1,0 +1,23 @@
+[
+  {
+    "country": "Nigeria",
+    "states": [
+      {
+        "state": "Lagos State",
+        "cities": [
+          {
+            "city": "Lagos",
+            "areas": [
+              { "name": "Lekki", "aliases": ["lekki phase 1", "lekki phase1"], "latitude": 6.4435, "longitude": 3.4708 },
+              { "name": "Victoria Island", "aliases": ["vi", "v.i", "victoria isl"], "latitude": 6.4281, "longitude": 3.4219 },
+              { "name": "Ikeja", "aliases": ["computer village"], "latitude": 6.6018, "longitude": 3.3515 },
+              { "name": "Yaba", "aliases": [], "latitude": 6.5095, "longitude": 3.3792 },
+              { "name": "Surulere", "aliases": [], "latitude": 6.5027, "longitude": 3.3572 },
+              { "name": "Ajah", "aliases": [], "latitude": 6.4667, "longitude": 3.5667 }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -36,13 +36,18 @@ class SearchEngine
             'phonetic_token' => 10,
             'location_bonus' => 15,
             'verified_bonus' => 3,
+            'context_location_bonus' => 35,
+            'context_sector_bonus' => 20,
+            'context_category_bonus' => 30,
+            'context_subcategory_bonus' => 35,
         ];
     }
 
     /**
-     * @param array{category?:string,location?:string,verified?:bool} $filters
+     * @param array{category?:string,location?:string,sector?:string,verified?:bool} $filters hard filters (chip clicks, explicit params)
+     * @param array{location?:?string,sector?:?string,category?:?string,subcategory?:?string} $context soft ranking hints extracted from free text by LocationEngine/TaxonomyEngine
      */
-    public function search(string $query, array $filters = [], int $limit = 20, int $offset = 0): array
+    public function search(string $query, array $filters = [], array $context = [], int $limit = 20, int $offset = 0): array
     {
         $query = trim($query);
         $tokens = $this->tokenize($query);
@@ -56,7 +61,7 @@ class SearchEngine
                 continue;
             }
 
-            $score = $this->scoreRecord($record, $query, $tokens);
+            $score = $this->scoreRecord($record, $query, $tokens, $context);
 
             if ($score > 0) {
                 $scored[] = ['record' => $record, 'score' => $score];
@@ -106,6 +111,9 @@ class SearchEngine
         if (!empty($filters['category']) && mb_strtolower($record['category'] ?? '') !== mb_strtolower($filters['category'])) {
             return false;
         }
+        if (!empty($filters['sector']) && mb_strtolower($record['sector'] ?? '') !== mb_strtolower($filters['sector'])) {
+            return false;
+        }
         if (!empty($filters['location']) && mb_strtolower($record['location'] ?? '') !== mb_strtolower($filters['location'])) {
             return false;
         }
@@ -116,10 +124,11 @@ class SearchEngine
         return true;
     }
 
-    private function scoreRecord(array $record, string $query, array $tokens): float
+    private function scoreRecord(array $record, string $query, array $tokens, array $context = []): float
     {
         $haystackFields = [
             'title' => $record['title'] ?? '',
+            'sector' => $record['sector'] ?? '',
             'category' => $record['category'] ?? '',
             'subcategory' => $record['subcategory'] ?? '',
             'location' => $record['location'] ?? '',
@@ -138,8 +147,36 @@ class SearchEngine
             $score += $this->scoreToken($token, $haystackFields, $fullHaystack);
         }
 
+        $score += $this->scoreContext($record, $context);
+
         if ($score > 0 && !empty($record['verified'])) {
             $score += $this->weights['verified_bonus'];
+        }
+
+        return $score;
+    }
+
+    /**
+     * Bonus for records that match a location/sector/category/subcategory
+     * detected by LocationEngine/TaxonomyEngine from the free-text query
+     * (e.g. "vi" resolved to "Victoria Island", or "mechanic" resolved to
+     * the Automotive > Vehicle Repair > Mechanic taxonomy path).
+     */
+    private function scoreContext(array $record, array $context): float
+    {
+        $score = 0.0;
+
+        if (!empty($context['location']) && mb_strtolower($record['location'] ?? '') === mb_strtolower($context['location'])) {
+            $score += $this->weights['context_location_bonus'];
+        }
+        if (!empty($context['sector']) && mb_strtolower($record['sector'] ?? '') === mb_strtolower($context['sector'])) {
+            $score += $this->weights['context_sector_bonus'];
+        }
+        if (!empty($context['category']) && mb_strtolower($record['category'] ?? '') === mb_strtolower($context['category'])) {
+            $score += $this->weights['context_category_bonus'];
+        }
+        if (!empty($context['subcategory']) && mb_strtolower($record['subcategory'] ?? '') === mb_strtolower($context['subcategory'])) {
+            $score += $this->weights['context_subcategory_bonus'];
         }
 
         return $score;
@@ -151,23 +188,27 @@ class SearchEngine
         $best = 0.0;
 
         // Exact / partial token match against structured fields.
-        foreach (['title', 'category', 'subcategory', 'tags'] as $key) {
+        foreach (['title', 'sector', 'category', 'subcategory', 'tags'] as $key) {
             $fieldValue = mb_strtolower($fields[$key]);
             $words = preg_split('/\s+/', $fieldValue) ?: [];
 
             if (in_array($tokenLower, $words, true)) {
                 $best = max($best, $this->weights['exact_token']);
-            } elseif (str_contains($fieldValue, $tokenLower)) {
+            } elseif ($this->isSubstringEligible($tokenLower) && str_contains($fieldValue, $tokenLower)) {
                 $best = max($best, $this->weights['partial_token']);
             }
         }
 
         // Location gets its own bonus so "mechanic lekki" ranks location matches too.
-        if (str_contains(mb_strtolower($fields['location']), $tokenLower)) {
+        // Short aliases like "vi" are resolved exactly by LocationEngine's context
+        // bonus instead — substring matching them here would false-positive against
+        // any field containing that letter pair (e.g. "servicing", "delivery").
+        $locationWords = preg_split('/\s+/', mb_strtolower($fields['location'])) ?: [];
+        if (in_array($tokenLower, $locationWords, true) || ($this->isSubstringEligible($tokenLower) && str_contains(mb_strtolower($fields['location']), $tokenLower))) {
             $best = max($best, $this->weights['location_bonus']);
         }
 
-        if (str_contains(mb_strtolower($fields['description']), $tokenLower)) {
+        if ($this->isSubstringEligible($tokenLower) && str_contains(mb_strtolower($fields['description']), $tokenLower)) {
             $best = max($best, $this->weights['partial_token']);
         }
 
@@ -189,6 +230,12 @@ class SearchEngine
         }
 
         return $best;
+    }
+
+    /** Substring ("contains") matching is only meaningful for tokens of 3+ chars — shorter tokens match too much noise. */
+    private function isSubstringEligible(string $token): bool
+    {
+        return mb_strlen($token) >= 3;
     }
 
     private function matchesSynonym(string $token, string $fullHaystack): bool

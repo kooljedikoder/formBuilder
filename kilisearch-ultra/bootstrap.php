@@ -3,9 +3,15 @@
 require_once __DIR__ . '/adapters/StorageInterface.php';
 require_once __DIR__ . '/adapters/JsonAdapter.php';
 require_once __DIR__ . '/core/SearchEngine.php';
+require_once __DIR__ . '/core/LocationEngine.php';
+require_once __DIR__ . '/core/TaxonomyEngine.php';
+require_once __DIR__ . '/core/SourceRegistry.php';
 
 use Kili\Adapters\JsonAdapter;
 use Kili\Core\SearchEngine;
+use Kili\Core\LocationEngine;
+use Kili\Core\TaxonomyEngine;
+use Kili\Core\SourceRegistry;
 
 /** Reads a JSON config file, returning [] if it doesn't exist or is invalid. */
 function kili_read_json(string $path): array
@@ -37,6 +43,36 @@ function kili_search_engine(): SearchEngine
     }
 
     return $engine;
+}
+
+function kili_location_engine(): LocationEngine
+{
+    static $engine = null;
+    if ($engine === null) {
+        $engine = new LocationEngine(kili_read_json(__DIR__ . '/data/locations.json'));
+    }
+
+    return $engine;
+}
+
+function kili_taxonomy_engine(): TaxonomyEngine
+{
+    static $engine = null;
+    if ($engine === null) {
+        $engine = new TaxonomyEngine(kili_read_json(__DIR__ . '/data/taxonomy.json'));
+    }
+
+    return $engine;
+}
+
+function kili_source_registry(): SourceRegistry
+{
+    static $registry = null;
+    if ($registry === null) {
+        $registry = new SourceRegistry(kili_read_json(__DIR__ . '/data/sources.json'));
+    }
+
+    return $registry;
 }
 
 function kili_branding(): array
