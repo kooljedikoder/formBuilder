@@ -7,9 +7,11 @@
   var input = document.getElementById('kili-input');
   var suggestionsBox = document.getElementById('kili-suggestions');
   var chips = document.getElementById('kili-chips');
+  var themeToggle = document.getElementById('kili-theme-toggle');
   var branding = window.KILI_BRANDING || {};
   var lastResults = [];
   var suggestTimer = null;
+  var lastUserTick = null;
 
   function el(tag, className, html) {
     var node = document.createElement(tag);
@@ -24,9 +26,36 @@
 
   function addBubble(role, text) {
     var bubble = el('div', 'kili-bubble ' + role, escapeHtml(text));
+    if (role === 'user') {
+      var tick = el('span', 'kili-tick', '&#10003;');
+      bubble.appendChild(tick);
+      lastUserTick = tick;
+    }
     chat.appendChild(bubble);
     scrollToBottom();
     return bubble;
+  }
+
+  /** Upgrades the most recent user message's tick from "sent" to "delivered" once a reply arrives. */
+  function markDelivered() {
+    if (lastUserTick) {
+      lastUserTick.innerHTML = '&#10003;&#10003;';
+      lastUserTick.classList.add('delivered');
+      lastUserTick = null;
+    }
+  }
+
+  function showTyping() {
+    hideTyping();
+    var bubble = el('div', 'kili-bubble ai kili-typing', '<span></span><span></span><span></span>');
+    bubble.id = 'kili-typing-bubble';
+    chat.appendChild(bubble);
+    scrollToBottom();
+  }
+
+  function hideTyping() {
+    var existing = document.getElementById('kili-typing-bubble');
+    if (existing) existing.remove();
   }
 
   function addQuickReplies(replies) {
@@ -187,9 +216,12 @@
       params.set('lng', filters.lng);
     }
 
+    showTyping();
     return fetch(API_BASE + 'search.php?' + params.toString())
       .then(function (res) { return res.json(); })
       .then(function (payload) {
+        hideTyping();
+        markDelivered();
         if (!payload.success) {
           addBubble('ai', payload.error && payload.error.message ? payload.error.message : 'Something went wrong.');
           return;
@@ -206,6 +238,7 @@
         }
       })
       .catch(function () {
+        hideTyping();
         addBubble('ai', 'I’m having trouble reaching the search service. Please try again.');
       });
   }
@@ -216,6 +249,7 @@
   // reply text itself comes from config/conversation.json, so an admin
   // can edit tone/wording without touching this file.
   function runChat(message) {
+    showTyping();
     return fetch(API_BASE + 'chat.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -223,6 +257,8 @@
     })
       .then(function (res) { return res.json(); })
       .then(function (payload) {
+        hideTyping();
+        markDelivered();
         if (!payload.success) {
           addBubble('ai', payload.error && payload.error.message ? payload.error.message : 'Something went wrong.');
           return;
@@ -264,6 +300,7 @@
         }
       })
       .catch(function () {
+        hideTyping();
         addBubble('ai', 'I’m having trouble reaching the chat service. Please try again.');
       });
   }
@@ -324,13 +361,50 @@
     }
   });
 
+  // Chips are prompts, not direct actions: clicking one fills the search
+  // input (the single "search prompt" surface) so the user can send it
+  // as-is or add more text — e.g. tap "Automotive" then type " in lekki".
   chips.addEventListener('click', function (e) {
     var chip = e.target.closest('.kili-chip');
     if (!chip) return;
     var sector = chip.getAttribute('data-sector');
-    addBubble('user', sector);
-    runSearch(sector, { sector: sector });
+    input.value = sector + ' ';
+    input.focus();
+    hideSuggestions();
   });
+
+  // Theme toggle: defaults to the OS/browser preference (handled in CSS),
+  // an explicit choice is remembered in localStorage and wins from then on.
+  var THEME_KEY = 'kili-theme';
+
+  function systemPrefersDark() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  function isDarkActive() {
+    var explicit = document.documentElement.getAttribute('data-theme');
+    if (explicit === 'dark') return true;
+    if (explicit === 'light') return false;
+    return systemPrefersDark();
+  }
+
+  function applyTheme(theme) {
+    if (theme === 'dark' || theme === 'light') {
+      document.documentElement.setAttribute('data-theme', theme);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    if (themeToggle) themeToggle.textContent = isDarkActive() ? '☀️' : '🌙';
+  }
+
+  if (themeToggle) {
+    applyTheme(localStorage.getItem(THEME_KEY));
+    themeToggle.addEventListener('click', function () {
+      var next = isDarkActive() ? 'light' : 'dark';
+      localStorage.setItem(THEME_KEY, next);
+      applyTheme(next);
+    });
+  }
 
   addBubble('ai', branding.welcome_message || 'Hi, what are you looking for today?');
 })();

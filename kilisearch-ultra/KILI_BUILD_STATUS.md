@@ -148,7 +148,26 @@ templates (quote/booking/vendor/etc.), an admin UI for reviewing `query_log.json
 promoting entries to `faq.json` (currently a manual JSON edit), admin console generally,
 widget/SDK, PWA (`manifest.json` + `sw.js`), SQLite/MySQL/PostgreSQL adapters,
 multilingual packs, analytics, security hardening (CSRF/rate limiting/roles), installer
-wizard. Each should land as its own reviewed, tested slice.
+wizard. Also not yet built, from the requested chat-UX list: voice input, file/media
+attachment, emoji reactions on a response, and bot media responses — see below for
+what *is* done from that list.
+
+### Chat UI polish (dark mode, typing indicator, ticks, animation)
+
+| Area | File(s) | Status |
+|---|---|---|
+| **Dark / light theme toggle** | `portal/index.php` (toggle button in header), `assets/css/kili.css` — CSS variables (`--kili-surface`, `--kili-border`, `--kili-muted` added alongside the existing branding-driven vars) redefined under `@media (prefers-color-scheme: dark)` for automatic OS-following, and again under `:root[data-theme="dark"]` for the explicit toggle (persisted via `localStorage`, wins in both directions) | Done |
+| **Chip behavior change** | `assets/js/kili.js` — sector chips now **fill the search input** (e.g. "Automotive ") instead of firing a search immediately, so the input is the single "search prompt" surface and chip text can be extended before sending (e.g. "Automotive mechanic in lekki"). Verified this still returns correct results via the existing sector-field token matching, not a behavior regression | Done |
+| **Typing/loading indicator** | A bouncing-dots bubble shown during every `search.php`/`chat.php` fetch, removed when the response (or an error) arrives | Done |
+| **Two-tick delivery indicator** | Every user message shows a single tick immediately ("sent"); it upgrades to a double tick the moment a reply arrives ("delivered") — cosmetic, since this is a single user↔bot exchange with no real multi-party delivery state | Done |
+| **Entrance animation** | Bubbles, quick-reply rows and result cards fade + slide up as they're added, via a CSS keyframe (`kili-rise`) | Done |
+
+Verified via Playwright: chip click fills the input without auto-searching, the
+follow-up search still returns correct results; typing indicator appears and is gone
+by the time results render; tick upgrades from single to double after a response;
+theme toggle changes the background color, and the choice survives a page reload.
+Screenshots taken in both themes — chips, cards, quick replies and the search bar all
+read cleanly in both.
 
 ## Suggested next phase
 
@@ -165,6 +184,12 @@ Other candidates, smaller and independent of that:
 2. **Authentication-in-chat** — the form engine currently assumes guest submissions;
    the session-based form state already exists and just needs to survive a
    redirect/login step rather than being invented from scratch.
+3. **Rest of the chat-UX list**: emoji reaction on a response (smallest — a row of
+   buttons + a lightweight feedback log, similar shape to the memory engine's query
+   log), file attachment in chat (needs an upload endpoint + storage), voice input
+   (Web Speech API — no backend needed, but more integration work: permissions,
+   browser support, error states), bot media responses (lower priority — no demo
+   listing currently has an image, so there's nothing to respond with yet).
 
 ## How to run locally
 

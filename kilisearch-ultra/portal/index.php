@@ -31,6 +31,7 @@ $colors = $branding['colors'] ?? [];
 <div id="kili-app" class="kili-app">
   <header class="kili-header">
     <div class="kili-header-title"><?= htmlspecialchars($branding['product_name'] ?? 'KiliGoogle.ai') ?></div>
+    <button id="kili-theme-toggle" class="kili-theme-toggle" type="button" aria-label="Toggle dark mode">&#127769;</button>
   </header>
 
   <div class="kili-chat" id="kili-chat"></div>
