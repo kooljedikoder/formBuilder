@@ -43,6 +43,9 @@ $colors = $branding['colors'] ?? [];
   </div>
 
   <form class="kili-searchbar" id="kili-searchbar" autocomplete="off">
+    <button type="button" id="kili-attach" class="kili-icon-btn" aria-label="Attach a file">&#128206;</button>
+    <input type="file" id="kili-attach-input" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" hidden>
+    <button type="button" id="kili-mic" class="kili-icon-btn" aria-label="Speak your search" hidden>&#127908;</button>
     <input
       type="search"
       id="kili-input"

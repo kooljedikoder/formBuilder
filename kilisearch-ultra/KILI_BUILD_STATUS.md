@@ -140,17 +140,66 @@ data gets brought in.
 
 *(Originally built as a separate `FaqEngine` + a loose query-logging function; consolidated into one `MemoryEngine` pillar alongside Search and Conversational — same behavior, cleaner architecture.)*
 
+### Chat UX: reactions, attachments, voice, media (this session)
+
+| Area | File(s) | Status |
+|---|---|---|
+| **Emoji reactions** | `assets/js/kili.js` (reaction row under "final answer" bubbles: find_service/FAQ/small-talk, not breadcrumbs or form questions), `api/feedback.php` + `kili_record_feedback()` — append-only log, same shape as query logging | Done |
+| **File attachment** | `api/upload.php` — validates by **sniffed content** (`finfo`), not client-claimed type/filename (prevents a renamed `.php` posing as `.jpg`); allowlist is JPG/PNG/GIF/WEBP/PDF only (SVG/HTML excluded — script-content risk); stores under a random filename in `storage/uploads/`, which has its own `.htaccess` disabling script execution and denying HTML/SVG/JS. `api/chat.php` acknowledges an attachment as its own turn, ahead of form-state/intent handling | Done |
+| **Voice input** | `assets/js/kili.js` — Web Speech API, feature-detected (mic button stays `hidden` if unsupported). Fills the input rather than auto-submitting, same "review before sending" pattern as chip-fill, since misheard transcripts are common | Done — **with a caveat**, see Verified below |
+| **Bot media responses + card images** | `renderCard()` now shows `record.image` as a card thumbnail; FAQ entries in `data/faq.json` can carry an `image` shown alongside the answer. One demo listing (ABC Auto Services) and one FAQ entry ("what areas do you cover") were given real inline-generated SVG images (data URIs, no external fetch) to prove both paths render, not just in theory | Done |
+
+### Database credentials + real remote connections (this session)
+
+The `.env`-backed Connection Manager postponed earlier now exists, and was tested
+against an **actual local PostgreSQL server** started in this environment — not mocked.
+
+| Area | File(s) | Status |
+|---|---|---|
+| **Connection Manager** | `core/ConnectionManager.php` — named profiles loaded from `.env` via `kili_load_env()`/`kili_connection_manager()` in `bootstrap.php`. `profile()` returns everything except the password (safe for a browser); `credentials()` (internal only) includes it. `testConnection()`, `listTables()`, `fetchRows()` (table name validated as a plain identifier — no SQL injection surface) | Done |
+| **Storing credentials safely** | `.env` (gitignored — see `kilisearch-ultra/.gitignore`) + `.env.example` template committed instead. Root `.htaccess` now denies any `.env*` request. `kili_save_env_profile()` writes/updates one profile's keys without disturbing the rest of the file; an empty password field on update means "keep the existing one," never "clear it" | Done |
+| **Admin screen** | `admin/connections.php` — plain server-rendered PHP (no JS framework, no build step, consistent with the rest of the app): list profiles (masked) with a Test button, an Add-connection form, per-profile table listing, and a Detect → Preview → Publish flow for turning a live DB table into a new switchable data source | Done |
+| **JSON API** | `api/connections.php` (list/test/save/tables) for programmatic use | Done |
+| **DB rows feed the existing pipeline** | `api/import.php` now accepts `{"connection": "...", "table": "..."}` as a third row source alongside file upload and JSON rows — same `SchemaDetector` detect/preview/publish flow either way. Published sources are tagged with real provenance (`type: "postgres"`, not generic `"import"`) | Done |
+
+**Verified against a real database, not mocked**: created a throwaway Postgres user/
+database/table in this environment, then via `admin/connections.php` in an actual
+browser: listed the saved profile (password never shown), tested the connection
+(success), tested again with a **deliberately wrong password** (failed cleanly with a
+real PDO error message, no crash), listed real tables, detected the real schema of a
+2-row table (`business_name→title`, `phone_number→phone`, ...), previewed the mapped
+result, and published it as a new active data source — then confirmed via `search.php`
+that the live-DB-sourced rows were immediately searchable with correct source
+provenance. The test database/user were dropped afterward; nothing DB-specific ships
+in the repo, only the mechanism.
+
+**Explicit scope limit — "index & cache" only, not "live query"**: Kili pulls rows
+from the database once (via Detect/Publish) into a local JSON dataset and searches
+that, the same as every other data source. It does **not** query the database on every
+search — that "live query" mode from the original plan would need a PDO-backed
+`SearchEngine` adapter, which isn't built. For data that changes constantly, re-running
+Publish is currently the refresh mechanism; there's no scheduled sync.
+
+**Voice input caveat**: this sandboxed environment has no real microphone and no
+network path to the browser's speech-recognition backend, so live transcription itself
+could not be tested end-to-end. What *was* verified: feature detection (the mic button
+correctly appears only when `SpeechRecognition` exists in the browser) and that
+`recognition.start()` doesn't throw and the error path correctly resets the UI when the
+speech service is unreachable. The actual "hear speech → get text" round trip needs
+testing in a real browser with microphone access, which this environment cannot provide.
+
 ## Explicitly NOT built yet (postponed)
 
-Remote DB connections / `.env` config / connection manager, API connector with response
-mapping, authentication-in-chat, dynamic/cascading form fields, additional form
-templates (quote/booking/vendor/etc.), an admin UI for reviewing `query_log.json` and
-promoting entries to `faq.json` (currently a manual JSON edit), admin console generally,
-widget/SDK, PWA (`manifest.json` + `sw.js`), SQLite/MySQL/PostgreSQL adapters,
-multilingual packs, analytics, security hardening (CSRF/rate limiting/roles), installer
-wizard. Also not yet built, from the requested chat-UX list: voice input, file/media
-attachment, emoji reactions on a response, and bot media responses — see below for
-what *is* done from that list.
+API connector with response mapping (a generic REST API as a data source — separate
+from the DB connection work above), authentication-in-chat, dynamic/cascading form
+fields, additional form templates (quote/booking/vendor/etc.), an admin UI for
+reviewing `query_log.json` and promoting entries to `faq.json` (currently a manual JSON
+edit), a broader admin console, widget/SDK, PWA (`manifest.json` + `sw.js`), a
+PDO-backed "live query" SearchEngine adapter (see above), multilingual packs,
+analytics, security hardening beyond what's described above (CSRF, rate limiting,
+roles/auth on the admin screen itself — `admin/connections.php` has no login gate yet,
+which is fine for local dev but must be addressed before any real deployment),
+installer wizard.
 
 ### Chat UI polish (dark mode, typing indicator, ticks, animation)
 
@@ -171,25 +220,21 @@ read cleanly in both.
 
 ## Suggested next phase
 
-Explicitly next, per direction: a **database credentials config screen** — the
-`.env`-backed Connection Manager (host/port/database/username/password, SSL, one or
-more named profiles) postponed until the local-file Data Source Engine existed. That
-now exists, so the natural extension is a new source `type` (`mysql`/`postgres`) whose
-credentials live in `.env` (never in `config/data_sources.json`, never sent to the
-browser) and a PDO-backed adapter alongside `JsonAdapter`.
+The entire chat-UX list and the DB connection manager from earlier are now done. What's
+left, roughly in priority order:
 
-Other candidates, smaller and independent of that:
-1. **Admin FAQ-promotion screen** — a small page listing `query_log.json` sorted by
+1. **Secure `admin/connections.php`** — it currently has no login gate. Fine for local
+   dev, not acceptable to deploy as-is: anyone who finds the URL can add/test database
+   connections. This should be the very next thing before this goes anywhere near a
+   real server.
+2. **Admin FAQ-promotion screen** — a small page listing `query_log.json` sorted by
    count, with a "Save as FAQ" button that writes a curated answer into `faq.json`.
-2. **Authentication-in-chat** — the form engine currently assumes guest submissions;
+3. **Authentication-in-chat** — the form engine currently assumes guest submissions;
    the session-based form state already exists and just needs to survive a
    redirect/login step rather than being invented from scratch.
-3. **Rest of the chat-UX list**: emoji reaction on a response (smallest — a row of
-   buttons + a lightweight feedback log, similar shape to the memory engine's query
-   log), file attachment in chat (needs an upload endpoint + storage), voice input
-   (Web Speech API — no backend needed, but more integration work: permissions,
-   browser support, error states), bot media responses (lower priority — no demo
-   listing currently has an image, so there's nothing to respond with yet).
+4. **"Live query" mode** — if the DB-backed data needs to reflect changes in real time
+   rather than through re-publishing, that needs a PDO-backed `SearchEngine` adapter
+   (querying the DB per search instead of caching to JSON).
 
 ## How to run locally
 

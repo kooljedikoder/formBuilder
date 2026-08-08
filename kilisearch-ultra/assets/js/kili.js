@@ -8,6 +8,9 @@
   var suggestionsBox = document.getElementById('kili-suggestions');
   var chips = document.getElementById('kili-chips');
   var themeToggle = document.getElementById('kili-theme-toggle');
+  var attachBtn = document.getElementById('kili-attach');
+  var attachInput = document.getElementById('kili-attach-input');
+  var micBtn = document.getElementById('kili-mic');
   var branding = window.KILI_BRANDING || {};
   var lastResults = [];
   var suggestTimer = null;
@@ -24,7 +27,32 @@
     chat.scrollTop = chat.scrollHeight;
   }
 
-  function addBubble(role, text) {
+  var REACTION_EMOJI = ['😍', '👍', '😐', '👎'];
+
+  function buildReactionRow(replyText) {
+    var wrap = el('div', 'kili-reactions');
+    REACTION_EMOJI.forEach(function (emoji) {
+      var btn = el('button', 'kili-reaction', emoji);
+      btn.type = 'button';
+      btn.setAttribute('aria-label', 'React with ' + emoji);
+      btn.addEventListener('click', function () {
+        Array.prototype.forEach.call(wrap.querySelectorAll('.kili-reaction'), function (b) {
+          b.classList.remove('selected');
+        });
+        btn.classList.add('selected');
+        fetch(API_BASE + 'feedback.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emoji: emoji, reply: replyText }),
+        }).catch(function () {});
+      });
+      wrap.appendChild(btn);
+    });
+    return wrap;
+  }
+
+  /** withReaction adds an emoji-reaction row under this bubble — used for "final answer" AI replies, not breadcrumbs or mid-form questions. */
+  function addBubble(role, text, withReaction) {
     var bubble = el('div', 'kili-bubble ' + role, escapeHtml(text));
     if (role === 'user') {
       var tick = el('span', 'kili-tick', '&#10003;');
@@ -32,6 +60,9 @@
       lastUserTick = tick;
     }
     chat.appendChild(bubble);
+    if (role === 'ai' && withReaction) {
+      chat.appendChild(buildReactionRow(text));
+    }
     scrollToBottom();
     return bubble;
   }
@@ -56,6 +87,53 @@
   function hideTyping() {
     var existing = document.getElementById('kili-typing-bubble');
     if (existing) existing.remove();
+  }
+
+  function addAttachmentBubble(file) {
+    var bubble = el('div', 'kili-bubble user kili-attachment');
+    if (file.mime && file.mime.indexOf('image/') === 0) {
+      var img = document.createElement('img');
+      img.src = file.url;
+      img.alt = file.filename || 'Attachment';
+      img.className = 'kili-attachment-img';
+      bubble.appendChild(img);
+    } else {
+      var link = el('a', 'kili-attachment-file', '&#128196; ' + escapeHtml(file.filename || 'Attachment'));
+      link.href = file.url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      bubble.appendChild(link);
+    }
+    var tick = el('span', 'kili-tick', '&#10003;');
+    bubble.appendChild(tick);
+    lastUserTick = tick;
+    chat.appendChild(bubble);
+    scrollToBottom();
+  }
+
+  /** Sends an already-uploaded file to the bot as its own turn — acknowledged by chat.php ahead of any form/intent handling. */
+  function sendAttachment(file) {
+    addAttachmentBubble(file);
+    showTyping();
+    return fetch(API_BASE + 'chat.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: '(attachment)', attachment: file }),
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (payload) {
+        hideTyping();
+        markDelivered();
+        if (payload.success) {
+          addBubble('ai', payload.data.reply, true);
+        } else {
+          addBubble('ai', payload.error && payload.error.message ? payload.error.message : 'Something went wrong.');
+        }
+      })
+      .catch(function () {
+        hideTyping();
+        addBubble('ai', 'I’m having trouble reaching the chat service. Please try again.');
+      });
   }
 
   function addQuickReplies(replies) {
@@ -89,6 +167,14 @@
 
   function renderCard(record) {
     var card = el('div', 'kili-card');
+
+    if (record.image) {
+      var thumb = document.createElement('img');
+      thumb.src = record.image;
+      thumb.alt = record.title;
+      thumb.className = 'kili-card-image';
+      card.appendChild(thumb);
+    }
 
     var top = el('div', 'kili-card-top');
     top.appendChild(el('div', 'kili-card-title', escapeHtml(record.title) + (record.verified ? '<span class="kili-badge">Verified</span>' : '')));
@@ -230,7 +316,7 @@
         var count = payload.meta.total;
         var breadcrumb = detectedBreadcrumb(payload.meta.detected);
         if (breadcrumb) addBubble('ai', breadcrumb);
-        addBubble('ai', payload.meta.reply || defaultSummary(query, count));
+        addBubble('ai', payload.meta.reply || defaultSummary(query, count), true);
         renderResults(payload.data);
 
         if (count > 1) {
@@ -281,7 +367,16 @@
 
         var breadcrumb = detectedBreadcrumb(data.detected);
         if (breadcrumb) addBubble('ai', breadcrumb);
-        addBubble('ai', data.reply || defaultSummary(message, data.total));
+        addBubble('ai', data.reply || defaultSummary(message, data.total), true);
+
+        if (data.image) {
+          var media = document.createElement('img');
+          media.src = data.image;
+          media.alt = '';
+          media.className = 'kili-media';
+          chat.appendChild(media);
+          scrollToBottom();
+        }
 
         if (data.results && data.results.length) {
           renderResults(data.results);
@@ -372,6 +467,73 @@
     input.focus();
     hideSuggestions();
   });
+
+  // File attachment: pick a file, upload it, then send it to the bot as
+  // its own turn (see sendAttachment). Validation (type/size) is enforced
+  // server-side in api/upload.php; the accept="" attribute is just a UI hint.
+  if (attachBtn && attachInput) {
+    attachBtn.addEventListener('click', function () { attachInput.click(); });
+
+    attachInput.addEventListener('change', function () {
+      var file = attachInput.files[0];
+      if (!file) return;
+
+      var formData = new FormData();
+      formData.append('file', file);
+      attachBtn.disabled = true;
+
+      fetch(API_BASE + 'upload.php', { method: 'POST', body: formData })
+        .then(function (res) { return res.json(); })
+        .then(function (payload) {
+          attachBtn.disabled = false;
+          attachInput.value = '';
+          if (!payload.success) {
+            addBubble('ai', payload.error && payload.error.message ? payload.error.message : 'Could not upload that file.');
+            return;
+          }
+          sendAttachment(payload.data);
+        })
+        .catch(function () {
+          attachBtn.disabled = false;
+          addBubble('ai', 'I’m having trouble uploading that file. Please try again.');
+        });
+    });
+  }
+
+  // Voice input: Web Speech API, feature-detected. Fills the input rather
+  // than auto-submitting — same "review before sending" pattern as chip
+  // fill — since misheard transcripts are common and this avoids firing
+  // an accidental search.
+  var SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognitionImpl && micBtn) {
+    micBtn.hidden = false;
+    var recognition = new SpeechRecognitionImpl();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = navigator.language || 'en-US';
+
+    recognition.addEventListener('result', function (e) {
+      var transcript = e.results[0][0].transcript;
+      input.value = transcript;
+      input.focus();
+    });
+    recognition.addEventListener('end', function () { micBtn.classList.remove('listening'); });
+    recognition.addEventListener('error', function () { micBtn.classList.remove('listening'); });
+
+    micBtn.addEventListener('click', function () {
+      if (micBtn.classList.contains('listening')) {
+        recognition.stop();
+        return;
+      }
+      hideSuggestions();
+      micBtn.classList.add('listening');
+      try {
+        recognition.start();
+      } catch (err) {
+        micBtn.classList.remove('listening');
+      }
+    });
+  }
 
   // Theme toggle: defaults to the OS/browser preference (handled in CSS),
   // an explicit choice is remembered in localStorage and wins from then on.

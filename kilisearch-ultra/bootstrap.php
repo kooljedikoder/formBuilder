@@ -11,6 +11,7 @@ require_once __DIR__ . '/core/FormEngine.php';
 require_once __DIR__ . '/core/MemoryEngine.php';
 require_once __DIR__ . '/core/DataSourceEngine.php';
 require_once __DIR__ . '/core/SchemaDetector.php';
+require_once __DIR__ . '/core/ConnectionManager.php';
 
 use Kili\Adapters\JsonAdapter;
 use Kili\Core\SearchEngine;
@@ -22,6 +23,7 @@ use Kili\Core\FormEngine;
 use Kili\Core\MemoryEngine;
 use Kili\Core\DataSourceEngine;
 use Kili\Core\SchemaDetector;
+use Kili\Core\ConnectionManager;
 
 /** Reads a JSON config file, returning [] if it doesn't exist or is invalid. */
 function kili_read_json(string $path): array
@@ -32,6 +34,100 @@ function kili_read_json(string $path): array
     $data = json_decode(file_get_contents($path), true);
 
     return is_array($data) ? $data : [];
+}
+
+/** Simple KEY=VALUE .env parser. Credentials live only here, never in config/*.json, never echoed back by an API. */
+function kili_load_env(): array
+{
+    static $env = null;
+    if ($env === null) {
+        $env = [];
+        $path = __DIR__ . '/.env';
+        if (is_file($path)) {
+            foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+                $line = trim($line);
+                if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
+                    continue;
+                }
+                [$key, $value] = explode('=', $line, 2);
+                $env[trim($key)] = trim($value);
+            }
+        }
+    }
+
+    return $env;
+}
+
+function kili_connection_manager(): ConnectionManager
+{
+    static $manager = null;
+    if ($manager === null) {
+        $manager = new ConnectionManager(kili_load_env());
+    }
+
+    return $manager;
+}
+
+/**
+ * Writes/updates one connection profile's keys in .env, preserving
+ * everything else in the file. The password field is only written when
+ * provided (an empty password field means "keep the existing one" on
+ * update) and is never read back out by any API response.
+ */
+function kili_save_env_profile(string $name, array $fields): void
+{
+    $path = __DIR__ . '/.env';
+    $lines = is_file($path) ? file($path, FILE_IGNORE_NEW_LINES) : [];
+
+    $existingKeys = [];
+    foreach ($lines as $i => $line) {
+        if (preg_match('/^([A-Z0-9_]+)=/', trim($line), $m)) {
+            $existingKeys[$m[1]] = $i;
+        }
+    }
+
+    $upper = strtoupper($name);
+    $updates = [
+        'KILI_DB_' . $upper . '_DRIVER' => $fields['driver'],
+        'KILI_DB_' . $upper . '_HOST' => $fields['host'],
+        'KILI_DB_' . $upper . '_PORT' => $fields['port'],
+        'KILI_DB_' . $upper . '_DATABASE' => $fields['database'],
+        'KILI_DB_' . $upper . '_USERNAME' => $fields['username'],
+        'KILI_DB_' . $upper . '_SSL' => !empty($fields['ssl']) ? 'true' : 'false',
+    ];
+    if (!empty($fields['password'])) {
+        $updates['KILI_DB_' . $upper . '_PASSWORD'] = $fields['password'];
+    }
+
+    foreach ($updates as $key => $value) {
+        $line = $key . '=' . $value;
+        if (isset($existingKeys[$key])) {
+            $lines[$existingKeys[$key]] = $line;
+        } else {
+            $lines[] = $line;
+        }
+    }
+
+    $profilesKey = 'KILI_DB_PROFILES';
+    $existingProfiles = [];
+    foreach ($lines as $line) {
+        if (str_starts_with(trim($line), $profilesKey . '=')) {
+            $existingProfiles = array_values(array_filter(array_map('trim', explode(',', substr(trim($line), strlen($profilesKey) + 1)))));
+            break;
+        }
+    }
+    if (!in_array($name, $existingProfiles, true)) {
+        $existingProfiles[] = $name;
+    }
+
+    $profilesLine = $profilesKey . '=' . implode(',', $existingProfiles);
+    if (isset($existingKeys[$profilesKey])) {
+        $lines[$existingKeys[$profilesKey]] = $profilesLine;
+    } else {
+        array_unshift($lines, $profilesLine);
+    }
+
+    file_put_contents($path, implode("\n", $lines) . "\n", LOCK_EX);
 }
 
 function kili_data_source_engine(): DataSourceEngine
@@ -72,7 +168,7 @@ function kili_set_active_data_source(string $id): void
  * it as its own dataset" flow. Ties SchemaDetector into the Data Source
  * Engine. Returns the new source's config entry.
  */
-function kili_publish_data_source(string $name, array $rows, array $mapping): array
+function kili_publish_data_source(string $name, array $rows, array $mapping, string $provenanceType = 'import'): array
 {
     $slug = trim(preg_replace('/[^a-z0-9]+/', '-', mb_strtolower($name)), '-') ?: 'source-' . count($rows);
     $file = 'data/' . $slug . '.json';
@@ -81,7 +177,7 @@ function kili_publish_data_source(string $name, array $rows, array $mapping): ar
     $mapped = $detector->applyMapping($rows, $mapping);
 
     $sourceId = 'src-' . $slug;
-    kili_ensure_source($sourceId, 'import', $name);
+    kili_ensure_source($sourceId, $provenanceType, $name);
 
     $storage = new JsonAdapter(__DIR__ . '/' . $file);
     foreach ($mapped as $record) {
@@ -98,7 +194,7 @@ function kili_publish_data_source(string $name, array $rows, array $mapping): ar
         'name' => $name,
         'type' => 'json',
         'file' => $file,
-        'description' => 'Published via the schema detector on ' . gmdate('Y-m-d'),
+        'description' => ($provenanceType === 'import' ? 'Published via the schema detector on ' : 'Indexed from a ' . $provenanceType . ' database on ') . gmdate('Y-m-d'),
     ];
 
     $path = __DIR__ . '/config/data_sources.json';
@@ -286,6 +382,22 @@ function kili_memory_remember_query(string $query): void
             'last_asked_at' => gmdate('Y-m-d\TH:i:s\Z'),
         ];
     }
+
+    file_put_contents($path, json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/** Records an emoji reaction to a specific AI reply — append-only, same shape as query logging. */
+function kili_record_feedback(string $emoji, string $reply, array $context = []): void
+{
+    $path = __DIR__ . '/data/feedback.json';
+    $log = kili_read_json($path);
+
+    $log[] = [
+        'emoji' => $emoji,
+        'reply' => $reply,
+        'context' => $context,
+        'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
+    ];
 
     file_put_contents($path, json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
 }

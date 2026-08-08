@@ -31,6 +31,24 @@ function kili_chat_form_turn(FormEngine $formEngine, array $state, ?string $mess
 
 $input = json_decode(file_get_contents('php://input'), true) ?: [];
 $message = trim($input['message'] ?? ($_GET['message'] ?? ''));
+$attachment = $input['attachment'] ?? null;
+
+// An attachment is always acknowledged as its own turn, ahead of form
+// state / intent detection — it doesn't consume a pending form question,
+// since no current form field is a file type yet.
+if (is_array($attachment) && !empty($attachment['filename'])) {
+    echo json_encode([
+        'success' => true,
+        'data' => [
+            'intent' => 'attachment_ack',
+            'reply' => 'Got it — I\'ve received “' . $attachment['filename'] . '”. Someone from our team will take a look.',
+            'detected' => [],
+            'results' => [],
+            'total' => 0,
+        ],
+    ]);
+    exit;
+}
 
 if ($message === '') {
     http_response_code(422);
@@ -128,6 +146,7 @@ if ($faqMatch !== null) {
             'results' => $linked,
             'total' => count($linked),
             'faq_id' => $faqMatch['id'],
+            'image' => $faqMatch['image'] ?? null,
         ],
     ]);
     exit;

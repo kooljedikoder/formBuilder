@@ -44,13 +44,30 @@ if (!empty($_FILES['file']['tmp_name'])) {
     $rows = $body['rows'] ?? [];
 }
 
+// Rows can also come straight from a live database table (a configured
+// connection profile + table name) instead of an upload — same detect/
+// preview/import/publish flow either way, since it's all just "rows" by
+// the time SchemaDetector sees them.
+if (empty($rows) && !empty($body['connection']) && !empty($body['table'])) {
+    try {
+        $rows = kili_connection_manager()->fetchRows($body['connection'], $body['table'], (int) ($body['limit'] ?? 200));
+    } catch (\Throwable $e) {
+        http_response_code(422);
+        echo json_encode([
+            'success' => false,
+            'error' => ['code' => 'CONNECTION_ERROR', 'message' => $e->getMessage()],
+        ]);
+        exit;
+    }
+}
+
 if (empty($rows)) {
     http_response_code(422);
     echo json_encode([
         'success' => false,
         'error' => [
             'code' => 'VALIDATION_ERROR',
-            'message' => 'No rows to inspect. Upload a CSV as multipart field "file", or POST JSON {"rows": [...]}.',
+            'message' => 'No rows to inspect. Upload a CSV as multipart field "file", POST JSON {"rows": [...]}, or POST {"connection": "...", "table": "..."}.',
         ],
     ]);
     exit;
@@ -116,7 +133,12 @@ if ($action === 'publish') {
     }
 
     $mapping = $body['mapping'] ?? $schema['mapping'];
-    $newSource = kili_publish_data_source($name, $rows, $mapping);
+    $provenanceType = 'import';
+    if (!empty($body['connection'])) {
+        $connectionProfile = kili_connection_manager()->profile($body['connection']);
+        $provenanceType = $connectionProfile['driver'] ?? 'database';
+    }
+    $newSource = kili_publish_data_source($name, $rows, $mapping, $provenanceType);
 
     if (!empty($body['activate'])) {
         kili_set_active_data_source($newSource['id']);
