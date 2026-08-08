@@ -66,27 +66,30 @@ iterate on, rather than a disconnected mockup.
   "Hospitality" sector chip (previously broken) now returns Ocean Basket Lekki; "submarine
   repair in antarctica" adds zero new cards and gets a graceful "no matches" reply — no
   console errors throughout.
+- `api/import.php?action=import`: imported 2 test rows end to end — record count went
+  15 → 17, the new source ("Test CSV Import") was auto-registered in `sources.json`, and
+  the imported record was immediately searchable by title with correct source resolution
+  on the very next request (no separate re-index step, since the JSON file is the index).
+  Test data was reverted afterward so the shipped demo dataset stays clean.
 
 ## Explicitly NOT built yet (postponed per the revised V1 plan)
 
-Remote DB connections / `.env` config / connection manager, actually executing/indexing
-an import (detect+map+preview exists; committing it to `data.json` doesn't yet), API
-connector with response mapping, conversational forms/journeys, authentication-in-chat,
-dynamic/cascading form fields, admin console, widget/SDK, PWA (`manifest.json` + `sw.js`),
-SQLite/MySQL/PostgreSQL adapters, multilingual packs, analytics, security hardening
-(CSRF/rate limiting/roles), installer wizard. Each should land as its own reviewed,
-tested slice.
+Remote DB connections / `.env` config / connection manager, API connector with response
+mapping, conversational forms/journeys, authentication-in-chat, dynamic/cascading form
+fields, admin console, widget/SDK, PWA (`manifest.json` + `sw.js`), SQLite/MySQL/
+PostgreSQL adapters, multilingual packs, analytics, security hardening (CSRF/rate
+limiting/roles), installer wizard, FAQ/knowledge-base memory engine (design proposed,
+not yet built — see conversation notes). Each should land as its own reviewed, tested
+slice.
 
 ## Suggested next phase
 
-Two candidates, both now unblocked:
-1. **Finish the import pipeline** — `api/import.php` detects and previews; the missing
-   step is committing previewed rows to `data.json` (or a real adapter) and re-indexing.
-   Small, closes the loop on this session's schema detector.
-2. **Customer Forms** (V1 Phase 4) — the chat UI, reply engine and API envelope are now
-   solid enough to carry a form; a single "Request a Quote" template proving state
-   retention through the chat is the next structurally hard piece, and is what the V1
-   plan calls the most valuable feature.
+Customer Forms (V1 Phase 4) — the chat UI, reply engine and API envelope are now
+solid enough to carry a form; a single "Enquiry / Support Request" template proving
+state retention through the chat is the next structurally hard piece, and is what the
+V1 plan calls the most valuable feature. See conversation notes for the minimal scope
+proposed (one template, no auth, no cascading fields) and for a proposed FAQ/knowledge-
+base "memory of repeated questions" engine.
 
 Recommend (1) first since it's small and directly follows from this session's work,
 then (2).

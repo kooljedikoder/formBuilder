@@ -106,6 +106,22 @@ function kili_resolve_sources(array $records): array
     }, $records);
 }
 
+/** Registers a source in sources.json if it doesn't already exist (e.g. before an import commits records against it). */
+function kili_ensure_source(string $id, string $type, string $name): void
+{
+    $path = __DIR__ . '/data/sources.json';
+    $sources = kili_read_json($path);
+
+    foreach ($sources as $source) {
+        if ($source['id'] === $id) {
+            return;
+        }
+    }
+
+    $sources[] = ['id' => $id, 'type' => $type, 'name' => $name, 'url' => null, 'last_synced' => gmdate('Y-m-d\TH:i:s\Z')];
+    file_put_contents($path, json_encode($sources, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
 function kili_conversation_engine(): ConversationEngine
 {
     static $engine = null;

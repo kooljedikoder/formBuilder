@@ -71,6 +71,39 @@ if ($action === 'preview') {
     exit;
 }
 
+if ($action === 'import') {
+    $mapping = $body['mapping'] ?? $schema['mapping'];
+    $mapped = $detector->applyMapping($rows, $mapping);
+
+    $sourceId = $body['source_id'] ?? 'src-import';
+    kili_ensure_source($sourceId, 'import', $body['source_name'] ?? 'Imported Data');
+
+    $storage = kili_storage();
+    $imported = [];
+    foreach ($mapped as $record) {
+        if (empty($record['title'])) {
+            continue; // A record without even a title isn't a usable listing.
+        }
+        $record += [
+            'status' => 'active',
+            'verified' => false,
+            'tags' => [],
+        ];
+        $record['source_id'] = $sourceId;
+        $imported[] = $storage->save($record);
+    }
+
+    // No separate re-index step: the JsonAdapter file IS the index in this
+    // zero-DB architecture, so imported records are searchable immediately
+    // on the next request.
+    echo json_encode([
+        'success' => true,
+        'data' => ['imported' => count($imported), 'skipped' => count($mapped) - count($imported), 'records' => $imported],
+        'meta' => ['action' => 'import', 'source_id' => $sourceId],
+    ]);
+    exit;
+}
+
 echo json_encode([
     'success' => true,
     'data' => $schema,
