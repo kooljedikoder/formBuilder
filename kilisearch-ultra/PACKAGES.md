@@ -35,7 +35,7 @@ brand (Ultra) — rather than on chat polish.
 | Full record CRUD (create/edit/delete your data) | — | ✅ | ✅ |
 | Data export (JSON / CSV) and one-click backups | — | ✅ | ✅ |
 | CSV / JSON data import with auto field-mapping | — | — | ✅ |
-| Live database connections (MySQL / PostgreSQL) | — | — | ✅ |
+| Live database connections — cached snapshot or real-time live query | — | — | ✅ |
 | Multiple, swappable data sources | — | — | ✅ |
 | Remove "Powered by Killi" branding (white-label) | — | — | ✅ |
 
@@ -63,9 +63,20 @@ stash files on disk just because someone bypasses the button. `white_label` cont
 Free and Standard, gone on Ultra.
 
 `crud` unlocks `admin/records.php` (browse/search/create/edit/delete records in any
-configured data source), `admin/backup.php` (zip `data/` + `config/` on demand, list,
-download, delete), and export links (`api/export.php?format=json|csv`). All three are
-admin-only — this is you managing your own data, not a customer-facing capability.
+configured data source — except a live-query source, which stays read-only, see
+below), `admin/backup.php` (create/list/download/delete/restore a zip of `data/` +
+`config/` on demand), `admin/faq.php` (promote logged questions into curated FAQ
+answers), and export links (`api/export.php?format=json|csv`). All of this is
+admin-only — you managing your own data, not a customer-facing capability.
+
+`db_connections` unlocks connecting a MySQL/PostgreSQL database in
+`admin/connections.php` at all (test/preview/publish), in either of two modes: publish
+as a **cached snapshot** (rows copied into a JSON file once, editable via `crud`
+afterward — the original mode), or publish as a **live query** (search hits the
+database on every request via `core/DbAdapter.php`, so it reflects rows
+added/edited/removed in the table with no re-publishing — but read-only, since safely
+writing back to an arbitrary table schema is a separate, larger feature than reading
+from one).
 
 ## Activating a license
 

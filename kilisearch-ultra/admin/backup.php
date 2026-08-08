@@ -15,6 +15,11 @@ if (!is_dir($backupsDir)) {
 $do = $_REQUEST['do'] ?? '';
 $notice = null;
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !kili_verify_csrf($_POST['csrf'] ?? '')) {
+    $notice = ['type' => 'error', 'text' => 'Form expired — please reload and try again.'];
+    $do = '';
+}
+
 /** Only ever accept a bare filename matching our own naming scheme — the caller-supplied string never becomes part of a path we build. */
 function kili_backup_safe_name(string $name): ?string
 {
@@ -32,6 +37,54 @@ function kili_backup_add_dir(ZipArchive $zip, string $dir, string $zipRoot): voi
         $localPath = $zipRoot . '/' . ltrim(str_replace($base, '', $file->getPathname()), '/\\');
         $zip->addFile($file->getPathname(), $localPath);
     }
+}
+
+/**
+ * Restoring is the one operation here that writes attacker-influenceable
+ * content back into the app's own data/config directories, so entries are
+ * on an allowlist rather than trusted: exactly "data/<name>.json" or
+ * "config/<name>.json", flat (no subdirectories, no "..", no absolute
+ * paths), and the content itself must parse as valid JSON before it's
+ * written. Anything else in the archive is silently skipped, not merged.
+ */
+function kili_backup_restore(string $zipPath): array
+{
+    $zip = new ZipArchive();
+    if ($zip->open($zipPath) !== true) {
+        return ['restored' => 0, 'skipped' => 0, 'error' => 'Could not open that file as a zip archive.'];
+    }
+
+    $restored = 0;
+    $skipped = 0;
+    $root = realpath(__DIR__ . '/..');
+
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $name = $zip->getNameIndex($i);
+        if (!preg_match('#^(data|config)/[A-Za-z0-9_.-]+\.json$#', $name)) {
+            $skipped++;
+            continue;
+        }
+
+        $content = $zip->getFromName($name);
+        json_decode($content ?: '', true);
+        if ($content === false || json_last_error() !== JSON_ERROR_NONE) {
+            $skipped++;
+            continue;
+        }
+
+        $destination = $root . '/' . $name;
+        if (strncmp(realpath(dirname($destination)) ?: '', $root, strlen($root)) !== 0) {
+            $skipped++;
+            continue;
+        }
+
+        file_put_contents($destination, $content, LOCK_EX);
+        $restored++;
+    }
+
+    $zip->close();
+
+    return ['restored' => $restored, 'skipped' => $skipped, 'error' => null];
 }
 
 if (kili_has_feature('crud')) {
@@ -53,6 +106,25 @@ if (kili_has_feature('crud')) {
             $notice = ['type' => 'success', 'text' => "Deleted $safe."];
         } else {
             $notice = ['type' => 'error', 'text' => 'Unknown backup file.'];
+        }
+    } elseif ($do === 'restore_existing' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $safe = kili_backup_safe_name($_POST['file'] ?? '');
+        if (!$safe || !is_file($backupsDir . '/' . $safe)) {
+            $notice = ['type' => 'error', 'text' => 'Unknown backup file.'];
+        } else {
+            $result = kili_backup_restore($backupsDir . '/' . $safe);
+            $notice = $result['error']
+                ? ['type' => 'error', 'text' => $result['error']]
+                : ['type' => 'success', 'text' => "Restored {$result['restored']} file(s) from $safe." . ($result['skipped'] ? " Skipped {$result['skipped']} unrecognized entr" . ($result['skipped'] === 1 ? 'y' : 'ies') . '.' : '')];
+        }
+    } elseif ($do === 'restore_upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (empty($_FILES['restore_file']['tmp_name']) || $_FILES['restore_file']['error'] !== UPLOAD_ERR_OK) {
+            $notice = ['type' => 'error', 'text' => 'No valid zip file was uploaded.'];
+        } else {
+            $result = kili_backup_restore($_FILES['restore_file']['tmp_name']);
+            $notice = $result['error']
+                ? ['type' => 'error', 'text' => $result['error']]
+                : ['type' => 'success', 'text' => "Restored {$result['restored']} file(s) from the uploaded archive." . ($result['skipped'] ? " Skipped {$result['skipped']} unrecognized entr" . ($result['skipped'] === 1 ? 'y' : 'ies') . '.' : '')];
         }
     } elseif ($do === 'download') {
         $safe = kili_backup_safe_name($_GET['file'] ?? '');
@@ -106,6 +178,7 @@ function kili_format_bytes(int $bytes): string
   .notice.error { background: #fce8e6; color: #c5221f; }
   .upsell { background: #fef8e8; border: 1px solid #e0b23d; border-radius: 10px; padding: 16px; font-size: 14px; }
   button { padding: 8px 14px; border: none; border-radius: 6px; background: #1a73e8; color: #fff; font-size: 14px; cursor: pointer; }
+  button.secondary { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; }
   button.danger { background: #fff; color: #c5221f; border: 1px solid #c5221f; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
   table th, table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
@@ -121,6 +194,7 @@ function kili_format_bytes(int $bytes): string
     <span class="nav">
       <a href="connections.php">Connections</a>
       <a href="records.php">Records</a>
+      <a href="faq.php">FAQ</a>
     </span>
   </div>
   <p>Zips <code>data/</code> and <code>config/</code> — your listings, taxonomy, branding and package settings. Never includes <code>.env</code> (credentials).</p>
@@ -134,6 +208,7 @@ function kili_format_bytes(int $bytes): string
   <?php else: ?>
     <div class="card">
       <form method="post" action="?do=create">
+        <?= kili_csrf_field() ?>
         <button type="submit">Create backup now</button>
       </form>
     </div>
@@ -153,7 +228,14 @@ function kili_format_bytes(int $bytes): string
           <td>
             <a class="link" href="?do=download&amp;file=<?= urlencode($b['name']) ?>">Download</a>
             &nbsp;
+            <form class="inline" method="post" action="?do=restore_existing" onsubmit="return confirm('Restore will overwrite current data/ and config/ JSON files with this backup’s contents. Continue?')">
+              <?= kili_csrf_field() ?>
+              <input type="hidden" name="file" value="<?= htmlspecialchars($b['name']) ?>">
+              <button type="submit" class="secondary">Restore</button>
+            </form>
+            &nbsp;
             <form class="inline" method="post" action="?do=delete" onsubmit="return confirm('Delete this backup?')">
+              <?= kili_csrf_field() ?>
               <input type="hidden" name="file" value="<?= htmlspecialchars($b['name']) ?>">
               <button type="submit" class="danger">Delete</button>
             </form>
@@ -162,6 +244,16 @@ function kili_format_bytes(int $bytes): string
         <?php endforeach; ?>
       </table>
       <?php endif; ?>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0;font-size:15px">Restore from an uploaded backup</h2>
+      <p style="font-size:13px;color:#5f6368">Only recognizes flat <code>data/*.json</code> and <code>config/*.json</code> entries with valid JSON content — anything else in the zip is skipped, not merged. Overwrites the matching live files; doesn't remove files added since the backup was made.</p>
+      <form method="post" action="?do=restore_upload" enctype="multipart/form-data" onsubmit="return confirm('Restore will overwrite current data/ and config/ JSON files with this archive’s contents. Continue?')">
+        <?= kili_csrf_field() ?>
+        <input type="file" name="restore_file" accept=".zip" required>
+        <button type="submit" class="danger">Restore from this file</button>
+      </form>
     </div>
   <?php endif; ?>
 </div>

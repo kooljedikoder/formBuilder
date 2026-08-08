@@ -123,6 +123,10 @@
       .then(function (res) { return res.json(); })
       .then(function (payload) {
         hideTyping();
+        if (!payload.success && payload.error && payload.error.code === 'AUTH_REQUIRED') {
+          showUnlockPrompt(function () { sendAttachment(file); });
+          return;
+        }
         markDelivered();
         if (payload.success) {
           addBubble('ai', payload.data.reply, true);
@@ -147,6 +151,71 @@
     chat.appendChild(wrap);
     scrollToBottom();
     return wrap;
+  }
+
+  /**
+   * The app-wide password can be turned on by an admin while a visitor is
+   * mid-conversation (possibly mid-way through a multi-turn form). Rather
+   * than bouncing to a full-page login — which would lose the rendered
+   * chat transcript and any typed-but-unsent input — this shows an inline
+   * unlock prompt in the chat itself and, once unlocked, re-runs the exact
+   * same request via retryFn(). The server-side form/session state was
+   * never lost either way (it lives in the PHP session, independent of
+   * the app-password flag), so retrying picks up exactly where it left off.
+   */
+  function showUnlockPrompt(retryFn) {
+    var wrap = el('div', 'kili-unlock-prompt');
+    var text = el('p', 'kili-unlock-text', 'This app is password-protected. Enter the password to continue.');
+    var row = el('div', 'kili-unlock-row');
+    var pwInput = document.createElement('input');
+    pwInput.type = 'password';
+    pwInput.placeholder = 'Password';
+    pwInput.className = 'kili-unlock-input';
+    var btn = el('button', 'kili-unlock-btn', 'Unlock');
+    btn.type = 'button';
+    var errorEl = el('p', 'kili-unlock-error', '');
+    errorEl.hidden = true;
+
+    function submit() {
+      btn.disabled = true;
+      fetch(API_BASE + 'app_auth.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwInput.value }),
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (payload) {
+          btn.disabled = false;
+          if (payload.success) {
+            wrap.remove();
+            retryFn();
+          } else {
+            errorEl.textContent = (payload.error && payload.error.message) || 'Incorrect password.';
+            errorEl.hidden = false;
+            pwInput.value = '';
+            pwInput.focus();
+          }
+        })
+        .catch(function () {
+          btn.disabled = false;
+          errorEl.textContent = 'Could not reach the server. Please try again.';
+          errorEl.hidden = false;
+        });
+    }
+
+    btn.addEventListener('click', submit);
+    pwInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') submit();
+    });
+
+    row.appendChild(pwInput);
+    row.appendChild(btn);
+    wrap.appendChild(text);
+    wrap.appendChild(row);
+    wrap.appendChild(errorEl);
+    chat.appendChild(wrap);
+    scrollToBottom();
+    pwInput.focus();
   }
 
   function escapeHtml(str) {
@@ -344,6 +413,10 @@
       .then(function (res) { return res.json(); })
       .then(function (payload) {
         hideTyping();
+        if (!payload.success && payload.error && payload.error.code === 'AUTH_REQUIRED') {
+          showUnlockPrompt(function () { runChat(message); });
+          return;
+        }
         markDelivered();
         if (!payload.success) {
           addBubble('ai', payload.error && payload.error.message ? payload.error.message : 'Something went wrong.');

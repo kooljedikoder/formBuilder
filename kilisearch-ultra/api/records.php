@@ -74,7 +74,7 @@ try {
         }
         echo json_encode(['success' => $deleted, 'data' => ['id' => $id], 'meta' => []]);
     }
-} catch (\InvalidArgumentException $e) {
+} catch (\Throwable $e) {
     http_response_code(422);
     echo json_encode(['success' => false, 'error' => ['code' => 'VALIDATION_ERROR', 'message' => $e->getMessage()]]);
 }

@@ -32,6 +32,11 @@ if (kili_has_feature('crud')) {
 
     $do = $_REQUEST['do'] ?? '';
 
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !kili_verify_csrf($_POST['csrf'] ?? '')) {
+        $notice = ['type' => 'error', 'text' => 'Form expired — please reload and try again.'];
+        $do = '';
+    }
+
     if ($do === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $data = [];
         foreach (RECORD_FIELDS as $field) {
@@ -68,7 +73,7 @@ if (kili_has_feature('crud')) {
                     kili_record_audit('create', $sourceId, $record['id'], $record['title'] ?? '');
                     $notice = ['type' => 'success', 'text' => 'Created "' . $record['title'] . '".'];
                 }
-            } catch (\InvalidArgumentException $e) {
+            } catch (\Throwable $e) {
                 $notice = ['type' => 'error', 'text' => $e->getMessage()];
                 $editing = array_merge($data, ['id' => $_POST['id'] ?? '']);
             }
@@ -78,10 +83,16 @@ if (kili_has_feature('crud')) {
     } elseif ($do === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = $_POST['id'] ?? '';
         $existing = $crud->get($id);
-        if ($existing && $crud->delete($id)) {
+        try {
+            $deleted = $existing && $crud->delete($id);
+        } catch (\Throwable $e) {
+            $notice = ['type' => 'error', 'text' => $e->getMessage()];
+            $deleted = false;
+        }
+        if ($deleted) {
             kili_record_audit('delete', $sourceId, $id, $existing['title'] ?? '');
             $notice = ['type' => 'success', 'text' => 'Deleted "' . ($existing['title'] ?? $id) . '".'];
-        } else {
+        } elseif (!$notice) {
             $notice = ['type' => 'error', 'text' => 'Could not delete that record.'];
         }
     }
@@ -143,6 +154,7 @@ $sectorNames = array_column($taxonomy, 'sector');
     <span class="nav">
       <a href="connections.php">Connections</a>
       <a href="backup.php">Backups</a>
+      <a href="faq.php">FAQ</a>
     </span>
   </div>
   <p>Full create/read/update/delete over whichever data source you pick — the fourth pillar alongside Search, Conversation and Memory.</p>
@@ -160,9 +172,13 @@ $sectorNames = array_column($taxonomy, 'sector');
       <label>Data source</label>
       <select name="source" onchange="this.form.submit()">
         <?php foreach ($sources as $s): ?>
-          <option value="<?= htmlspecialchars($s['id']) ?>" <?= $s['id'] === $sourceId ? 'selected' : '' ?>><?= htmlspecialchars($s['name']) ?></option>
+          <option value="<?= htmlspecialchars($s['id']) ?>" <?= $s['id'] === $sourceId ? 'selected' : '' ?>><?= htmlspecialchars($s['name']) ?><?= ($s['type'] ?? 'json') === 'live_db' ? ' (live query)' : '' ?></option>
         <?php endforeach; ?>
       </select>
+      <?php $selectedSource = array_values(array_filter($sources, fn($s) => $s['id'] === $sourceId))[0] ?? null; ?>
+      <?php if (($selectedSource['type'] ?? 'json') === 'live_db'): ?>
+        <p style="font-size:12px;color:#5f6368;margin-top:8px">This source queries "<?= htmlspecialchars($selectedSource['table']) ?>" live via "<?= htmlspecialchars($selectedSource['connection']) ?>" — read-only, so add/edit/delete are disabled below.</p>
+      <?php endif; ?>
     </form>
   </div>
 
@@ -171,6 +187,7 @@ $sectorNames = array_column($taxonomy, 'sector');
     <div class="card">
       <h2 style="margin-top:0"><?= empty($record['id']) ? 'Add a new record' : 'Edit record' ?></h2>
       <form method="post" action="?do=save">
+        <?= kili_csrf_field() ?>
         <input type="hidden" name="source" value="<?= htmlspecialchars($sourceId) ?>">
         <input type="hidden" name="id" value="<?= htmlspecialchars($record['id'] ?? '') ?>">
 
@@ -277,13 +294,16 @@ $sectorNames = array_column($taxonomy, 'sector');
     </div>
   <?php else: ?>
 
+    <?php $isLiveSource = (($selectedSource['type'] ?? null) === 'live_db'); ?>
     <div class="toolbar">
       <form method="get">
         <input type="hidden" name="source" value="<?= htmlspecialchars($sourceId) ?>">
         <input type="search" name="q" placeholder="Search this source…" value="<?= htmlspecialchars($query) ?>">
         <button type="submit" class="secondary">Search</button>
       </form>
+      <?php if (!$isLiveSource): ?>
       <a href="?source=<?= urlencode($sourceId) ?>&amp;edit=new"><button type="button">Add a new record</button></a>
+      <?php endif; ?>
     </div>
 
     <div class="card">
@@ -297,13 +317,18 @@ $sectorNames = array_column($taxonomy, 'sector');
           <td><?= htmlspecialchars($r['status'] ?? '') ?><?= !empty($r['verified']) ? ' ✓' : '' ?></td>
           <td><?= htmlspecialchars(substr($r['updated_at'] ?? '', 0, 10)) ?></td>
           <td>
+            <?php if ($isLiveSource): ?>
+              <span style="color:#5f6368;font-size:12px">read-only</span>
+            <?php else: ?>
             <a class="link" href="?source=<?= urlencode($sourceId) ?>&amp;edit=<?= urlencode($r['id']) ?>">Edit</a>
             &nbsp;
             <form class="inline" method="post" action="?do=delete" onsubmit="return confirm('Delete this record?')">
+              <?= kili_csrf_field() ?>
               <input type="hidden" name="source" value="<?= htmlspecialchars($sourceId) ?>">
               <input type="hidden" name="id" value="<?= htmlspecialchars($r['id']) ?>">
               <button type="submit" class="danger">Delete</button>
             </form>
+            <?php endif; ?>
           </td>
         </tr>
         <?php endforeach; ?>

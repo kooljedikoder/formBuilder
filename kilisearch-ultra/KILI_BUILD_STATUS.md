@@ -439,27 +439,115 @@ Per explicit direction:
   a 404. All test-created records, backups, and mutated `.env`/`config/*.json`/
   `data/*.json` state were removed/reverted to the clean shipped defaults afterward.
 
+## Security, multi-admin, FAQ, chat-auth and live-query phase
+
+Closed out every item in the previous "Suggested next phase" list in one pass.
+
+- **CSRF protection** on every admin form (`connections.php`, `setup.php`,
+  `records.php`, `backup.php`, `faq.php`) — a per-session token (`kili_csrf_token()`
+  in `bootstrap.php`) rendered as a hidden field and checked on every POST before any
+  `do=` handler runs; a mismatch or missing token shows "Form expired" instead of
+  silently proceeding.
+- **Admin login rate limiting** — 5 failed attempts locks that IP out for 15 minutes
+  (`data/login_attempts.json`), checked *before* password verification so even a
+  correct password is rejected while locked. The login form disables its own inputs
+  while locked rather than just showing an error.
+- **Role-based admin access** — replaced the single shared `KILI_ADMIN_PASSWORD_HASH`
+  in `.env` with named accounts in `data/admins.json` (`kili_create_admin()`,
+  `kili_verify_admin_login()`, `kili_delete_admin()`, `kili_change_admin_password()`).
+  The setup wizard's first step now creates the first named admin instead of a bare
+  password; `connections.php` gained an "Admin accounts" card to add/remove admins
+  (can't delete yourself, can't delete the last remaining admin) and change your own
+  password. The audit log's `admin` field is now the real logged-in username
+  (`kili_current_admin_username()`) instead of the hardcoded string `"admin"`.
+- **FAQ-promotion screen** (`admin/faq.php`) — lists `query_log.json` sorted by
+  ask-count with a one-click "Save as FAQ" link that pre-fills the promotion form;
+  also lists and lets you edit/delete existing `faq.json` entries, and dismiss a
+  logged query without promoting it. Gated on the `memory` feature (Standard/Ultra),
+  matching the Memory engine it curates for.
+- **Auth-in-chat** — the app-wide password could previously be turned on by an admin
+  *while* a visitor was mid-conversation (possibly mid-way through the multi-turn
+  Enquiry form), and the next message would just fail. Added `api/app_auth.php` (a
+  JSON unlock endpoint) and an inline unlock prompt rendered directly into the chat
+  transcript (`showUnlockPrompt()` in `assets/js/kili.js`) whenever any chat/upload
+  call comes back `AUTH_REQUIRED` — no page reload, so the rendered transcript is
+  never lost, and after unlocking the exact same message is resent automatically. The
+  server-side form state was never actually at risk (it lives in the PHP session,
+  independent of the app-password flag) — the fix is entirely about not losing
+  client-side chat history to a full-page redirect.
+- **Backup restore** — `admin/backup.php` can now restore from an existing stored
+  backup or an uploaded zip. Treated as untrusted input throughout: only
+  `data/<name>.json` / `config/<name>.json` entries (flat, no `..`, allowlisted
+  extension) are considered, and each one's content must itself parse as valid JSON
+  before it's written — anything else in the archive is silently skipped, not merged
+  or executed. Overwrites matching live files; doesn't delete files added since the
+  backup.
+- **Live-query DB mode — the other half of "index & cache."** Until now a database
+  table could only become a data source by copying its rows into a JSON snapshot
+  (`kili_publish_data_source()`); changes in the live table needed a manual
+  re-publish to show up in search. Added `core/DbAdapter.php`, a `StorageInterface`
+  that calls `ConnectionManager::fetchRows()` fresh on every `all()` — no snapshot,
+  no persisted cache, so a row inserted directly in the database appears in search on
+  the very next request. `admin/connections.php`'s publish form gained a "Live
+  query" checkbox (`kili_publish_live_source()` registers the connection/table/
+  mapping in `config/data_sources.json` under `type: "live_db"`, copying zero rows).
+  Deliberately read-only: `DbAdapter::save()`/`delete()` throw rather than attempting
+  a generic reverse-mapped `UPDATE`/`DELETE` against an arbitrary table schema, which
+  is a materially bigger and riskier feature than "make search see live data" —
+  `admin/records.php` hides its add/edit/delete controls for a live source and shows
+  "read-only" instead, and `api/records.php` surfaces the same restriction as a clean
+  422 rather than a crash.
+  - **Bug found and fixed while wiring this in**: `CrudEngine`'s constructor was
+    type-hinted to the concrete `JsonAdapter` class, not the `StorageInterface` it
+    actually only calls methods from — passing it a `DbAdapter` threw a `TypeError`
+    (fatal 500) instead of the intended clean "read-only" error. Widened the
+    type-hint; this also quietly fixes the (until-now theoretical) constraint that
+    `CrudEngine` could only ever wrap a `JsonAdapter`.
+
+  Verified live-query mode against a real Postgres table (not mocked): connected,
+  previewed/mapped a custom-column table (`biz_name` → `title`, etc.), published it
+  as a live source, confirmed search returned its rows with correct source
+  attribution, then inserted a new row directly via `psql` with zero interaction with
+  Kili and confirmed it appeared in search on the next request. Confirmed the
+  read-only guard end-to-end (UI hides the controls, API returns 422, no 500) and
+  confirmed backups correctly capture the live source's *configuration*
+  (connection/table/mapping) without attempting to snapshot its data.
+
+  **Second bug found and fixed while testing this**: `admin/connections.php` — the
+  page where connection profiles are added, tested, and tables previewed/published —
+  had no `db_connections` feature check anywhere. The JSON API endpoints it's paired
+  with (`api/connections.php`, `api/import.php`) were correctly gated, but the admin
+  UI page itself was not, so a Free install could still add a DB connection and
+  publish a source (cached *or* live) directly through the browser, bypassing the
+  Ultra tier entirely. Gated the `save`/`test`/`preview`/`publish` actions and the
+  "Configured profiles"/"Add a connection"/"Preview" cards behind
+  `kili_has_feature('db_connections')`, with the same upsell-notice pattern used on
+  `records.php`/`backup.php`/`faq.php`. Verified: Free sees only an upsell card and a
+  `save` POST is rejected with a clear message; switching to Ultra restores full
+  functionality with no other change.
+
+  All other items verified the same way as prior phases: CSRF rejection, login
+  lockout (including "correct password still rejected while locked" and "unlocks
+  after a clean attempt"), multi-admin add/self-delete-blocked/delete, the full
+  FAQ promotion→recall loop, the auth-in-chat unlock preserving an in-progress
+  Enquiry form's exact position, and backup restore's rejection of a hand-crafted
+  malicious zip (path traversal, non-JSON, and invalid-JSON entries all skipped;
+  only the one legitimate entry was written). Postgres and all test data were torn
+  down and every mutated `.env`/`data/*.json`/`config/*.json` file was restored to
+  its clean shipped state afterward.
+
 ## Suggested next phase
 
-1. **Admin FAQ-promotion screen** — a small page listing `query_log.json` sorted by
-   count, with a "Save as FAQ" button that writes a curated answer into `faq.json`.
-2. **Authentication-in-chat** (customer-facing, different from the two above) — the
-   form engine currently assumes guest submissions; the session-based form state
-   already exists and just needs to survive a redirect/login step rather than being
-   invented from scratch.
-3. **"Live query" mode** — if DB-backed data needs to reflect changes in real time
-   rather than through re-publishing, that needs a PDO-backed `SearchEngine` adapter
-   (querying the DB per search instead of caching to JSON).
-4. **Rate limiting / CSRF** on the admin login and setup forms — brute-force protection
-   isn't in yet; low risk for a single-operator local admin tool, but worth doing
-   before any multi-admin or internet-facing deployment.
-5. **Backup restore** — `admin/backup.php` can create/download/delete backups but
-   deliberately doesn't restore one yet; safely unzipping an uploaded archive back
-   into `data/`/`config/` needs its own path-traversal-safe extraction logic, which is
-   more than this phase's scope.
-6. **Role-based access** — the audit log already records "who" (currently always the
-   single shared `admin` account); a second admin identity with its own password would
-   make that field meaningful.
+1. **"Live query" CRUD** — if a licensed installation wants to edit rows in a live
+   database source through Kili (not just search it), that needs safe reverse-mapping
+   of canonical fields back to arbitrary column names plus real `UPDATE`/`DELETE`
+   SQL — deliberately deferred when live-query mode was built (see above).
+2. **Per-admin permission levels** (e.g. an editor who can manage records/FAQ but not
+   connections or other admins) — multi-admin accounts exist now; they're currently
+   all equally privileged.
+3. **PWA** — installable standalone app (confirmed scope: standalone-only, not when
+   embedded in a host app).
+4. The still-unconfirmed deeper Kili→Killi internal code identifier rename.
 
 ## How to run locally
 

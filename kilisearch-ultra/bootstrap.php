@@ -15,6 +15,7 @@ require_once __DIR__ . '/core/ConnectionManager.php';
 require_once __DIR__ . '/core/EntitlementManager.php';
 require_once __DIR__ . '/core/LicenseManager.php';
 require_once __DIR__ . '/core/CrudEngine.php';
+require_once __DIR__ . '/core/DbAdapter.php';
 
 use Kili\Adapters\JsonAdapter;
 use Kili\Core\SearchEngine;
@@ -30,6 +31,8 @@ use Kili\Core\ConnectionManager;
 use Kili\Core\EntitlementManager;
 use Kili\Core\LicenseManager;
 use Kili\Core\CrudEngine;
+use Kili\Core\DbAdapter;
+use Kili\Adapters\StorageInterface;
 
 /** Reads a JSON config file, returning [] if it doesn't exist or is invalid. */
 function kili_read_json(string $path): array
@@ -167,6 +170,78 @@ function kili_ensure_session(): void
     }
 }
 
+/** Per-session CSRF token for admin forms — created once, reused for the life of the session. */
+function kili_csrf_token(): string
+{
+    kili_ensure_session();
+    if (empty($_SESSION['kili_csrf'])) {
+        $_SESSION['kili_csrf'] = bin2hex(random_bytes(32));
+    }
+
+    return $_SESSION['kili_csrf'];
+}
+
+function kili_csrf_field(): string
+{
+    return '<input type="hidden" name="csrf" value="' . htmlspecialchars(kili_csrf_token()) . '">';
+}
+
+function kili_verify_csrf(string $token): bool
+{
+    kili_ensure_session();
+
+    return !empty($_SESSION['kili_csrf']) && hash_equals($_SESSION['kili_csrf'], $token);
+}
+
+/**
+ * Login brute-force protection: 5 failed admin-login attempts locks out
+ * further attempts for 15 minutes. Tracked per-IP in a JSON file rather
+ * than per-session, since a session is exactly what an attacker restarts
+ * on each attempt.
+ */
+function kili_admin_login_state(string $ip): array
+{
+    $log = kili_read_json(__DIR__ . '/data/login_attempts.json');
+
+    return $log[$ip] ?? ['failed_count' => 0, 'locked_until' => null];
+}
+
+function kili_admin_login_locked(string $ip): int
+{
+    $state = kili_admin_login_state($ip);
+    if (empty($state['locked_until'])) {
+        return 0;
+    }
+    $remaining = strtotime($state['locked_until']) - time();
+
+    return $remaining > 0 ? $remaining : 0;
+}
+
+function kili_record_admin_login_attempt(string $ip, bool $success): void
+{
+    $path = __DIR__ . '/data/login_attempts.json';
+    $log = kili_read_json($path);
+    $state = $log[$ip] ?? ['failed_count' => 0, 'locked_until' => null];
+
+    if ($success) {
+        $state = ['failed_count' => 0, 'locked_until' => null];
+    } else {
+        $state['failed_count'] = ($state['failed_count'] ?? 0) + 1;
+        if ($state['failed_count'] >= 5) {
+            $state['locked_until'] = gmdate('Y-m-d\TH:i:s\Z', time() + 900);
+        }
+    }
+
+    $log[$ip] = $state;
+    file_put_contents($path, json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/** Best-effort client IP for rate-limiting — not spoof-proof behind an untrusted proxy, but this app has no proxy config to trust XFF against. */
+function kili_client_ip(): string
+{
+    return $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+}
+
 /**
  * Two separate credentials, deliberately different defaults:
  *  - Admin is ALWAYS gated. No configured password means "not set up
@@ -220,29 +295,137 @@ function kili_require_app_auth_json(): void
     }
 }
 
+/**
+ * Multiple named admin accounts (data/admins.json: [{username, password_hash,
+ * created_at}]) replaced the original single shared KILI_ADMIN_PASSWORD_HASH
+ * — so the audit log's "who did this" is a real answer, and one admin can be
+ * revoked without resetting everyone's access.
+ */
+function kili_admins(): array
+{
+    return kili_read_json(__DIR__ . '/data/admins.json');
+}
+
+function kili_save_admins(array $admins): void
+{
+    file_put_contents(__DIR__ . '/data/admins.json', json_encode($admins, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+function kili_find_admin(string $username): ?array
+{
+    $username = mb_strtolower(trim($username));
+    foreach (kili_admins() as $admin) {
+        if (mb_strtolower($admin['username']) === $username) {
+            return $admin;
+        }
+    }
+
+    return null;
+}
+
 function kili_admin_password_configured(): bool
 {
-    return !empty(kili_load_env()['KILI_ADMIN_PASSWORD_HASH'] ?? '');
+    return count(kili_admins()) > 0;
+}
+
+/** @throws \InvalidArgumentException if the username is taken or invalid */
+function kili_create_admin(string $username, string $password): array
+{
+    $username = trim($username);
+    if (!preg_match('/^[A-Za-z0-9_.-]{2,40}$/', $username)) {
+        throw new \InvalidArgumentException('Username must be 2-40 characters: letters, numbers, "_.-" only.');
+    }
+    if (strlen($password) < 8) {
+        throw new \InvalidArgumentException('Password must be at least 8 characters.');
+    }
+    if (kili_find_admin($username) !== null) {
+        throw new \InvalidArgumentException("Username \"$username\" is already taken.");
+    }
+
+    $admins = kili_admins();
+    $admin = [
+        'username' => $username,
+        'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+        'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
+    ];
+    $admins[] = $admin;
+    kili_save_admins($admins);
+
+    return $admin;
+}
+
+/** @throws \InvalidArgumentException if this would remove the last admin, or the username is unknown */
+function kili_delete_admin(string $username): void
+{
+    $admins = kili_admins();
+    if (count($admins) <= 1) {
+        throw new \InvalidArgumentException('Cannot delete the only remaining admin account.');
+    }
+    $remaining = array_values(array_filter($admins, fn($a) => mb_strtolower($a['username']) !== mb_strtolower($username)));
+    if (count($remaining) === count($admins)) {
+        throw new \InvalidArgumentException("Unknown admin \"$username\".");
+    }
+    kili_save_admins($remaining);
+}
+
+/** @throws \InvalidArgumentException if the username is unknown or the password is too short */
+function kili_change_admin_password(string $username, string $newPassword): void
+{
+    if (strlen($newPassword) < 8) {
+        throw new \InvalidArgumentException('Password must be at least 8 characters.');
+    }
+    $admins = kili_admins();
+    $found = false;
+    foreach ($admins as &$admin) {
+        if (mb_strtolower($admin['username']) === mb_strtolower($username)) {
+            $admin['password_hash'] = password_hash($newPassword, PASSWORD_DEFAULT);
+            $found = true;
+            break;
+        }
+    }
+    unset($admin);
+    if (!$found) {
+        throw new \InvalidArgumentException("Unknown admin \"$username\".");
+    }
+    kili_save_admins($admins);
+}
+
+/** Verifies credentials and returns the matched admin record, or null. Timing-safe regardless of whether the username exists. */
+function kili_verify_admin_login(string $username, string $password): ?array
+{
+    $admin = kili_find_admin($username);
+    $hash = $admin['password_hash'] ?? '$2y$10$invalidsaltinvalidsaltinvalidsalu';
+
+    if (password_verify($password, $hash) && $admin !== null) {
+        return $admin;
+    }
+
+    return null;
 }
 
 function kili_is_admin_authenticated(): bool
 {
     kili_ensure_session();
 
-    return !empty($_SESSION['kili_admin_authenticated']);
+    return !empty($_SESSION['kili_admin_username']) && kili_find_admin($_SESSION['kili_admin_username']) !== null;
 }
 
-function kili_verify_admin_password(string $password): bool
-{
-    $hash = kili_load_env()['KILI_ADMIN_PASSWORD_HASH'] ?? '';
-
-    return $hash !== '' && password_verify($password, $hash);
-}
-
-function kili_set_admin_authenticated(bool $value): void
+function kili_current_admin_username(): ?string
 {
     kili_ensure_session();
-    $_SESSION['kili_admin_authenticated'] = $value;
+
+    return $_SESSION['kili_admin_username'] ?? null;
+}
+
+/** Pass a username to log in, or null to log out. */
+function kili_set_admin_authenticated(?string $username): void
+{
+    kili_ensure_session();
+    if ($username === null) {
+        unset($_SESSION['kili_admin_username']);
+    } else {
+        $_SESSION['kili_admin_username'] = $username;
+    }
 }
 
 /** For admin-only JSON API endpoints: exits with 401 unless an authenticated admin session exists. Always required — never optional. */
@@ -376,23 +559,47 @@ function kili_data_source_engine(): DataSourceEngine
 }
 
 /** Storage for whichever dataset is currently active — see DataSourceEngine. Falls back to data/data.json if none is configured. */
-function kili_storage(): JsonAdapter
+function kili_storage(): StorageInterface
 {
     static $storage = null;
     if ($storage === null) {
-        $activeFile = kili_data_source_engine()->active()['file'] ?? 'data/data.json';
-        $storage = new JsonAdapter(__DIR__ . '/' . $activeFile);
+        $active = kili_data_source_engine()->active();
+        $storage = $active !== null
+            ? kili_build_storage($active)
+            : new JsonAdapter(__DIR__ . '/data/data.json');
     }
 
     return $storage;
 }
 
 /** Storage for a specific data source, not necessarily the active one — CRUD/export/backup need to reach any configured source, not just the one Search is currently using. */
-function kili_storage_for_source(string $sourceId): JsonAdapter
+function kili_storage_for_source(string $sourceId): StorageInterface
 {
     $source = kili_data_source_engine()->find($sourceId);
     if ($source === null) {
         throw new \InvalidArgumentException("Unknown data source \"$sourceId\".");
+    }
+
+    return kili_build_storage($source);
+}
+
+/**
+ * A data source is either a local JSON file (type "json", the default —
+ * omitted "type" means "json" for sources predating this key) or a live
+ * database table (type "live_db"): queried fresh on every all() call via
+ * DbAdapter instead of a cached snapshot, so search reflects rows
+ * added/edited/removed in the source table without re-publishing.
+ */
+function kili_build_storage(array $source): StorageInterface
+{
+    if (($source['type'] ?? 'json') === 'live_db') {
+        return new DbAdapter(
+            kili_connection_manager(),
+            $source['connection'],
+            $source['table'],
+            $source['mapping'] ?? [],
+            $source['source_id'] ?? null
+        );
     }
 
     return new JsonAdapter(__DIR__ . '/' . $source['file']);
@@ -420,7 +627,7 @@ function kili_record_audit(string $action, string $sourceId, string $recordId, s
         'source_id' => $sourceId,
         'record_id' => $recordId,
         'summary' => $summary,
-        'admin' => 'admin',
+        'admin' => kili_current_admin_username() ?? 'unknown',
         'at' => gmdate('Y-m-d\TH:i:s\Z'),
     ];
 
@@ -470,6 +677,37 @@ function kili_publish_data_source(string $name, array $rows, array $mapping, str
         'type' => 'json',
         'file' => $file,
         'description' => ($provenanceType === 'import' ? 'Published via the schema detector on ' : 'Indexed from a ' . $provenanceType . ' database on ') . gmdate('Y-m-d'),
+    ];
+
+    $path = __DIR__ . '/config/data_sources.json';
+    $config = kili_read_json($path);
+    $config['sources'][] = $newSource;
+    file_put_contents($path, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+
+    return $newSource;
+}
+
+/**
+ * Registers a database table as a source Search queries live, on every
+ * request, rather than a point-in-time JSON snapshot. No rows are copied
+ * anywhere — this just remembers which connection/table/mapping to ask
+ * DbAdapter to query. Read-only by design; see DbAdapter's docblock.
+ */
+function kili_publish_live_source(string $name, string $connectionName, string $table, array $mapping): array
+{
+    $slug = trim(preg_replace('/[^a-z0-9]+/', '-', mb_strtolower($name)), '-') ?: 'live-' . $table;
+    $sourceId = 'src-' . $slug;
+    kili_ensure_source($sourceId, 'database', $name);
+
+    $newSource = [
+        'id' => $slug,
+        'name' => $name,
+        'type' => 'live_db',
+        'connection' => $connectionName,
+        'table' => $table,
+        'mapping' => $mapping,
+        'source_id' => $sourceId,
+        'description' => 'Live query against "' . $table . '" via the "' . $connectionName . '" connection — reflects the table in real time, registered ' . gmdate('Y-m-d') . '.',
     ];
 
     $path = __DIR__ . '/config/data_sources.json';

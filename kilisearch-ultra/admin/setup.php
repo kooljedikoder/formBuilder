@@ -18,6 +18,11 @@ if ($step < 1 || $step > 3) {
 $notice = null;
 $do = $_REQUEST['do'] ?? '';
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !kili_verify_csrf($_POST['csrf'] ?? '')) {
+    $notice = ['type' => 'error', 'text' => 'Form expired — please reload and try again.'];
+    $do = '';
+}
+
 if ($do === 'activate_license' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $key = trim($_POST['license_key'] ?? '');
     if ($key === '') {
@@ -108,6 +113,7 @@ $activeSource = kili_data_source_engine()->active();
     <h1>Step 1 of 3 — License</h1>
     <p class="lead">You're on <strong>Free</strong> by default. If you have a Standard or Ultra license key, enter it now to unlock those features for this installation — or skip and add one later from <code>connections.php</code>.</p>
     <form method="post" action="?do=activate_license&amp;step=1">
+      <?= kili_csrf_field() ?>
       <label>License key</label>
       <input name="license_key" placeholder="e.g. KILLI-ULTRA-DEMO-0001" autofocus>
       <div class="actions">
@@ -120,6 +126,7 @@ $activeSource = kili_data_source_engine()->active();
     <h1>Step 2 of 3 — App access</h1>
     <p class="lead">Optional. By default the customer-facing chat app is open to anyone with the link. Set a shared password here if you'd rather gate it — you can change this anytime from <code>connections.php</code>.</p>
     <form method="post" action="?do=set_app_password&amp;step=2">
+      <?= kili_csrf_field() ?>
       <label>App password (optional)</label>
       <input type="password" name="app_password" placeholder="Leave blank to keep it open">
       <div class="actions">
@@ -135,6 +142,7 @@ $activeSource = kili_data_source_engine()->active();
     <div class="summary-row"><span>App access</span><strong><?= kili_app_password_configured() ? 'Password required' : 'Open (no password)' ?></strong></div>
     <div class="summary-row"><span>Active data source</span><strong><?= htmlspecialchars($activeSource['name'] ?? 'Default demo dataset') ?></strong></div>
     <form method="post" action="?do=finish">
+      <?= kili_csrf_field() ?>
       <button type="submit">Finish setup</button>
     </form>
     <p style="margin-top:20px">

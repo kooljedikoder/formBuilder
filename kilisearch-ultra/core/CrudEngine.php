@@ -2,21 +2,25 @@
 
 namespace Kili\Core;
 
-use Kili\Adapters\JsonAdapter;
+use Kili\Adapters\StorageInterface;
 
 /**
  * The fourth pillar alongside Search, Conversational and Memory: owning
- * the data, not just reading it. Wraps a data source's JsonAdapter (which
- * already does create/update/delete at the storage layer) with the parts
- * a real admin tool needs on top — validation, pagination/search over the
- * listing, and stamping every record with which source it belongs to.
+ * the data, not just reading it. Wraps a data source's storage adapter
+ * (JsonAdapter, or DbAdapter for a live database source — anything
+ * behind StorageInterface) with the parts a real admin tool needs on
+ * top — validation, pagination/search over the listing, and stamping
+ * every record with which source it belongs to. DbAdapter's save()/
+ * delete() throw rather than silently no-op, since a live source is
+ * deliberately read-only — that surfaces as a normal error message
+ * through the same validation-error handling as everything else here.
  */
 class CrudEngine
 {
-    private JsonAdapter $storage;
+    private StorageInterface $storage;
     private string $sourceId;
 
-    public function __construct(JsonAdapter $storage, string $sourceId)
+    public function __construct(StorageInterface $storage, string $sourceId)
     {
         $this->storage = $storage;
         $this->sourceId = $sourceId;
