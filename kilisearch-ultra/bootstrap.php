@@ -14,6 +14,7 @@ require_once __DIR__ . '/core/SchemaDetector.php';
 require_once __DIR__ . '/core/ConnectionManager.php';
 require_once __DIR__ . '/core/EntitlementManager.php';
 require_once __DIR__ . '/core/LicenseManager.php';
+require_once __DIR__ . '/core/CrudEngine.php';
 
 use Kili\Adapters\JsonAdapter;
 use Kili\Core\SearchEngine;
@@ -28,6 +29,7 @@ use Kili\Core\SchemaDetector;
 use Kili\Core\ConnectionManager;
 use Kili\Core\EntitlementManager;
 use Kili\Core\LicenseManager;
+use Kili\Core\CrudEngine;
 
 /** Reads a JSON config file, returning [] if it doesn't exist or is invalid. */
 function kili_read_json(string $path): array
@@ -383,6 +385,46 @@ function kili_storage(): JsonAdapter
     }
 
     return $storage;
+}
+
+/** Storage for a specific data source, not necessarily the active one — CRUD/export/backup need to reach any configured source, not just the one Search is currently using. */
+function kili_storage_for_source(string $sourceId): JsonAdapter
+{
+    $source = kili_data_source_engine()->find($sourceId);
+    if ($source === null) {
+        throw new \InvalidArgumentException("Unknown data source \"$sourceId\".");
+    }
+
+    return new JsonAdapter(__DIR__ . '/' . $source['file']);
+}
+
+/** The fourth pillar: a validated create/update/delete layer over whichever source is named (defaults to active), instead of hand-editing JSON files. */
+function kili_crud_engine(?string $sourceId = null): CrudEngine
+{
+    $sourceId = $sourceId ?? kili_data_source_engine()->activeId();
+    if ($sourceId === null) {
+        throw new \InvalidArgumentException('No data source is configured.');
+    }
+
+    return new CrudEngine(kili_storage_for_source($sourceId), $sourceId);
+}
+
+/** Append-only audit trail for CRUD writes — who (the single shared admin account, for now) did what to which record, when. */
+function kili_record_audit(string $action, string $sourceId, string $recordId, string $summary = ''): void
+{
+    $path = __DIR__ . '/data/audit_log.json';
+    $log = kili_read_json($path);
+
+    $log[] = [
+        'action' => $action,
+        'source_id' => $sourceId,
+        'record_id' => $recordId,
+        'summary' => $summary,
+        'admin' => 'admin',
+        'at' => gmdate('Y-m-d\TH:i:s\Z'),
+    ];
+
+    file_put_contents($path, json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
 }
 
 /** Switches which configured dataset backs search. Takes effect on the next request (this one may already have a cached kili_storage()). */

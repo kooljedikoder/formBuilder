@@ -201,6 +201,8 @@ foreach ($profiles as $profile) {
   <div style="display:flex;justify-content:space-between;align-items:baseline">
     <h1>Data Source Connections</h1>
     <span style="font-size:13px">
+      <a href="records.php" style="color:#5f6368;margin-right:14px">Records</a>
+      <a href="backup.php" style="color:#5f6368;margin-right:14px">Backups</a>
       <a href="setup.php" style="color:#5f6368;margin-right:14px">Re-run setup wizard</a>
       <a href="?do=admin_logout" style="color:#5f6368">Log out</a>
     </span>

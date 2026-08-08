@@ -9,12 +9,12 @@
     {
       "id": "standard",
       "name": "Standard",
-      "features": ["search", "forms", "memory", "attachments"]
+      "features": ["search", "forms", "memory", "attachments", "crud"]
     },
     {
       "id": "ultra",
       "name": "Ultra",
-      "features": ["search", "forms", "memory", "attachments", "import", "db_connections", "multi_source", "white_label"]
+      "features": ["search", "forms", "memory", "attachments", "crud", "import", "db_connections", "multi_source", "white_label"]
     }
   ]
 }

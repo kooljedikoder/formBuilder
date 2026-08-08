@@ -391,6 +391,53 @@ Per explicit direction:
   rejects a real PNG on Free with `FEATURE_NOT_LICENSED` before any file-type check runs,
   and accepts it once switched to Standard. `config/packages.json` and `.env` were
   restored to clean shipped state afterward.
+- **CRUD Engine — the fourth pillar** (Search / Conversational / Memory / **CRUD**).
+  Until now every piece of the product only *read* its data — Search finds it, the
+  Conversational engine talks about it, Memory remembers what was asked about it — but
+  changing a listing meant hand-editing a JSON file or re-running the import flow. This
+  closes the loop: full create/read/update/delete over any configured data source,
+  from the admin panel.
+
+  - **`core/CrudEngine.php`** — wraps a data source's existing `JsonAdapter` (which
+    already did create/update/delete at the storage layer) with the parts a real admin
+    tool needs on top: required-field validation (title, valid email format, status
+    enum), search/pagination over the listing, and stamping every write with the
+    correct `source_id`.
+  - **`admin/records.php`** — pick a data source, search/paginate its records, add or
+    edit one through a form covering the common fields (title, description, taxonomy,
+    location, contact details, tags, rating, verified, status) plus an "additional
+    fields (JSON)" textarea so source-specific fields (e.g. `latitude`/`longitude`)
+    round-trip without needing a dedicated input for every possible column. Shows an
+    upsell notice instead of the tool on Free.
+  - **`api/records.php`** — the same engine as a JSON API (`list`/`get`/`create`/
+    `update`/`delete`), admin-auth + `crud`-feature gated, for anything that wants to
+    manage Killi's data programmatically rather than through the browser.
+  - **`api/export.php`** — download any source as JSON or CSV on demand.
+  - **`admin/backup.php`** — one-click zip of `data/` + `config/` (never `.env` —
+    credentials are never in scope) into `storage/backups/`, with list/download/delete.
+    Downloads are served through the script itself (admin-auth gated, filename
+    validated against a strict `backup-YYYYMMDD-HHMMSS.zip` pattern) rather than as
+    static files — `storage/backups/.htaccess` denies direct access outright for
+    deployments where that matters (Apache/Nginx; the PHP built-in dev server used for
+    testing doesn't honor `.htaccess`, so this specific rule is asserted, not
+    re-verified live, this session).
+  - **Audit trail** — every create/update/delete writes an entry to
+    `data/audit_log.json` (action, source, record id, summary, admin, timestamp),
+    append-only like the existing query/feedback logs.
+  - **Gating** — new `crud` feature key, Standard + Ultra (Free stays search-only, no
+    change to that boundary).
+
+  Verified end-to-end with a live PHP server: Free shows the upsell notice on both
+  `admin/records.php` and `admin/backup.php`; Standard can create/edit/delete a test
+  record via both the admin UI and the JSON API, with the change visible in
+  `api/search.php` on the very next request (no cache to invalidate — `JsonAdapter`
+  reads fresh per request); validation rejects a missing title and malformed
+  "additional fields" JSON without saving anything; deleting via the API and the UI
+  both work and both audit-log correctly; export produces valid JSON and CSV; backup
+  creates a zip containing exactly `data/` + `config/` (confirmed via `unzip -l`),
+  downloads correctly, and rejects a `../../bootstrap.php` path-traversal attempt with
+  a 404. All test-created records, backups, and mutated `.env`/`config/*.json`/
+  `data/*.json` state were removed/reverted to the clean shipped defaults afterward.
 
 ## Suggested next phase
 
@@ -406,6 +453,13 @@ Per explicit direction:
 4. **Rate limiting / CSRF** on the admin login and setup forms — brute-force protection
    isn't in yet; low risk for a single-operator local admin tool, but worth doing
    before any multi-admin or internet-facing deployment.
+5. **Backup restore** — `admin/backup.php` can create/download/delete backups but
+   deliberately doesn't restore one yet; safely unzipping an uploaded archive back
+   into `data/`/`config/` needs its own path-traversal-safe extraction logic, which is
+   more than this phase's scope.
+6. **Role-based access** — the audit log already records "who" (currently always the
+   single shared `admin` account); a second admin identity with its own password would
+   make that field meaningful.
 
 ## How to run locally
 
