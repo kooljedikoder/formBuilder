@@ -23,7 +23,7 @@ if (!kili_admin_password_configured()) {
                 $notice = ['type' => 'error', 'text' => 'Passwords do not match.'];
             } else {
                 try {
-                    $admin = kili_create_admin($username, $password);
+                    $admin = kili_create_admin($username, $password, 'owner');
                     kili_set_admin_authenticated($admin['username']);
                     header('Location: ' . (kili_setup_complete() ? 'connections.php' : 'setup.php'));
                     exit;
@@ -109,6 +109,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !kili_verify_csrf($_POST['csrf'] ??
     $do = '';
 }
 
+// Install-level controls — managing other admins, licensing, app access, and
+// database connections — are owner-only. Editors get records/FAQ/backup-create
+// (gated separately, below/elsewhere) but not these.
+$ownerOnlyActions = ['set_app_password', 'add_admin', 'delete_admin', 'set_default_package', 'activate_license', 'save', 'test', 'preview', 'publish'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($do, $ownerOnlyActions, true) && !kili_is_admin_owner()) {
+    $notice = ['type' => 'error', 'text' => 'Only an owner-level admin can do that.'];
+    $do = '';
+}
+
 if ($do === 'set_app_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['app_password'] ?? '';
     if ($password === '') {
@@ -133,8 +142,9 @@ if ($do === 'set_app_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 } elseif ($do === 'add_admin' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
-        $admin = kili_create_admin($_POST['username'] ?? '', $_POST['password'] ?? '');
-        $notice = ['type' => 'success', 'text' => 'Added admin "' . $admin['username'] . '".'];
+        $role = ($_POST['role'] ?? 'editor') === 'owner' ? 'owner' : 'editor';
+        $admin = kili_create_admin($_POST['username'] ?? '', $_POST['password'] ?? '', $role);
+        $notice = ['type' => 'success', 'text' => 'Added admin "' . $admin['username'] . '" (' . $role . ').'];
     } catch (\InvalidArgumentException $e) {
         $notice = ['type' => 'error', 'text' => $e->getMessage()];
     }
@@ -202,8 +212,10 @@ if ($do === 'set_app_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $mapping = json_decode($_POST['mapping'] ?? '{}', true) ?: $detector->detect($rows)['mapping'];
         $profile = $manager->profile($connName);
         if (!empty($_POST['live'])) {
-            $newSource = kili_publish_live_source($sourceName ?: $table, $connName, $table, $mapping);
-            $modeText = ' as a live query — search will reflect this table in real time, no re-publishing needed';
+            $writable = !empty($_POST['writable']);
+            $newSource = kili_publish_live_source($sourceName ?: $table, $connName, $table, $mapping, $writable);
+            $modeText = ' as a live query — search will reflect this table in real time, no re-publishing needed'
+                . ($writable ? ', and edits/deletes made through Kili will write back to it' : ' (read-only)');
         } else {
             $newSource = kili_publish_data_source($sourceName ?: $table, $rows, $mapping, $profile['driver'] ?? 'database');
             $modeText = ' as a cached snapshot';
@@ -284,6 +296,7 @@ foreach ($profiles as $profile) {
         </tr>
       <?php endforeach; ?>
     </table>
+    <?php if (kili_is_admin_owner()): ?>
     <form method="post" action="?do=set_default_package">
       <?= kili_csrf_field() ?>
       <label>Default package (manual override)</label>
@@ -304,29 +317,38 @@ foreach ($profiles as $profile) {
       <input name="license_key" placeholder="e.g. KILI-ULTRA-XXXX-XXXX" value="<?= htmlspecialchars($activeKey ?? '') ?>" required>
       <button type="submit">Activate</button>
     </form>
+    <?php else: ?>
+    <p style="font-size:13px;color:#5f6368">Owner-only — ask an owner-level admin to change licensing.</p>
+    <?php endif; ?>
   </div>
 
   <div class="card">
     <h2 style="margin-top:0">App access</h2>
     <p style="font-size:13px;color:#5f6368">Optional — off by default so the customer-facing app stays zero-friction. Turn this on to require a shared password before anyone can use it.</p>
     <p style="font-size:13px">Status: <?= kili_app_password_configured() ? '<strong style="color:#137333">password required</strong>' : '<strong>open, no password</strong>' ?></p>
+    <?php if (kili_is_admin_owner()): ?>
     <form method="post" action="?do=set_app_password">
       <?= kili_csrf_field() ?>
       <label>New app password</label>
       <input type="password" name="app_password" placeholder="Leave blank to remove the password / keep it open">
       <button type="submit">Save</button>
     </form>
+    <?php else: ?>
+    <p style="font-size:13px;color:#5f6368">Owner-only — ask an owner-level admin to change this.</p>
+    <?php endif; ?>
   </div>
 
   <div class="card">
     <h2 style="margin-top:0">Admin accounts</h2>
-    <p style="font-size:13px;color:#5f6368">Logged in as <strong><?= htmlspecialchars((string) kili_current_admin_username()) ?></strong>. Every create/edit/delete on the <a href="records.php">Records</a> page is attributed to whichever account made it.</p>
+    <p style="font-size:13px;color:#5f6368">Logged in as <strong><?= htmlspecialchars((string) kili_current_admin_username()) ?></strong> (<?= htmlspecialchars((string) kili_current_admin_role()) ?>). <strong>Owners</strong> can manage admins, licensing, app access and database connections; <strong>editors</strong> get Records/FAQ/backup-create only. Every create/edit/delete on the <a href="records.php">Records</a> page is attributed to whichever account made it.</p>
     <table>
-      <tr><th>Username</th><th>Created</th><th></th></tr>
+      <tr><th>Username</th><th>Role</th><th>Created</th><?php if (kili_is_admin_owner()): ?><th></th><?php endif; ?></tr>
       <?php foreach (kili_admins() as $a): ?>
         <tr>
           <td><?= htmlspecialchars($a['username']) ?><?= mb_strtolower($a['username']) === mb_strtolower((string) kili_current_admin_username()) ? ' (you)' : '' ?></td>
+          <td><?= htmlspecialchars($a['role'] ?? 'owner') ?></td>
           <td><?= htmlspecialchars(substr($a['created_at'] ?? '', 0, 10)) ?></td>
+          <?php if (kili_is_admin_owner()): ?>
           <td>
             <?php if (mb_strtolower($a['username']) !== mb_strtolower((string) kili_current_admin_username()) && count(kili_admins()) > 1): ?>
             <form class="inline" method="post" action="?do=delete_admin" onsubmit="return confirm('Remove this admin account?')">
@@ -336,9 +358,11 @@ foreach ($profiles as $profile) {
             </form>
             <?php endif; ?>
           </td>
+          <?php endif; ?>
         </tr>
       <?php endforeach; ?>
     </table>
+    <?php if (kili_is_admin_owner()): ?>
     <h2>Add an admin account</h2>
     <form method="post" action="?do=add_admin">
       <?= kili_csrf_field() ?>
@@ -346,8 +370,14 @@ foreach ($profiles as $profile) {
       <input name="username" required>
       <label>Password</label>
       <input type="password" name="password" placeholder="8+ characters" required>
+      <label>Role</label>
+      <select name="role">
+        <option value="editor" selected>Editor — records, FAQ, backup create/download</option>
+        <option value="owner">Owner — full access, including other admins and licensing</option>
+      </select>
       <button type="submit">Add admin</button>
     </form>
+    <?php endif; ?>
     <h2>Change your password</h2>
     <form method="post" action="?do=change_admin_password">
       <?= kili_csrf_field() ?>
@@ -363,6 +393,11 @@ foreach ($profiles as $profile) {
   <div class="card">
     <h2 style="margin-top:0">Database connections</h2>
     <p style="font-size:13px;color:#5f6368">Connecting a MySQL/PostgreSQL database (cached snapshot or live query) is an Ultra feature. Activate an Ultra license key above to unlock it.</p>
+  </div>
+  <?php elseif (!kili_is_admin_owner()): ?>
+  <div class="card">
+    <h2 style="margin-top:0">Database connections</h2>
+    <p style="font-size:13px;color:#5f6368">Owner-only — ask an owner-level admin to manage database connections.</p>
   </div>
   <?php else: ?>
   <div class="card">
@@ -451,7 +486,8 @@ foreach ($profiles as $profile) {
       <input type="hidden" name="mapping" value='<?= htmlspecialchars(json_encode($preview['schema']['mapping'])) ?>'>
       <label>New data source name</label>
       <input name="source_name" value="<?= htmlspecialchars($preview['table']) ?>">
-      <label><input type="checkbox" name="live" value="1" style="width:auto;display:inline"> Live query (reflects the table in real time — no re-publishing when rows change; read-only, no CRUD)</label>
+      <label><input type="checkbox" name="live" value="1" id="live-checkbox" style="width:auto;display:inline" onchange="document.getElementById('writable-row').hidden = !this.checked"> Live query (reflects the table in real time — no re-publishing when rows change)</label>
+      <label id="writable-row" hidden style="margin-left:20px"><input type="checkbox" name="writable" value="1" style="width:auto;display:inline"> Also allow edits/deletes through Kili to write back to this table (only fields mapped to a column above are saved; requires an "id" column to be mapped)</label>
       <label><input type="checkbox" name="activate" value="1" checked style="width:auto;display:inline"> Activate immediately</label>
       <button type="submit">Publish as data source</button>
     </form>

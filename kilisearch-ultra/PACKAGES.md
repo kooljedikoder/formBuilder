@@ -74,9 +74,20 @@ admin-only — you managing your own data, not a customer-facing capability.
 as a **cached snapshot** (rows copied into a JSON file once, editable via `crud`
 afterward — the original mode), or publish as a **live query** (search hits the
 database on every request via `core/DbAdapter.php`, so it reflects rows
-added/edited/removed in the table with no re-publishing — but read-only, since safely
-writing back to an arbitrary table schema is a separate, larger feature than reading
-from one).
+added/edited/removed in the table with no re-publishing). A live source is read-only
+by default; checking "also allow edits/deletes" at publish time makes it writable —
+`crud` operations on it then perform real `INSERT`/`UPDATE`/`DELETE` against the live
+table itself, not a copy.
+
+## Admin roles
+
+Every admin account is `owner` or `editor` (set when the account is created —
+`admin/connections.php` → Admin accounts). Owners can manage other admins,
+licensing/packages, app access, database connections, and backup delete/restore.
+Editors get Records, FAQ, and backup create/download — the day-to-day surfaces —
+without those install-level controls. This is orthogonal to the Free/Standard/Ultra
+license tier: role governs what a given admin can do *within* the install; tier
+governs what the install can do at all.
 
 ## Activating a license
 

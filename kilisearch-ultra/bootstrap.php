@@ -329,7 +329,15 @@ function kili_admin_password_configured(): bool
 }
 
 /** @throws \InvalidArgumentException if the username is taken or invalid */
-function kili_create_admin(string $username, string $password): array
+/**
+ * "owner" can manage other admins, licensing, and database connections —
+ * the install-level, higher-blast-radius controls. "editor" gets the
+ * day-to-day surfaces (records, FAQ, backup create/download) without
+ * those. The very first admin (created during setup) is always "owner"
+ * regardless of what's passed, since there's no one yet to have granted
+ * them a lesser role.
+ */
+function kili_create_admin(string $username, string $password, string $role = 'editor'): array
 {
     $username = trim($username);
     if (!preg_match('/^[A-Za-z0-9_.-]{2,40}$/', $username)) {
@@ -341,11 +349,15 @@ function kili_create_admin(string $username, string $password): array
     if (kili_find_admin($username) !== null) {
         throw new \InvalidArgumentException("Username \"$username\" is already taken.");
     }
+    if (!in_array($role, ['owner', 'editor'], true)) {
+        throw new \InvalidArgumentException('Role must be "owner" or "editor".');
+    }
 
     $admins = kili_admins();
     $admin = [
         'username' => $username,
         'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+        'role' => empty($admins) ? 'owner' : $role,
         'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
     ];
     $admins[] = $admin;
@@ -361,11 +373,36 @@ function kili_delete_admin(string $username): void
     if (count($admins) <= 1) {
         throw new \InvalidArgumentException('Cannot delete the only remaining admin account.');
     }
-    $remaining = array_values(array_filter($admins, fn($a) => mb_strtolower($a['username']) !== mb_strtolower($username)));
-    if (count($remaining) === count($admins)) {
+    $target = kili_find_admin($username);
+    if ($target === null) {
         throw new \InvalidArgumentException("Unknown admin \"$username\".");
     }
+    $remainingOwners = array_filter($admins, fn($a) => ($a['role'] ?? 'owner') === 'owner' && mb_strtolower($a['username']) !== mb_strtolower($username));
+    if (($target['role'] ?? 'owner') === 'owner' && count($remainingOwners) === 0) {
+        throw new \InvalidArgumentException('Cannot delete the only remaining owner — promote another admin to owner first.');
+    }
+    $remaining = array_values(array_filter($admins, fn($a) => mb_strtolower($a['username']) !== mb_strtolower($username)));
     kili_save_admins($remaining);
+}
+
+function kili_current_admin_role(): ?string
+{
+    $admin = kili_find_admin((string) kili_current_admin_username());
+
+    return $admin['role'] ?? null;
+}
+
+function kili_is_admin_owner(): bool
+{
+    return kili_current_admin_role() === 'owner';
+}
+
+/** For install-level admin actions (managing other admins, licensing, database connections) — editors don't get these. */
+function kili_require_admin_owner(): void
+{
+    if (!kili_is_admin_owner()) {
+        throw new \InvalidArgumentException('Only an owner-level admin can do that.');
+    }
 }
 
 /** @throws \InvalidArgumentException if the username is unknown or the password is too short */
@@ -598,7 +635,8 @@ function kili_build_storage(array $source): StorageInterface
             $source['connection'],
             $source['table'],
             $source['mapping'] ?? [],
-            $source['source_id'] ?? null
+            $source['source_id'] ?? null,
+            !empty($source['writable'])
         );
     }
 
@@ -693,7 +731,7 @@ function kili_publish_data_source(string $name, array $rows, array $mapping, str
  * anywhere — this just remembers which connection/table/mapping to ask
  * DbAdapter to query. Read-only by design; see DbAdapter's docblock.
  */
-function kili_publish_live_source(string $name, string $connectionName, string $table, array $mapping): array
+function kili_publish_live_source(string $name, string $connectionName, string $table, array $mapping, bool $writable = false): array
 {
     $slug = trim(preg_replace('/[^a-z0-9]+/', '-', mb_strtolower($name)), '-') ?: 'live-' . $table;
     $sourceId = 'src-' . $slug;
@@ -706,8 +744,10 @@ function kili_publish_live_source(string $name, string $connectionName, string $
         'connection' => $connectionName,
         'table' => $table,
         'mapping' => $mapping,
+        'writable' => $writable,
         'source_id' => $sourceId,
-        'description' => 'Live query against "' . $table . '" via the "' . $connectionName . '" connection — reflects the table in real time, registered ' . gmdate('Y-m-d') . '.',
+        'description' => 'Live query against "' . $table . '" via the "' . $connectionName . '" connection — reflects the table in real time, registered ' . gmdate('Y-m-d') . '.'
+            . ($writable ? ' Writable: edits/deletes through Kili write back to this table.' : ' Read-only.'),
     ];
 
     $path = __DIR__ . '/config/data_sources.json';

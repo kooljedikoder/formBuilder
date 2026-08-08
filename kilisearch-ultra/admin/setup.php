@@ -11,6 +11,14 @@ if (!kili_admin_password_configured() || !kili_is_admin_authenticated()) {
     exit;
 }
 
+// The very first run (fresh install) is always by the owner just created in
+// admin_setup. Re-running the wizard afterward touches licensing/app-access —
+// owner-only — so an editor has no legitimate reason to be here.
+if (kili_setup_complete() && !kili_is_admin_owner()) {
+    header('Location: connections.php');
+    exit;
+}
+
 $step = (int) ($_GET['step'] ?? 1);
 if ($step < 1 || $step > 3) {
     $step = 1;

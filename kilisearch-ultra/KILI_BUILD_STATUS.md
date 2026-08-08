@@ -536,17 +536,86 @@ Closed out every item in the previous "Suggested next phase" list in one pass.
   down and every mutated `.env`/`data/*.json`/`config/*.json` file was restored to
   its clean shipped state afterward.
 
+## Permission levels, live-query CRUD, and PWA phase
+
+Closed out the three remaining roadmap items from the previous phase. (The fourth,
+the deeper Kili→Killi internal identifier rename, was deliberately skipped — it's
+purely cosmetic-internal with no user-visible benefit and a large, hard-to-partially-
+revert blast radius across ~40+ files, and stayed unconfirmed.)
+
+- **Per-admin permission levels** — admin accounts now carry a `role`: `owner` or
+  `editor`. Owners can manage other admins, licensing, app-access, database
+  connections, and backup delete/restore. Editors get the day-to-day surfaces —
+  records, FAQ, backup create/download — without those. The very first admin
+  (created during setup) is always `owner` regardless of what's passed to
+  `kili_create_admin()`, since there's no one yet to have granted them a lesser
+  role; `kili_delete_admin()` now also refuses to remove the last remaining owner
+  (not just the last remaining admin). `admin/connections.php` gates every
+  owner-only `do=` action through one blanket check (mirroring the CSRF check
+  pattern) and hides the corresponding UI cards/buttons for editors rather than
+  just erroring after the fact. `admin/setup.php` redirects editors away once
+  setup is already complete, since re-running the wizard only touches owner-only
+  settings.
+- **Live-query CRUD** — the live-query mode built last phase was read-only; a
+  source can now be marked `writable` at publish time (an explicit opt-in
+  checkbox, since writing to someone's live table is a bigger commitment than
+  reading from it) to get real `INSERT`/`UPDATE`/`DELETE` through
+  `ConnectionManager::insertRow()`/`updateRow()`/`deleteRow()`. `DbAdapter`
+  reverse-maps the column→field mapping to translate a canonical record back into
+  column names, writing only the fields that *are* mapped to a column — anything
+  else in the record has nowhere in the table to go and is silently not persisted.
+  Requires the mapping to include a column mapped to `id`; without one there's no
+  reliable way to target a row, so `save()`/`delete()` throw a clear error instead
+  of guessing. Every table/column name that ends up concatenated into SQL (PDO
+  can't parameterize identifiers, only values) is re-validated against a strict
+  `[A-Za-z_][A-Za-z0-9_]*` pattern at the point of use — not just trusted from
+  stored config — since values still go through prepared-statement placeholders
+  but identifiers can't.
+- **PWA** — `portal/manifest.php` (dynamic, reads current branding/colors) and
+  `portal/icon.php` (a GD-generated PNG icon, brand-color background with a plain
+  concentric-ring mark — deliberately no bundled font file, since a TTF is real
+  weight/licensing baggage for a two-letter icon and there's no guarantee an
+  arbitrary deployment server has one installed) plus `portal/sw.js`, a minimal
+  service worker that caches only the static CSS/JS shell — never `index.php`
+  itself or any `/api/*.php` call, since those carry live session/branding/search
+  state a stale cache would get wrong. An install button appears in the header via
+  the standard `beforeinstallprompt` flow. Confirmed standalone-only per direction:
+  a `?embed=1` query param (for a host app that's genuinely iframing the page, as
+  opposed to opening it in its own tab the way `examples/host-app-demo.php` does)
+  suppresses the manifest link, icons, service-worker registration, and install
+  button entirely — a host app has its own wrapper story and shouldn't have Kili
+  offering to install itself as a separate app on top of it.
+
+Verified end-to-end: an owner created an editor account, logged in as that editor,
+and confirmed the Database-connections/Licensing/App-access/Admin-management cards
+all show "Owner-only" and the corresponding `do=` actions are rejected even called
+directly; confirmed the setup wizard redirects an editor away once setup is marked
+complete but not before. Live-query CRUD was tested against a real Postgres table
+with custom column names (`item_title`, `item_status`) mapped to canonical fields:
+created, updated, and deleted rows through `admin/records.php`, confirming each
+change via a direct `psql` query against the same database — not mocked. Confirmed
+a read-only (non-writable) live source still rejects writes with a clean error, and
+confirmed the identifier-validation defense-in-depth by hand-editing
+`data_sources.json` to inject a `"; DROP TABLE items; --"`-style column name into a
+mapping and verifying the write was rejected before reaching SQL, with the table
+intact afterward. For the PWA, verified with a real Chromium browser (Playwright):
+the manifest link and a registered service worker are present on the standalone
+page, both are absent with `?embed=1`, and the service worker's cache actually
+contains the CSS/JS shell files. All test databases, admin accounts, and mutated
+`.env`/`data/*.json`/`config/*.json` files were torn down/reverted afterward.
+
 ## Suggested next phase
 
-1. **"Live query" CRUD** — if a licensed installation wants to edit rows in a live
-   database source through Kili (not just search it), that needs safe reverse-mapping
-   of canonical fields back to arbitrary column names plus real `UPDATE`/`DELETE`
-   SQL — deliberately deferred when live-query mode was built (see above).
-2. **Per-admin permission levels** (e.g. an editor who can manage records/FAQ but not
-   connections or other admins) — multi-admin accounts exist now; they're currently
-   all equally privileged.
-3. **PWA** — installable standalone app (confirmed scope: standalone-only, not when
-   embedded in a host app).
+1. **Role granularity beyond owner/editor** — e.g. a role that can view but not
+   modify records, or per-data-source permissions (this editor can touch source A
+   but not source B).
+2. **Live-query CRUD's remaining gaps** — no transactions (a failed write mid-batch
+   isn't rolled back), no optimistic-concurrency check (two admins editing the same
+   live row can silently clobber each other), and tags/booleans are converted with
+   a fixed convention (comma-joined string, 1/0) that may not match every schema.
+3. **PWA polish** — a proper offline fallback page (right now a fully offline visit
+   to `index.php` itself just fails, since that page is deliberately never cached),
+   and app-shortcut/share-target manifest entries.
 4. The still-unconfirmed deeper Kili→Killi internal code identifier rename.
 
 ## How to run locally

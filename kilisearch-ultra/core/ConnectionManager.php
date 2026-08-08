@@ -5,10 +5,11 @@ namespace Kili\Core;
 /**
  * Manages named remote-database connection profiles loaded from .env
  * (never from config/data_sources.json, never sent to the browser).
- * Supports MySQL and Postgres via PDO. This backs "index & cache" mode
- * only — connecting to pull rows through the schema detector into a
- * local dataset — not a live-query mode that hits the DB on every
- * search (that would need a PDO-backed SearchEngine adapter, not built).
+ * Supports MySQL and Postgres via PDO. Backs both "index & cache" mode
+ * (fetchRows() through the schema detector into a local JSON snapshot)
+ * and live-query mode (DbAdapter calls fetchRows() fresh per search, and
+ * — for a source explicitly marked writable — insertRow()/updateRow()/
+ * deleteRow() for CRUD directly against the live table).
  */
 class ConnectionManager
 {
@@ -114,9 +115,7 @@ class ConnectionManager
      */
     public function fetchRows(string $name, string $table, int $limit = 200): array
     {
-        if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $table)) {
-            throw new \InvalidArgumentException('Invalid table name.');
-        }
+        $this->assertIdentifier($table, 'table name');
 
         $pdo = $this->connect($name);
         $stmt = $pdo->prepare('SELECT * FROM ' . $table . ' LIMIT :limit');
@@ -124,5 +123,100 @@ class ConnectionManager
         $stmt->execute();
 
         return $stmt->fetchAll();
+    }
+
+    /**
+     * Only a plain [A-Za-z_][A-Za-z0-9_]* identifier passes — table and
+     * column names can't be parameterized in PDO (only values can), so
+     * every one that ends up concatenated into a SQL string is checked
+     * here first, every time, rather than trusted from stored config.
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function assertIdentifier(string $identifier, string $what): void
+    {
+        if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $identifier)) {
+            throw new \InvalidArgumentException("Invalid $what: \"$identifier\".");
+        }
+    }
+
+    /**
+     * Inserts a row and returns the new primary key as a string.
+     * @throws \InvalidArgumentException on an invalid identifier or empty $columnValues
+     */
+    public function insertRow(string $name, string $table, string $idColumn, array $columnValues): string
+    {
+        $this->assertIdentifier($table, 'table name');
+        $this->assertIdentifier($idColumn, 'id column name');
+        if (empty($columnValues)) {
+            throw new \InvalidArgumentException('No mapped columns to insert.');
+        }
+        foreach (array_keys($columnValues) as $column) {
+            $this->assertIdentifier($column, 'column name');
+        }
+
+        $profile = $this->credentials($name);
+        $pdo = $this->connect($name);
+        $columns = array_keys($columnValues);
+        $placeholders = array_map(fn($c) => ':' . $c, $columns);
+
+        $sql = 'INSERT INTO ' . $table . ' (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $placeholders) . ')';
+        if (($profile['driver'] ?? '') === 'postgres') {
+            $sql .= ' RETURNING ' . $idColumn;
+        }
+
+        $stmt = $pdo->prepare($sql);
+        foreach ($columnValues as $column => $value) {
+            $stmt->bindValue(':' . $column, $value);
+        }
+        $stmt->execute();
+
+        if (($profile['driver'] ?? '') === 'postgres') {
+            return (string) $stmt->fetchColumn();
+        }
+
+        return (string) $pdo->lastInsertId();
+    }
+
+    /**
+     * @throws \InvalidArgumentException on an invalid identifier or empty $columnValues
+     */
+    public function updateRow(string $name, string $table, string $idColumn, string $idValue, array $columnValues): int
+    {
+        $this->assertIdentifier($table, 'table name');
+        $this->assertIdentifier($idColumn, 'id column name');
+        if (empty($columnValues)) {
+            throw new \InvalidArgumentException('No mapped columns to update.');
+        }
+        foreach (array_keys($columnValues) as $column) {
+            $this->assertIdentifier($column, 'column name');
+        }
+
+        $pdo = $this->connect($name);
+        $assignments = array_map(fn($c) => $c . ' = :' . $c, array_keys($columnValues));
+        $stmt = $pdo->prepare('UPDATE ' . $table . ' SET ' . implode(', ', $assignments) . ' WHERE ' . $idColumn . ' = :__id');
+        foreach ($columnValues as $column => $value) {
+            $stmt->bindValue(':' . $column, $value);
+        }
+        $stmt->bindValue(':__id', $idValue);
+        $stmt->execute();
+
+        return $stmt->rowCount();
+    }
+
+    /**
+     * @throws \InvalidArgumentException on an invalid identifier
+     */
+    public function deleteRow(string $name, string $table, string $idColumn, string $idValue): int
+    {
+        $this->assertIdentifier($table, 'table name');
+        $this->assertIdentifier($idColumn, 'id column name');
+
+        $pdo = $this->connect($name);
+        $stmt = $pdo->prepare('DELETE FROM ' . $table . ' WHERE ' . $idColumn . ' = :__id');
+        $stmt->bindValue(':__id', $idValue);
+        $stmt->execute();
+
+        return $stmt->rowCount();
     }
 }

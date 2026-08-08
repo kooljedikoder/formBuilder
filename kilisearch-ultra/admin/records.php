@@ -177,7 +177,7 @@ $sectorNames = array_column($taxonomy, 'sector');
       </select>
       <?php $selectedSource = array_values(array_filter($sources, fn($s) => $s['id'] === $sourceId))[0] ?? null; ?>
       <?php if (($selectedSource['type'] ?? 'json') === 'live_db'): ?>
-        <p style="font-size:12px;color:#5f6368;margin-top:8px">This source queries "<?= htmlspecialchars($selectedSource['table']) ?>" live via "<?= htmlspecialchars($selectedSource['connection']) ?>" — read-only, so add/edit/delete are disabled below.</p>
+        <p style="font-size:12px;color:#5f6368;margin-top:8px">This source queries "<?= htmlspecialchars($selectedSource['table']) ?>" live via "<?= htmlspecialchars($selectedSource['connection']) ?>"<?= empty($selectedSource['writable']) ? ' — read-only, so add/edit/delete are disabled below.' : ' — writable: edits/deletes below write straight back to this table.' ?></p>
       <?php endif; ?>
     </form>
   </div>
@@ -294,7 +294,7 @@ $sectorNames = array_column($taxonomy, 'sector');
     </div>
   <?php else: ?>
 
-    <?php $isLiveSource = (($selectedSource['type'] ?? null) === 'live_db'); ?>
+    <?php $isLiveSource = (($selectedSource['type'] ?? null) === 'live_db') && empty($selectedSource['writable']); ?>
     <div class="toolbar">
       <form method="get">
         <input type="hidden" name="source" value="<?= htmlspecialchars($sourceId) ?>">

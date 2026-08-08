@@ -51,6 +51,14 @@ if (kili_app_password_configured()) {
 $sectors = array_column(kili_taxonomy_engine()->tree(), 'sector');
 $hasAttachments = kili_has_feature('attachments');
 $hasWhiteLabel = kili_has_feature('white_label');
+// The PWA (installable app, manifest, service worker) is a standalone-only
+// feature — a host app embedding this page (an iframe, a shared layout)
+// has its own wrapper and shouldn't have Kili offering to install itself
+// as a separate app on top of it. A real integration signals that by
+// linking/iframing with ?embed=1; its absence means "this is being opened
+// as its own page," which covers both a fully standalone deployment and a
+// host app that links out to a full standalone tab (see examples/host-app-demo.php).
+$isEmbedded = ($_GET['embed'] ?? '') === '1';
 ?>
 <!doctype html>
 <html lang="en">
@@ -58,6 +66,14 @@ $hasWhiteLabel = kili_has_feature('white_label');
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title><?= htmlspecialchars($branding['product_name'] ?? 'KilliGoogle.ai') ?></title>
+<?php if (!$isEmbedded): ?>
+<link rel="manifest" href="manifest.php">
+<link rel="icon" href="icon.php?size=192">
+<link rel="apple-touch-icon" href="icon.php?size=192">
+<meta name="theme-color" content="<?= htmlspecialchars($colors['chat_header'] ?? '#1a73e8') ?>">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="<?= htmlspecialchars(mb_substr($branding['product_name'] ?? 'Killi', 0, 12)) ?>">
+<?php endif; ?>
 <link rel="stylesheet" href="../assets/css/kili.css">
 <style>
 :root {
@@ -77,7 +93,12 @@ $hasWhiteLabel = kili_has_feature('white_label');
 <div id="kili-app" class="kili-app">
   <header class="kili-header">
     <div class="kili-header-title"><?= htmlspecialchars($branding['product_name'] ?? 'KilliGoogle.ai') ?></div>
-    <button id="kili-theme-toggle" class="kili-theme-toggle" type="button" aria-label="Toggle dark mode">&#127769;</button>
+    <div style="display:flex;gap:8px">
+      <?php if (!$isEmbedded): ?>
+      <button id="kili-install" class="kili-theme-toggle" type="button" aria-label="Install app" hidden>&#8615;</button>
+      <?php endif; ?>
+      <button id="kili-theme-toggle" class="kili-theme-toggle" type="button" aria-label="Toggle dark mode">&#127769;</button>
+    </div>
   </header>
 
   <div class="kili-chat" id="kili-chat"></div>
@@ -112,6 +133,42 @@ $hasWhiteLabel = kili_has_feature('white_label');
 <script>
 window.KILI_BRANDING = <?= json_encode($branding) ?>;
 </script>
+<?php if (!$isEmbedded): ?>
+<script>
+// Standalone-only: a host app embedding this page owns its own PWA/wrapper
+// story, so neither the service worker nor the install prompt run there.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+}
+
+(function () {
+  var installBtn = document.getElementById('kili-install');
+  if (!installBtn) return;
+  var deferredPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.hidden = false;
+  });
+
+  installBtn.addEventListener('click', function () {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function () {
+      deferredPrompt = null;
+      installBtn.hidden = true;
+    });
+  });
+
+  window.addEventListener('appinstalled', function () {
+    installBtn.hidden = true;
+  });
+})();
+</script>
+<?php endif; ?>
 <script src="../assets/js/kili.js"></script>
 </body>
 </html>

@@ -99,6 +99,8 @@ if (kili_has_feature('crud')) {
         } else {
             $notice = ['type' => 'error', 'text' => 'Could not create the backup archive.'];
         }
+    } elseif (in_array($do, ['delete', 'restore_existing', 'restore_upload'], true) && !kili_is_admin_owner()) {
+        $notice = ['type' => 'error', 'text' => 'Only an owner-level admin can delete or restore backups.'];
     } elseif ($do === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $safe = kili_backup_safe_name($_POST['file'] ?? '');
         if ($safe && is_file($backupsDir . '/' . $safe)) {
@@ -227,6 +229,7 @@ function kili_format_bytes(int $bytes): string
           <td><?= htmlspecialchars(gmdate('Y-m-d H:i', $b['mtime'])) ?> UTC</td>
           <td>
             <a class="link" href="?do=download&amp;file=<?= urlencode($b['name']) ?>">Download</a>
+            <?php if (kili_is_admin_owner()): ?>
             &nbsp;
             <form class="inline" method="post" action="?do=restore_existing" onsubmit="return confirm('Restore will overwrite current data/ and config/ JSON files with this backup’s contents. Continue?')">
               <?= kili_csrf_field() ?>
@@ -239,6 +242,7 @@ function kili_format_bytes(int $bytes): string
               <input type="hidden" name="file" value="<?= htmlspecialchars($b['name']) ?>">
               <button type="submit" class="danger">Delete</button>
             </form>
+            <?php endif; ?>
           </td>
         </tr>
         <?php endforeach; ?>
@@ -246,6 +250,7 @@ function kili_format_bytes(int $bytes): string
       <?php endif; ?>
     </div>
 
+    <?php if (kili_is_admin_owner()): ?>
     <div class="card">
       <h2 style="margin-top:0;font-size:15px">Restore from an uploaded backup</h2>
       <p style="font-size:13px;color:#5f6368">Only recognizes flat <code>data/*.json</code> and <code>config/*.json</code> entries with valid JSON content — anything else in the zip is skipped, not merged. Overwrites the matching live files; doesn't remove files added since the backup was made.</p>
@@ -255,6 +260,7 @@ function kili_format_bytes(int $bytes): string
         <button type="submit" class="danger">Restore from this file</button>
       </form>
     </div>
+    <?php endif; ?>
   <?php endif; ?>
 </div>
 </body>
