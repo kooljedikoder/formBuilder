@@ -122,6 +122,60 @@
     return parts.join(' · ');
   }
 
+  function defaultSummary(query, count) {
+    return count === 0
+      ? 'I couldn’t find anything for “' + query + '”.'
+      : 'I found ' + count + (count === 1 ? ' result' : ' results') + ' for “' + query + '”.';
+  }
+
+  // Shared by runSearch (structured chip/near-me follow-ups) and runChat
+  // (free-text messages) so "Highest rated" / "Verified only" / "Near me"
+  // behave the same regardless of how the results got on screen.
+  function buildQuickReplies(query, meta) {
+    var replies = [
+      {
+        label: 'Highest rated',
+        onClick: function () {
+          var sorted = lastResults.slice().sort(function (a, b) { return (b.rating || 0) - (a.rating || 0); });
+          addBubble('user', 'Highest rated');
+          addBubble('ai', 'Here they are, sorted by rating:');
+          renderResults(sorted);
+        },
+      },
+      {
+        label: 'Verified only',
+        onClick: function () {
+          var verified = lastResults.filter(function (r) { return r.verified; });
+          addBubble('user', 'Verified only');
+          addBubble('ai', verified.length ? 'Showing verified listings only:' : 'None of these are verified yet.');
+          renderResults(verified);
+        },
+      },
+    ];
+
+    if (!(meta && meta.near) && navigator.geolocation) {
+      replies.push({
+        label: 'Near me',
+        onClick: function () {
+          addBubble('user', 'Near me');
+          navigator.geolocation.getCurrentPosition(
+            function (pos) {
+              runSearch(query, { lat: pos.coords.latitude, lng: pos.coords.longitude });
+            },
+            function () {
+              addBubble('ai', 'I couldn’t access your location — please allow location access and try again.');
+            }
+          );
+        },
+      });
+    }
+
+    return replies;
+  }
+
+  // Structured search: category/sector chips and the "Near me" follow-up.
+  // Hits search.php directly with explicit filters rather than going
+  // through intent detection.
   function runSearch(query, filters) {
     filters = filters || {};
     var params = new URLSearchParams({ q: query, limit: '10' });
@@ -144,55 +198,51 @@
         var count = payload.meta.total;
         var breadcrumb = detectedBreadcrumb(payload.meta.detected);
         if (breadcrumb) addBubble('ai', breadcrumb);
-
-        var summary = count === 0
-          ? 'I couldn’t find anything for “' + query + '”.'
-          : 'I found ' + count + (count === 1 ? ' result' : ' results') + (payload.meta.near ? ' near you' : ' for “' + query + '”') + '.';
-        addBubble('ai', summary);
+        addBubble('ai', payload.meta.reply || defaultSummary(query, count));
         renderResults(payload.data);
 
         if (count > 1) {
-          var replies = [
-            {
-              label: 'Highest rated',
-              onClick: function () {
-                var sorted = lastResults.slice().sort(function (a, b) { return (b.rating || 0) - (a.rating || 0); });
-                addBubble('user', 'Highest rated');
-                addBubble('ai', 'Here they are, sorted by rating:');
-                renderResults(sorted);
-              },
-            },
-            {
-              label: 'Verified only',
-              onClick: function () {
-                var verified = lastResults.filter(function (r) { return r.verified; });
-                addBubble('user', 'Verified only');
-                addBubble('ai', verified.length ? 'Showing verified listings only:' : 'None of these are verified yet.');
-                renderResults(verified);
-              },
-            },
-          ];
-          if (!payload.meta.near && navigator.geolocation) {
-            replies.push({
-              label: 'Near me',
-              onClick: function () {
-                addBubble('user', 'Near me');
-                navigator.geolocation.getCurrentPosition(
-                  function (pos) {
-                    runSearch(query, { lat: pos.coords.latitude, lng: pos.coords.longitude });
-                  },
-                  function () {
-                    addBubble('ai', 'I couldn’t access your location — please allow location access and try again.');
-                  }
-                );
-              },
-            });
-          }
-          addQuickReplies(replies);
+          addQuickReplies(buildQuickReplies(query, payload.meta));
         }
       })
       .catch(function () {
         addBubble('ai', 'I’m having trouble reaching the search service. Please try again.');
+      });
+  }
+
+  // Free-text messages: routed through the rule-based (no AI/LLM)
+  // ConversationEngine on the server, which handles small talk
+  // (greeting/thanks/help) as well as "find_service" queries — the
+  // reply text itself comes from config/conversation.json, so an admin
+  // can edit tone/wording without touching this file.
+  function runChat(message) {
+    return fetch(API_BASE + 'chat.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: message }),
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (payload) {
+        if (!payload.success) {
+          addBubble('ai', payload.error && payload.error.message ? payload.error.message : 'Something went wrong.');
+          return;
+        }
+        var data = payload.data;
+        lastResults = data.results || [];
+
+        var breadcrumb = detectedBreadcrumb(data.detected);
+        if (breadcrumb) addBubble('ai', breadcrumb);
+        addBubble('ai', data.reply || defaultSummary(message, data.total));
+
+        if (data.results && data.results.length) {
+          renderResults(data.results);
+        }
+        if (data.total > 1) {
+          addQuickReplies(buildQuickReplies(message, {}));
+        }
+      })
+      .catch(function () {
+        addBubble('ai', 'I’m having trouble reaching the chat service. Please try again.');
       });
   }
 
@@ -203,7 +253,7 @@
     hideSuggestions();
     addBubble('user', query);
     input.value = '';
-    runSearch(query);
+    runChat(query);
   }
 
   function hideSuggestions() {
@@ -255,9 +305,9 @@
   chips.addEventListener('click', function (e) {
     var chip = e.target.closest('.kili-chip');
     if (!chip) return;
-    var category = chip.getAttribute('data-category');
-    addBubble('user', category);
-    runSearch(category, { category: category });
+    var sector = chip.getAttribute('data-sector');
+    addBubble('user', sector);
+    runSearch(sector, { sector: sector });
   });
 
   addBubble('ai', branding.welcome_message || 'Hi, what are you looking for today?');

@@ -139,12 +139,27 @@ class SearchEngine
         $fullHaystack = mb_strtolower(implode(' ', $haystackFields));
         $score = 0.0;
 
-        if ($query !== '' && str_contains($fullHaystack, mb_strtolower($query))) {
+        $exactPhrase = $query !== '' && str_contains($fullHaystack, mb_strtolower($query));
+        if ($exactPhrase) {
             $score += $this->weights['exact_phrase'];
         }
 
+        $matchedTokens = 0;
         foreach ($tokens as $token) {
-            $score += $this->scoreToken($token, $haystackFields, $fullHaystack);
+            $tokenScore = $this->scoreToken($token, $haystackFields, $fullHaystack);
+            if ($tokenScore > 0) {
+                $matchedTokens++;
+            }
+            $score += $tokenScore;
+        }
+
+        // Require genuine term relevance: without an exact phrase match, at
+        // least half the query's tokens must have matched something. Stops
+        // a single incidental word (e.g. "repair" in an unrelated tag) from
+        // surfacing results for an otherwise unrelated query like "submarine
+        // repair in antarctica".
+        if (!$exactPhrase && !empty($tokens) && ($matchedTokens / count($tokens)) < 0.5) {
+            return 0.0;
         }
 
         $score += $this->scoreContext($record, $context);

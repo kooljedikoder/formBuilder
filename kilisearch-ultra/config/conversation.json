@@ -1,0 +1,54 @@
+{
+  "intents": [
+    {
+      "id": "greeting",
+      "patterns": ["hello", "hi", "hey", "good morning", "good afternoon", "good evening"],
+      "responses": [
+        "Hi! What are you looking for today?",
+        "Hello! How can I help you find something?",
+        "Hey there — tell me what you need and where."
+      ]
+    },
+    {
+      "id": "thanks",
+      "patterns": ["thanks", "thank you", "cheers", "appreciate it"],
+      "responses": [
+        "You're welcome!",
+        "Glad I could help.",
+        "Anytime — let me know if you need anything else."
+      ]
+    },
+    {
+      "id": "help",
+      "patterns": ["help", "what can you do", "how does this work"],
+      "responses": [
+        "Tell me what you're looking for and where — for example “mechanic in Lekki” or “restaurants near me”."
+      ]
+    },
+    {
+      "id": "find_service",
+      "patterns": [],
+      "responses": {
+        "zero": [
+          "I couldn’t find anything for “{query}”{location_suffix}.",
+          "No matches yet for “{query}”{location_suffix} — try a different word or a nearby area."
+        ],
+        "one": [
+          "I found 1 match for “{query}”{location_suffix}.",
+          "Here’s what I found for “{query}”{location_suffix}."
+        ],
+        "many": [
+          "I found {count} results for “{query}”{location_suffix}. Want the highest rated or verified only?",
+          "There are {count} options for “{query}”{location_suffix}. I can sort by rating if that helps."
+        ]
+      }
+    },
+    {
+      "id": "unknown",
+      "patterns": [],
+      "responses": [
+        "I'm not sure I understood — try something like “mechanic in Lekki” or “restaurants near me”."
+      ]
+    }
+  ]
+}

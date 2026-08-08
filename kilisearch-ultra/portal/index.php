@@ -3,7 +3,7 @@
 require_once __DIR__ . '/../bootstrap.php';
 
 $branding = kili_branding();
-$categories = kili_read_json(__DIR__ . '/../data/categories.json');
+$sectors = array_column(kili_taxonomy_engine()->tree(), 'sector');
 $colors = $branding['colors'] ?? [];
 ?>
 <!doctype html>
@@ -36,8 +36,8 @@ $colors = $branding['colors'] ?? [];
   <div class="kili-chat" id="kili-chat"></div>
 
   <div class="kili-chips" id="kili-chips">
-    <?php foreach ($categories as $cat): ?>
-      <button class="kili-chip" data-category="<?= htmlspecialchars($cat['name']) ?>"><?= htmlspecialchars($cat['name']) ?></button>
+    <?php foreach ($sectors as $sector): ?>
+      <button class="kili-chip" data-sector="<?= htmlspecialchars($sector) ?>"><?= htmlspecialchars($sector) ?></button>
     <?php endforeach; ?>
   </div>
 
