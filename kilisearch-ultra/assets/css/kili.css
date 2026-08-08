@@ -1,0 +1,229 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--kili-bg, #fff);
+  color: var(--kili-text, #202124);
+}
+
+.kili-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.kili-header {
+  background: var(--kili-chat-header, #1a73e8);
+  color: #fff;
+  padding: 14px 16px;
+  padding-top: max(14px, env(safe-area-inset-top));
+  font-weight: 600;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.kili-chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  background: var(--kili-chat-bg, #f8f9fa);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kili-bubble {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  line-height: 1.4;
+  font-size: 15px;
+  white-space: pre-wrap;
+}
+
+.kili-bubble.user {
+  align-self: flex-end;
+  background: var(--kili-user-bubble, #1a73e8);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.kili-bubble.ai {
+  align-self: flex-start;
+  background: var(--kili-ai-bubble, #fff);
+  border: 1px solid #e0e0e0;
+  border-bottom-left-radius: 4px;
+}
+
+.kili-quick-replies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+.kili-quick-reply {
+  border: 1px solid var(--kili-primary, #1a73e8);
+  color: var(--kili-primary, #1a73e8);
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.kili-quick-reply:active { background: #eef3ff; }
+
+.kili-results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-self: flex-start;
+  width: 100%;
+}
+
+.kili-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.kili-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.kili-card-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.kili-card-rating {
+  font-size: 13px;
+  color: #f2a600;
+  white-space: nowrap;
+}
+
+.kili-card-meta {
+  font-size: 13px;
+  color: #5f6368;
+  margin: 4px 0 8px;
+}
+
+.kili-badge {
+  display: inline-block;
+  font-size: 11px;
+  background: var(--kili-secondary, #0f9d58);
+  color: #fff;
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-left: 6px;
+}
+
+.kili-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kili-action {
+  text-decoration: none;
+  font-size: 13px;
+  border-radius: 8px;
+  padding: 6px 10px;
+  border: 1px solid #d0d0d0;
+  color: var(--kili-text, #202124);
+  background: #fafafa;
+}
+
+.kili-action.call { border-color: var(--kili-primary, #1a73e8); color: var(--kili-primary, #1a73e8); }
+.kili-action.whatsapp { border-color: #25d366; color: #128c3e; }
+.kili-action.website { border-color: #5f6368; }
+
+.kili-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px 12px;
+  flex-shrink: 0;
+  background: var(--kili-bg, #fff);
+  border-top: 1px solid #eee;
+}
+
+.kili-chip {
+  flex-shrink: 0;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.kili-searchbar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  flex-shrink: 0;
+  background: var(--kili-bg, #fff);
+  border-top: 1px solid #eee;
+  position: relative;
+}
+
+.kili-input {
+  flex: 1;
+  border: 1px solid #d0d0d0;
+  border-radius: 999px;
+  padding: 12px 16px;
+  font-size: 15px;
+  outline: none;
+}
+.kili-input:focus { border-color: var(--kili-primary, #1a73e8); }
+
+.kili-send {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--kili-primary, #1a73e8);
+  color: #fff;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.kili-suggestions {
+  position: absolute;
+  bottom: 66px;
+  left: 12px;
+  right: 12px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+
+.kili-suggestion-item {
+  padding: 10px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+}
+.kili-suggestion-item:last-child { border-bottom: none; }
+.kili-suggestion-item:active { background: #f5f5f5; }
+
+.kili-empty {
+  font-size: 14px;
+  color: #5f6368;
+}
+
+@media (min-width: 760px) {
+  .kili-app { border-left: 1px solid #eee; border-right: 1px solid #eee; }
+}

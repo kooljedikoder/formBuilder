@@ -1,0 +1,20 @@
+{
+  "product_name": "KiliGoogle.ai",
+  "tagline": "What can I help you find?",
+  "logo": null,
+  "favicon": null,
+  "colors": {
+    "primary": "#1a73e8",
+    "secondary": "#0f9d58",
+    "accent": "#fbbc04",
+    "background": "#ffffff",
+    "text": "#202124",
+    "chat_header": "#1a73e8",
+    "chat_background": "#f8f9fa",
+    "user_bubble": "#1a73e8",
+    "ai_bubble": "#ffffff"
+  },
+  "font": "system-ui",
+  "welcome_message": "Hi, I'm Kili. What are you looking for today?",
+  "search_placeholder": "Search businesses, services, products..."
+}

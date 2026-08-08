@@ -1,0 +1,28 @@
+{
+  "synonyms": {
+    "mechanic": ["auto repair", "car repair", "garage", "car service", "auto electrician"],
+    "restaurant": ["eatery", "dining", "food"],
+    "pharmacy": ["chemist", "drugstore", "medicine shop"],
+    "salon": ["hair salon", "beauty parlour", "spa"],
+    "lawyer": ["legal advice", "attorney", "solicitor"],
+    "school": ["academy", "nursery", "tutoring"],
+    "gym": ["fitness centre", "workout", "personal training"],
+    "cleaning": ["housekeeping", "fumigation", "cleaner"],
+    "it support": ["it services", "networking", "computer repair"],
+    "phone repair": ["gadget repair", "screen replacement"]
+  },
+  "stop_words": ["a", "an", "the", "in", "at", "for", "of", "near", "me", "please", "is", "there", "any"],
+  "fuzzy_max_distance": 2,
+  "fuzzy_min_word_length": 4,
+  "default_limit": 20,
+  "weights": {
+    "exact_phrase": 100,
+    "exact_token": 40,
+    "partial_token": 20,
+    "synonym_token": 25,
+    "fuzzy_token": 15,
+    "phonetic_token": 10,
+    "location_bonus": 15,
+    "verified_bonus": 3
+  }
+}
