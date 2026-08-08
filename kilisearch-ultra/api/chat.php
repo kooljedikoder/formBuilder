@@ -109,11 +109,11 @@ if (in_array($intent, ['greeting', 'thanks', 'help', 'unknown'], true)) {
     exit;
 }
 
-// 4. FAQ memory — has something like this been asked before? Skips the
-// search entirely if so, and can point back to specific listings.
-$faqMatch = kili_faq_engine()->match($message);
+// 4. Memory engine — has something like this been asked before? Skips
+// the search entirely if so, and can point back to specific listings.
+$faqMatch = kili_memory_engine()->recall($message);
 if ($faqMatch !== null) {
-    kili_bump_faq_hit($faqMatch['id']);
+    kili_memory_record_hit($faqMatch['id']);
     $linked = kili_resolve_sources(array_values(array_filter(array_map(
         fn($id) => kili_storage()->find($id),
         $faqMatch['linked_record_ids'] ?? []
@@ -133,9 +133,9 @@ if ($faqMatch !== null) {
     exit;
 }
 
-// 5. Ordinary search — logged so repeated questions become visible and
-// can later be promoted into data/faq.json by an admin.
-kili_log_query($message);
+// 5. Ordinary search — remembered so repeated questions become visible
+// and can later be promoted into data/faq.json by an admin.
+kili_memory_remember_query($message);
 
 $context = kili_extract_context($message);
 $result = kili_search_engine()->search($message, [], $context, 10, 0);

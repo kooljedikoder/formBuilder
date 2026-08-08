@@ -8,7 +8,7 @@ require_once __DIR__ . '/core/TaxonomyEngine.php';
 require_once __DIR__ . '/core/SourceRegistry.php';
 require_once __DIR__ . '/core/ConversationEngine.php';
 require_once __DIR__ . '/core/FormEngine.php';
-require_once __DIR__ . '/core/FaqEngine.php';
+require_once __DIR__ . '/core/MemoryEngine.php';
 
 use Kili\Adapters\JsonAdapter;
 use Kili\Core\SearchEngine;
@@ -17,7 +17,7 @@ use Kili\Core\TaxonomyEngine;
 use Kili\Core\SourceRegistry;
 use Kili\Core\ConversationEngine;
 use Kili\Core\FormEngine;
-use Kili\Core\FaqEngine;
+use Kili\Core\MemoryEngine;
 
 /** Reads a JSON config file, returning [] if it doesn't exist or is invalid. */
 function kili_read_json(string $path): array
@@ -156,18 +156,18 @@ function kili_form_engine(): FormEngine
     return $engine;
 }
 
-function kili_faq_engine(): FaqEngine
+function kili_memory_engine(): MemoryEngine
 {
     static $engine = null;
     if ($engine === null) {
-        $engine = new FaqEngine(kili_read_json(__DIR__ . '/data/faq.json'));
+        $engine = new MemoryEngine(kili_read_json(__DIR__ . '/data/faq.json'));
     }
 
     return $engine;
 }
 
-/** Bumps a matched FAQ entry's hit_count — lets an admin see which stored answers get reused most. */
-function kili_bump_faq_hit(string $faqId): void
+/** Bumps a recalled memory entry's hit_count — lets an admin see which stored answers get reused most. */
+function kili_memory_record_hit(string $faqId): void
 {
     $path = __DIR__ . '/data/faq.json';
     $entries = kili_read_json($path);
@@ -184,12 +184,12 @@ function kili_bump_faq_hit(string $faqId): void
 }
 
 /**
- * Logs a search query (normalized) so repeated questions become visible —
- * the "memory" behind the FAQ engine. An admin reviews frequent entries
- * here and promotes the good ones into data/faq.json with a curated
- * answer; nothing here writes to faq.json automatically.
+ * Remembers a search query (normalized) so repeated questions become
+ * visible — the learning half of the memory engine. An admin reviews
+ * frequent entries here and promotes the good ones into data/faq.json
+ * with a curated answer; nothing here writes to faq.json automatically.
  */
-function kili_log_query(string $query): void
+function kili_memory_remember_query(string $query): void
 {
     $path = __DIR__ . '/data/query_log.json';
     $log = kili_read_json($path);

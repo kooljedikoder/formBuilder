@@ -14,6 +14,31 @@ It proves the core mechanism end to end (search engine → location/taxonomy/sou
 engines → API → conversational UI → business actions) so we have a real base to
 iterate on, rather than a disconnected mockup.
 
+### Three-pillar architecture
+
+The engine layer is organized around three named pillars, not a growing pile of
+similarly-named-but-separate features:
+
+1. **Search Engine** (`core/SearchEngine.php`) — finds and ranks records. Backed by
+   supporting engines under the same pillar: **Location** (`LocationEngine`), **Taxonomy**
+   (`TaxonomyEngine`), and **Source** (`SourceRegistry`) provide the context (where,
+   what kind, from where) that Search ranks against.
+2. **Conversational Engine** (`core/ConversationEngine.php`) — deterministic intent
+   detection (greeting/thanks/help/find_service/start_enquiry/unknown) and templated
+   replies, no AI/LLM.
+3. **Memory Engine** (`core/MemoryEngine.php`) — "has this been asked before?" Recalls
+   curated answers (`data/faq.json`) via token-overlap similarity, and remembers every
+   other question (`data/query_log.json`) so repeated ones become visible for an admin
+   to promote into a curated answer.
+
+The **Form Engine** (`core/FormEngine.php`) is a fourth, separate piece — it's a state
+machine for multi-step conversational forms, not a search/knowledge concern.
+
+Everything operates against **one connected data source at a time** (currently the
+local `data/data.json` JSON file) — there is no web crawler and no general/open-domain
+search. It's a site-search-and-chatbot engine over data you load into it, not a
+Google-style engine that indexes the internet.
+
 ## What's built
 
 ### Foundation (V1 Phase 1 — Search + Location + Source + Taxonomy)
@@ -72,16 +97,18 @@ iterate on, rather than a disconnected mockup.
   on the very next request (no separate re-index step, since the JSON file is the index).
   Test data was reverted afterward so the shipped demo dataset stays clean.
 
-### Minimal Customer Form + FAQ/memory engine
+### Minimal Customer Form + Memory Engine
 
 | Area | File(s) | Status |
 |---|---|---|
 | **Form engine** | `core/FormEngine.php`, `config/forms.json` — one template ("Enquiry / Support Request": name, contact, message), one question per chat turn, required-field validation with re-ask, `{placeholder}` fill-in on the success message. No auth, no dynamic/cascading fields — deliberately minimal | Done |
 | **Form state** | `api/chat.php` — PHP session (`$_SESSION['kili_form']`) holds `{template_id, step, data}` across separate HTTP requests, so the form survives without a database. Started via the `start_enquiry` intent ("raise a request", "make an enquiry", ...) or the zero-result "Raise a request" quick reply | Done |
 | **Submissions storage** | `data/submissions.json` via the existing `JsonAdapter` (reused as-is — same zero-DB pattern as listings), `api/submissions.php` to view them | Done |
-| **FAQ / "has this been asked before" engine** | `core/FaqEngine.php` — deterministic token-overlap (Jaccard) similarity against `data/faq.json`, no AI/LLM. A match skips the search entirely, returns the curated answer, bumps `hit_count`, and can link back to specific listing records | Done |
-| **Query memory (the "learning" half)** | `kili_log_query()` in `bootstrap.php` writes every non-FAQ, non-small-talk message to `data/query_log.json` with a normalized form and a running count. Nothing here writes to `faq.json` automatically — an admin reviews frequent entries and promotes the good ones into a curated FAQ, which avoids ever "confidently" serving a wrong stored answer | Done |
+| **Memory Engine — recall** | `core/MemoryEngine.php` (`kili_memory_engine()`) — deterministic token-overlap (Jaccard) similarity against `data/faq.json`, no AI/LLM. A match skips the search entirely, returns the curated answer, bumps `hit_count`, and can link back to specific listing records | Done |
+| **Memory Engine — remember** | `kili_memory_remember_query()` in `bootstrap.php` writes every non-recalled, non-small-talk message to `data/query_log.json` with a normalized form and a running count. Nothing here writes to `faq.json` automatically — an admin reviews frequent entries and promotes the good ones into a curated answer, which avoids ever "confidently" serving a wrong stored answer | Done |
 | **Zero-result → ticket bridge** | `api/search.php`'s `find_service` "zero" reply now offers to log a request; `api/chat.php` sets `offer_ticket: true` on zero-result searches; the UI shows a "Raise a request" quick reply that starts the same enquiry form | Done |
+
+*(Originally built as a separate `FaqEngine` + a loose query-logging function; consolidated into one `MemoryEngine` pillar alongside Search and Conversational — same behavior, cleaner architecture.)*
 
 ## Explicitly NOT built yet (postponed)
 
