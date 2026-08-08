@@ -218,23 +218,40 @@ theme toggle changes the background color, and the choice survives a page reload
 Screenshots taken in both themes — chips, cards, quick replies and the search bar all
 read cleanly in both.
 
+### Two-tier authentication (this session)
+
+Two deliberately different credentials, matching how each surface should behave:
+
+| Area | File(s) | Status |
+|---|---|---|
+| **Admin auth — always mandatory** | `bootstrap.php` (`kili_admin_password_configured()`, `kili_is_admin_authenticated()`, `kili_verify_admin_password()`, `kili_set_admin_authenticated()`, `kili_require_admin_auth_json()`). No configured password means "not set up yet," never "wide open" — `admin/connections.php` shows a one-time mandatory setup form (min 8 chars, confirm field) until one exists, then a login form every session after. Hash lives in `.env` as `KILI_ADMIN_PASSWORD_HASH` (bcrypt via `password_hash()`), never returned by any response | Done |
+| **App-wide password — optional, off by default** | Same pattern (`kili_app_password_configured()`, etc., `KILI_APP_PASSWORD_HASH`), but absent by default so the customer-facing demo stays zero-friction/"plug and play." An admin turns it on from the new "App access" card in `admin/connections.php`. Gates *access* to the whole app instance, not individual features — consistent with the original "no artificial feature-lock passwords" rule | Done |
+| **Gated surfaces** | `portal/index.php` shows a password gate page (styled, branding-aware) before rendering the chat when the app password is set. Customer-facing APIs (search/chat/suggest/categories/taxonomy/locations/config/health/upload/feedback) call `kili_require_app_auth_json()` and return a clean 401 JSON error, not a crash, when locked | Done |
+| **Admin-only endpoints reclassified** | `api/connections.php`, `api/import.php`, `api/data_sources.php` and `api/submissions.php` (this one exposes submitters' names/contact info — genuinely sensitive) now require admin auth, not app auth — confirmed the customer-facing JS never calls any of these, so this reclassification has zero effect on the chat UI | Done |
+
+**Verified end to end via Playwright** covering the full lifecycle in one run: first-run
+admin setup → logout → wrong password rejected → correct login → setting an app
+password from the admin UI → a **fresh, unauthenticated browser context** hitting the
+locked customer portal (gate page shown, wrong password rejected, correct password
+unlocks the real chat) → a separate fresh context hitting an API directly without ever
+unlocking (clean 401, not a crash). All 9 checks passed. `.env` was restored to its
+password-free state afterward so the shipped default remains fully open, matching the
+existing demo experience — nothing changes for anyone who doesn't turn this on.
+
 ## Suggested next phase
 
-The entire chat-UX list and the DB connection manager from earlier are now done. What's
-left, roughly in priority order:
-
-1. **Secure `admin/connections.php`** — it currently has no login gate. Fine for local
-   dev, not acceptable to deploy as-is: anyone who finds the URL can add/test database
-   connections. This should be the very next thing before this goes anywhere near a
-   real server.
-2. **Admin FAQ-promotion screen** — a small page listing `query_log.json` sorted by
+1. **Admin FAQ-promotion screen** — a small page listing `query_log.json` sorted by
    count, with a "Save as FAQ" button that writes a curated answer into `faq.json`.
-3. **Authentication-in-chat** — the form engine currently assumes guest submissions;
-   the session-based form state already exists and just needs to survive a
-   redirect/login step rather than being invented from scratch.
-4. **"Live query" mode** — if the DB-backed data needs to reflect changes in real time
+2. **Authentication-in-chat** (customer-facing, different from the two above) — the
+   form engine currently assumes guest submissions; the session-based form state
+   already exists and just needs to survive a redirect/login step rather than being
+   invented from scratch.
+3. **"Live query" mode** — if DB-backed data needs to reflect changes in real time
    rather than through re-publishing, that needs a PDO-backed `SearchEngine` adapter
    (querying the DB per search instead of caching to JSON).
+4. **Rate limiting / CSRF** on the admin login and setup forms — brute-force protection
+   isn't in yet; low risk for a single-operator local admin tool, but worth doing
+   before any multi-admin or internet-facing deployment.
 
 ## How to run locally
 

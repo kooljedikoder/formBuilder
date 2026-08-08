@@ -4,7 +4,8 @@ require_once __DIR__ . '/../bootstrap.php';
 
 use Kili\Core\FormEngine;
 
-session_start();
+kili_require_app_auth_json();
+kili_ensure_session();
 header('Content-Type: application/json');
 
 /** Shapes the response for an in-progress (or just-started) form turn. */

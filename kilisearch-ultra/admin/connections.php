@@ -5,12 +5,103 @@ require_once __DIR__ . '/../core/SchemaDetector.php';
 
 use Kili\Core\SchemaDetector;
 
-$manager = kili_connection_manager();
 $do = $_REQUEST['do'] ?? '';
 $notice = null;
+
+// Admin is ALWAYS gated — no configured password means "not set up yet,"
+// never "wide open." First visit shows a one-time setup form instead of
+// the connections UI.
+if (!kili_admin_password_configured()) {
+    if ($do === 'admin_setup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $password = $_POST['password'] ?? '';
+        $confirm = $_POST['password_confirm'] ?? '';
+        if (strlen($password) < 8) {
+            $notice = ['type' => 'error', 'text' => 'Password must be at least 8 characters.'];
+        } elseif ($password !== $confirm) {
+            $notice = ['type' => 'error', 'text' => 'Passwords do not match.'];
+        } else {
+            kili_save_env_value('KILI_ADMIN_PASSWORD_HASH', password_hash($password, PASSWORD_DEFAULT));
+            kili_set_admin_authenticated(true);
+            header('Location: connections.php');
+            exit;
+        }
+    }
+    ?>
+    <!doctype html><html><head><meta charset="utf-8"><title>Set up admin password</title>
+    <style>body{font-family:-apple-system,Arial,sans-serif;background:#f5f6f8;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+    .card{background:#fff;border-radius:10px;padding:24px;max-width:340px;width:90%}
+    input{width:100%;padding:10px;border:1px solid #d0d0d0;border-radius:6px;margin-top:8px;box-sizing:border-box}
+    button{width:100%;margin-top:14px;padding:10px;border:none;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer}
+    .notice{padding:8px 12px;border-radius:6px;margin-top:12px;font-size:13px;background:#fce8e6;color:#c5221f}</style>
+    </head><body><form class="card" method="post" action="?do=admin_setup">
+      <h2 style="margin-top:0">Set up admin access</h2>
+      <p style="font-size:13px;color:#5f6368">No admin password is configured yet. Set one now — this page cannot be used until you do.</p>
+      <input type="password" name="password" placeholder="New admin password (8+ characters)" required autofocus>
+      <input type="password" name="password_confirm" placeholder="Confirm password" required>
+      <button type="submit">Set password &amp; continue</button>
+      <?php if ($notice): ?><div class="notice"><?= htmlspecialchars($notice['text']) ?></div><?php endif; ?>
+    </form></body></html>
+    <?php
+    exit;
+}
+
+if ($do === 'admin_login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (kili_verify_admin_password($_POST['password'] ?? '')) {
+        kili_set_admin_authenticated(true);
+        header('Location: connections.php');
+        exit;
+    }
+    $notice = ['type' => 'error', 'text' => 'Incorrect password.'];
+}
+
+if ($do === 'admin_logout') {
+    kili_set_admin_authenticated(false);
+    header('Location: connections.php');
+    exit;
+}
+
+if (!kili_is_admin_authenticated()) {
+    ?>
+    <!doctype html><html><head><meta charset="utf-8"><title>Admin login</title>
+    <style>body{font-family:-apple-system,Arial,sans-serif;background:#f5f6f8;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+    .card{background:#fff;border-radius:10px;padding:24px;max-width:320px;width:90%}
+    input{width:100%;padding:10px;border:1px solid #d0d0d0;border-radius:6px;margin-top:8px;box-sizing:border-box}
+    button{width:100%;margin-top:14px;padding:10px;border:none;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer}
+    .notice{padding:8px 12px;border-radius:6px;margin-top:12px;font-size:13px;background:#fce8e6;color:#c5221f}</style>
+    </head><body><form class="card" method="post" action="?do=admin_login">
+      <h2 style="margin-top:0">Admin login</h2>
+      <input type="password" name="password" placeholder="Admin password" required autofocus>
+      <button type="submit">Log in</button>
+      <?php if ($notice): ?><div class="notice"><?= htmlspecialchars($notice['text']) ?></div><?php endif; ?>
+    </form></body></html>
+    <?php
+    exit;
+}
+
+$manager = kili_connection_manager();
 $preview = null;
 
-if ($do === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($do === 'set_app_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $password = $_POST['app_password'] ?? '';
+    if ($password === '') {
+        kili_save_env_value('KILI_APP_PASSWORD_HASH', '');
+        $notice = ['type' => 'success', 'text' => 'App password removed — the customer-facing app is now open (no password required).'];
+    } else {
+        kili_save_env_value('KILI_APP_PASSWORD_HASH', password_hash($password, PASSWORD_DEFAULT));
+        $notice = ['type' => 'success', 'text' => 'App password set. Visitors will be asked for it before they can use the app.'];
+    }
+} elseif ($do === 'change_admin_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $password = $_POST['password'] ?? '';
+    $confirm = $_POST['password_confirm'] ?? '';
+    if (strlen($password) < 8) {
+        $notice = ['type' => 'error', 'text' => 'Password must be at least 8 characters.'];
+    } elseif ($password !== $confirm) {
+        $notice = ['type' => 'error', 'text' => 'Passwords do not match.'];
+    } else {
+        kili_save_env_value('KILI_ADMIN_PASSWORD_HASH', password_hash($password, PASSWORD_DEFAULT));
+        $notice = ['type' => 'success', 'text' => 'Admin password changed.'];
+    }
+} elseif ($do === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     if ($name === '' || !preg_match('/^[A-Za-z0-9_]+$/', $name)) {
         $notice = ['type' => 'error', 'text' => 'Profile name must use only letters, numbers and underscores.'];
@@ -96,12 +187,37 @@ foreach ($profiles as $profile) {
 </head>
 <body>
 <div class="wrap">
-  <h1>Data Source Connections</h1>
+  <div style="display:flex;justify-content:space-between;align-items:baseline">
+    <h1>Data Source Connections</h1>
+    <a href="?do=admin_logout" style="font-size:13px;color:#5f6368">Log out</a>
+  </div>
   <p>Credentials live in <code>.env</code> only — never in <code>config/data_sources.json</code>, never sent back to this page after saving.</p>
 
   <?php if ($notice): ?>
     <div class="notice <?= $notice['type'] ?>"><?= htmlspecialchars($notice['text']) ?></div>
   <?php endif; ?>
+
+  <div class="card">
+    <h2 style="margin-top:0">App access</h2>
+    <p style="font-size:13px;color:#5f6368">Optional — off by default so the customer-facing app stays zero-friction. Turn this on to require a shared password before anyone can use it.</p>
+    <p style="font-size:13px">Status: <?= kili_app_password_configured() ? '<strong style="color:#137333">password required</strong>' : '<strong>open, no password</strong>' ?></p>
+    <form method="post" action="?do=set_app_password">
+      <label>New app password</label>
+      <input type="password" name="app_password" placeholder="Leave blank to remove the password / keep it open">
+      <button type="submit">Save</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Change admin password</h2>
+    <form method="post" action="?do=change_admin_password">
+      <label>New admin password</label>
+      <input type="password" name="password" placeholder="8+ characters" required>
+      <label>Confirm</label>
+      <input type="password" name="password_confirm" required>
+      <button type="submit">Change password</button>
+    </form>
+  </div>
 
   <div class="card">
     <h2 style="margin-top:0">Configured profiles</h2>

@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
+kili_require_app_auth_json();
 header('Content-Type: application/json');
 
 $records = kili_storage()->all();

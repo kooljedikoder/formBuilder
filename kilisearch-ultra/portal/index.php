@@ -3,8 +3,52 @@
 require_once __DIR__ . '/../bootstrap.php';
 
 $branding = kili_branding();
-$sectors = array_column(kili_taxonomy_engine()->tree(), 'sector');
 $colors = $branding['colors'] ?? [];
+$authError = null;
+
+if (kili_app_password_configured()) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['app_password'])) {
+        if (kili_verify_app_password($_POST['app_password'])) {
+            kili_set_app_authenticated(true);
+        } else {
+            $authError = 'Incorrect password.';
+        }
+    }
+
+    if (!kili_is_app_authenticated()) {
+        ?>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><?= htmlspecialchars($branding['product_name'] ?? 'KiliGoogle.ai') ?></title>
+<style>
+  body { font-family: -apple-system, Arial, sans-serif; background: <?= htmlspecialchars($colors['chat_header'] ?? '#1a73e8') ?>; color: #202124; margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .gate { background: #fff; border-radius: 14px; padding: 28px; width: 90%; max-width: 340px; text-align: center; }
+  .gate h1 { font-size: 18px; margin: 0 0 4px; }
+  .gate p { font-size: 13px; color: #5f6368; margin: 0 0 16px; }
+  .gate input { width: 100%; padding: 12px; border: 1px solid #d0d0d0; border-radius: 8px; font-size: 15px; box-sizing: border-box; }
+  .gate button { width: 100%; margin-top: 10px; padding: 12px; border: none; border-radius: 8px; background: <?= htmlspecialchars($colors['primary'] ?? '#1a73e8') ?>; color: #fff; font-size: 15px; cursor: pointer; }
+  .gate .error { color: #c5221f; font-size: 13px; margin-top: 10px; }
+</style>
+</head>
+<body>
+  <form class="gate" method="post">
+    <h1><?= htmlspecialchars($branding['product_name'] ?? 'KiliGoogle.ai') ?></h1>
+    <p>This app is password-protected.</p>
+    <input type="password" name="app_password" placeholder="Password" autofocus required>
+    <button type="submit">Unlock</button>
+    <?php if ($authError): ?><div class="error"><?= htmlspecialchars($authError) ?></div><?php endif; ?>
+  </form>
+</body>
+</html>
+        <?php
+        exit;
+    }
+}
+
+$sectors = array_column(kili_taxonomy_engine()->tree(), 'sector');
 ?>
 <!doctype html>
 <html lang="en">

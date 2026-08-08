@@ -130,6 +130,129 @@ function kili_save_env_profile(string $name, array $fields): void
     file_put_contents($path, implode("\n", $lines) . "\n", LOCK_EX);
 }
 
+/**
+ * Writes/replaces a single top-level .env key (e.g. a password hash),
+ * preserving everything else in the file.
+ */
+function kili_save_env_value(string $key, string $value): void
+{
+    $path = __DIR__ . '/.env';
+    $lines = is_file($path) ? file($path, FILE_IGNORE_NEW_LINES) : [];
+
+    $found = false;
+    foreach ($lines as $i => $line) {
+        if (preg_match('/^' . preg_quote($key, '/') . '=/', trim($line))) {
+            $lines[$i] = $key . '=' . $value;
+            $found = true;
+            break;
+        }
+    }
+    if (!$found) {
+        $lines[] = $key . '=' . $value;
+    }
+
+    file_put_contents($path, implode("\n", $lines) . "\n", LOCK_EX);
+}
+
+function kili_ensure_session(): void
+{
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+}
+
+/**
+ * Two separate credentials, deliberately different defaults:
+ *  - Admin is ALWAYS gated. No configured password means "not set up
+ *    yet," not "wide open" — admin/connections.php shows a mandatory
+ *    one-time setup form instead of the connections UI until one exists.
+ *  - The app-wide password is OPTIONAL and off by default, so the
+ *    customer-facing app stays zero-friction/"plug and play" out of the
+ *    box. An admin can turn it on for a protected deployment.
+ * This gates *access* to the app/admin, not individual features within
+ * them — consistent with "no artificial feature-lock passwords."
+ */
+function kili_app_password_configured(): bool
+{
+    return !empty(kili_load_env()['KILI_APP_PASSWORD_HASH'] ?? '');
+}
+
+function kili_is_app_authenticated(): bool
+{
+    if (!kili_app_password_configured()) {
+        return true;
+    }
+    kili_ensure_session();
+
+    return !empty($_SESSION['kili_app_authenticated']);
+}
+
+function kili_verify_app_password(string $password): bool
+{
+    $hash = kili_load_env()['KILI_APP_PASSWORD_HASH'] ?? '';
+
+    return $hash !== '' && password_verify($password, $hash);
+}
+
+function kili_set_app_authenticated(bool $value): void
+{
+    kili_ensure_session();
+    $_SESSION['kili_app_authenticated'] = $value;
+}
+
+/** For customer-facing JSON API endpoints: exits with 401 if an app password is configured and not yet entered this session. */
+function kili_require_app_auth_json(): void
+{
+    if (!kili_is_app_authenticated()) {
+        http_response_code(401);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'error' => ['code' => 'AUTH_REQUIRED', 'message' => 'This app is password-protected. Please unlock it first.'],
+        ]);
+        exit;
+    }
+}
+
+function kili_admin_password_configured(): bool
+{
+    return !empty(kili_load_env()['KILI_ADMIN_PASSWORD_HASH'] ?? '');
+}
+
+function kili_is_admin_authenticated(): bool
+{
+    kili_ensure_session();
+
+    return !empty($_SESSION['kili_admin_authenticated']);
+}
+
+function kili_verify_admin_password(string $password): bool
+{
+    $hash = kili_load_env()['KILI_ADMIN_PASSWORD_HASH'] ?? '';
+
+    return $hash !== '' && password_verify($password, $hash);
+}
+
+function kili_set_admin_authenticated(bool $value): void
+{
+    kili_ensure_session();
+    $_SESSION['kili_admin_authenticated'] = $value;
+}
+
+/** For admin-only JSON API endpoints: exits with 401 unless an authenticated admin session exists. Always required — never optional. */
+function kili_require_admin_auth_json(): void
+{
+    if (!kili_is_admin_authenticated()) {
+        http_response_code(401);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'error' => ['code' => 'ADMIN_AUTH_REQUIRED', 'message' => 'Admin login required.'],
+        ]);
+        exit;
+    }
+}
+
 function kili_data_source_engine(): DataSourceEngine
 {
     static $engine = null;

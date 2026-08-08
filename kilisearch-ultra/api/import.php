@@ -5,6 +5,7 @@ require_once __DIR__ . '/../core/SchemaDetector.php';
 
 use Kili\Core\SchemaDetector;
 
+kili_require_admin_auth_json();
 header('Content-Type: application/json');
 
 /** @return array<int, array<string, mixed>> */
