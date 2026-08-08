@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../bootstrap.php';
 
 kili_require_admin_auth_json();
+kili_require_feature_json('multi_source');
 header('Content-Type: application/json');
 
 $engine = kili_data_source_engine();

@@ -6,6 +6,7 @@ require_once __DIR__ . '/../core/SchemaDetector.php';
 use Kili\Core\SchemaDetector;
 
 kili_require_admin_auth_json();
+kili_require_feature_json('import');
 header('Content-Type: application/json');
 
 /** @return array<int, array<string, mixed>> */
@@ -50,6 +51,7 @@ if (!empty($_FILES['file']['tmp_name'])) {
 // preview/import/publish flow either way, since it's all just "rows" by
 // the time SchemaDetector sees them.
 if (empty($rows) && !empty($body['connection']) && !empty($body['table'])) {
+    kili_require_feature_json('db_connections');
     try {
         $rows = kili_connection_manager()->fetchRows($body['connection'], $body['table'], (int) ($body['limit'] ?? 200));
     } catch (\Throwable $e) {

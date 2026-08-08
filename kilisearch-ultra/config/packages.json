@@ -1,0 +1,20 @@
+{
+  "default_package": "enterprise",
+  "packages": [
+    {
+      "id": "basic",
+      "name": "Basic",
+      "features": ["search"]
+    },
+    {
+      "id": "pro",
+      "name": "Pro",
+      "features": ["search", "forms", "memory", "attachments"]
+    },
+    {
+      "id": "enterprise",
+      "name": "Enterprise",
+      "features": ["search", "forms", "memory", "attachments", "import", "db_connections", "multi_source"]
+    }
+  ]
+}

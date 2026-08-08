@@ -238,6 +238,37 @@ unlocking (clean 401, not a crash). All 9 checks passed. `.env` was restored to 
 password-free state afterward so the shipped default remains fully open, matching the
 existing demo experience — nothing changes for anyone who doesn't turn this on.
 
+### License/package entitlements — the "plugged into a main app" hook (this session)
+
+Feature access is package-based (a license bundles a fixed feature set), not arbitrary
+per-feature passwords — and critically, **who decides the package is pluggable**: a
+host application's own auth system can hand Kili an identity, or Kili falls back to a
+configured default when running standalone.
+
+| Area | File(s) | Status |
+|---|---|---|
+| **Package definitions** | `config/packages.json` — `basic` (search only), `pro` (+ forms, memory, attachments), `enterprise` (+ import, db_connections, multi_source). `default_package: "enterprise"` so nothing is gated in standalone/demo mode unless something explicitly says otherwise | Done |
+| **Entitlement checks** | `core/EntitlementManager.php` (package → feature list, pure lookup) + `bootstrap.php` (`kili_current_package()`, `kili_has_feature()`, `kili_require_feature_json()`) | Done |
+| **The pluggable hook itself** | `kili_current_package()` reads `$_SESSION['kili_host_user']['package']` first — this is the integration point: a host app authenticates its own user, then sets that session value before handing off to Kili, and Kili trusts it instead of running its own login for this purpose. No host identity present → falls back to `packages.json`'s `default_package` | Done |
+| **Hard-gated (admin operations)** | `api/connections.php` requires `db_connections`, `api/data_sources.php` requires `multi_source`, `api/import.php` requires `import` generally and `db_connections` specifically for DB-sourced rows — all return a clean `403 FEATURE_NOT_LICENSED`, checked *in addition to* (not instead of) admin authentication. Confirmed these are genuinely independent axes: an authenticated admin can still be blocked by their package | Done |
+| **Gracefully degraded (customer chat)** | `api/chat.php` — starting a form without `forms`, or sending an attachment without `attachments`, gets a plain "not included in your plan" reply rather than an error; missing `memory` silently skips FAQ recall and falls through to ordinary search. Nothing crashes, nothing looks broken — a Basic-tier user just doesn't see the extra capabilities | Done |
+
+**Verified**: default behavior (no host identity) is unchanged — forms/memory/search
+all work exactly as before. Simulated a host app injecting `{package: "basic"}` into
+the session (the realistic integration shape — set server-side by trusted code, not
+exposed via any public endpoint) and confirmed: search still works, starting a form
+gets the graceful decline message, and asking a question with a known FAQ match
+correctly skips the memory engine and falls through to ordinary search with no error.
+Separately, with an authenticated admin session also carrying the `basic` package,
+confirmed `data_sources.php` and `connections.php` both return `403` — proving
+admin-auth ("are you allowed to administer") and entitlements ("does your plan include
+this") are checked independently, exactly as a real licensing model needs.
+
+**Not built**: an actual reference host-app integration (there's no real "main app" to
+test against yet — only the hook and a simulated session), and no UI for assigning
+users to packages (that's presumably the host app's job, or a future admin screen if
+Kili needs to manage packages itself in fully-standalone deployments).
+
 ## Suggested next phase
 
 1. **Admin FAQ-promotion screen** — a small page listing `query_log.json` sorted by

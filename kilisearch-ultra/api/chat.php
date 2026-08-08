@@ -38,11 +38,15 @@ $attachment = $input['attachment'] ?? null;
 // state / intent detection — it doesn't consume a pending form question,
 // since no current form field is a file type yet.
 if (is_array($attachment) && !empty($attachment['filename'])) {
+    $reply = kili_has_feature('attachments')
+        ? 'Got it — I\'ve received “' . $attachment['filename'] . '”. Someone from our team will take a look.'
+        : 'File attachments aren\'t included in your current plan.';
+
     echo json_encode([
         'success' => true,
         'data' => [
-            'intent' => 'attachment_ack',
-            'reply' => 'Got it — I\'ve received “' . $attachment['filename'] . '”. Someone from our team will take a look.',
+            'intent' => kili_has_feature('attachments') ? 'attachment_ack' : 'feature_unavailable',
+            'reply' => $reply,
             'detected' => [],
             'results' => [],
             'total' => 0,
@@ -105,6 +109,20 @@ $intent = $conversation->detectIntent($message);
 
 // 2. Start a new form.
 if ($intent === 'start_enquiry') {
+    if (!kili_has_feature('forms')) {
+        echo json_encode([
+            'success' => true,
+            'data' => [
+                'intent' => 'feature_unavailable',
+                'reply' => 'Sorry, requests/enquiries aren\'t included in your current plan.',
+                'detected' => [],
+                'results' => [],
+                'total' => 0,
+            ],
+        ]);
+        exit;
+    }
+
     $state = $formEngine->start('enquiry');
     $_SESSION['kili_form'] = $state;
     $template = $formEngine->template('enquiry');
@@ -130,7 +148,9 @@ if (in_array($intent, ['greeting', 'thanks', 'help', 'unknown'], true)) {
 
 // 4. Memory engine — has something like this been asked before? Skips
 // the search entirely if so, and can point back to specific listings.
-$faqMatch = kili_memory_engine()->recall($message);
+// Gracefully skipped (not an error) when the plan doesn't include it —
+// falls straight through to ordinary search below.
+$faqMatch = kili_has_feature('memory') ? kili_memory_engine()->recall($message) : null;
 if ($faqMatch !== null) {
     kili_memory_record_hit($faqMatch['id']);
     $linked = kili_resolve_sources(array_values(array_filter(array_map(

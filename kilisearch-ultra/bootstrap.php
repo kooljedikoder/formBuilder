@@ -12,6 +12,7 @@ require_once __DIR__ . '/core/MemoryEngine.php';
 require_once __DIR__ . '/core/DataSourceEngine.php';
 require_once __DIR__ . '/core/SchemaDetector.php';
 require_once __DIR__ . '/core/ConnectionManager.php';
+require_once __DIR__ . '/core/EntitlementManager.php';
 
 use Kili\Adapters\JsonAdapter;
 use Kili\Core\SearchEngine;
@@ -24,6 +25,7 @@ use Kili\Core\MemoryEngine;
 use Kili\Core\DataSourceEngine;
 use Kili\Core\SchemaDetector;
 use Kili\Core\ConnectionManager;
+use Kili\Core\EntitlementManager;
 
 /** Reads a JSON config file, returning [] if it doesn't exist or is invalid. */
 function kili_read_json(string $path): array
@@ -248,6 +250,56 @@ function kili_require_admin_auth_json(): void
         echo json_encode([
             'success' => false,
             'error' => ['code' => 'ADMIN_AUTH_REQUIRED', 'message' => 'Admin login required.'],
+        ]);
+        exit;
+    }
+}
+
+function kili_entitlement_manager(): EntitlementManager
+{
+    static $manager = null;
+    if ($manager === null) {
+        $manager = new EntitlementManager(kili_read_json(__DIR__ . '/config/packages.json'));
+    }
+
+    return $manager;
+}
+
+/**
+ * Resolves the current user's license package. This is the "plugged into
+ * a main app's auth system" hook: a host application authenticates its
+ * own users and, before handing off to Kili, sets
+ * $_SESSION['kili_host_user'] = ['user_id' => ..., 'package' => ...].
+ * Kili trusts that rather than running its own login for this purpose.
+ * With no host identity present (running standalone), everything falls
+ * back to config/packages.json's default_package — "enterprise" out of
+ * the box, so nothing is gated unless a host app (or a future package
+ * management screen) says otherwise.
+ */
+function kili_current_package(): string
+{
+    kili_ensure_session();
+    if (!empty($_SESSION['kili_host_user']['package'])) {
+        return $_SESSION['kili_host_user']['package'];
+    }
+
+    return kili_entitlement_manager()->defaultPackage();
+}
+
+function kili_has_feature(string $feature): bool
+{
+    return kili_entitlement_manager()->hasFeature(kili_current_package(), $feature);
+}
+
+/** For endpoints where lacking a feature is a hard stop (admin operations) rather than something to gracefully degrade around. */
+function kili_require_feature_json(string $feature): void
+{
+    if (!kili_has_feature($feature)) {
+        http_response_code(403);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'error' => ['code' => 'FEATURE_NOT_LICENSED', 'message' => 'Your plan does not include this feature.'],
         ]);
         exit;
     }
