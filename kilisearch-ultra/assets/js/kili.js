@@ -642,4 +642,14 @@
   }
 
   addBubble('ai', branding.welcome_message || 'Hi, what are you looking for today?');
+
+  // A PWA manifest shortcut (long-press the installed app icon) links to
+  // ?sector=X — deep-links the same way clicking that chip would: fills
+  // the input, doesn't auto-submit, consistent with "chips are prompts,
+  // not direct actions" above.
+  var deepLinkSector = new URLSearchParams(window.location.search).get('sector');
+  if (deepLinkSector) {
+    input.value = deepLinkSector + ' ';
+    input.focus();
+  }
 })();

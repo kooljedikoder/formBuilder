@@ -604,19 +604,53 @@ page, both are absent with `?embed=1`, and the service worker's cache actually
 contains the CSS/JS shell files. All test databases, admin accounts, and mutated
 `.env`/`data/*.json`/`config/*.json` files were torn down/reverted afterward.
 
+## PWA polish
+
+Picked the two concrete, well-scoped items off the previous "Suggested next phase"
+list — offline fallback page and manifest shortcuts — and left the vaguer/unconfirmed
+ones (role granularity beyond owner/editor, live-query CRUD's transaction/concurrency
+gaps, the Kili→Killi rename) for later, since none of them had a specific enough
+shape yet to build without more direction.
+
+- **Offline fallback page** — `portal/offline.html`, a small brand-neutral static
+  page (deliberately not branding-aware, since it must render correctly even with
+  zero network access to fetch current branding). `portal/sw.js`'s navigation
+  handler now does network-first with `cache: 'no-store'` (so the browser's own
+  HTTP cache can't quietly satisfy a "network" fetch that should be failing) and
+  falls back to the cached offline page only when the network genuinely can't be
+  reached.
+- **Manifest shortcuts** — `portal/manifest.php` now lists the first four sectors
+  from the taxonomy as installable-app shortcuts (long-press the icon → jump
+  straight to Automotive/Hospitality/etc.). Each links to `index.php?sector=X`;
+  `assets/js/kili.js` reads that param on load and fills the search input exactly
+  the way clicking the sector's chip would — not auto-submitted, consistent with
+  the existing "chips are prompts, not direct actions" design.
+
+Verifying the offline fallback surfaced a real test-harness bug worth noting: my
+first several attempts used Playwright's `context.setOffline(true)` and consistently
+found the *original* page still rendered instead of the fallback. That led down a
+genuine dead end (network-first fetch calls can be silently satisfied by the
+browser's own HTTP cache instead of failing, which is why `cache: 'no-store'` got
+added — a real, worthwhile fix even though it wasn't the actual cause here) before
+finding the actual explanation: `setOffline()` didn't reliably block the service
+worker's own execution context in this Chromium/Playwright combination. Switching
+to killing the real PHP server — with the timing bug in my own test script fixed
+(the external kill was landing *after* the reload had already completed against the
+still-running server, not before) — reproduced a genuine, unrecoverable network
+failure, and the offline page rendered exactly as designed. Also reconfirmed the
+manifest's shortcuts array and the `?sector=` deep-link both work as intended in a
+live Chromium session.
+
 ## Suggested next phase
 
 1. **Role granularity beyond owner/editor** — e.g. a role that can view but not
    modify records, or per-data-source permissions (this editor can touch source A
-   but not source B).
+   but not source B). Still just a sketch, not a scoped feature.
 2. **Live-query CRUD's remaining gaps** — no transactions (a failed write mid-batch
    isn't rolled back), no optimistic-concurrency check (two admins editing the same
    live row can silently clobber each other), and tags/booleans are converted with
    a fixed convention (comma-joined string, 1/0) that may not match every schema.
-3. **PWA polish** — a proper offline fallback page (right now a fully offline visit
-   to `index.php` itself just fails, since that page is deliberately never cached),
-   and app-shortcut/share-target manifest entries.
-4. The still-unconfirmed deeper Kili→Killi internal code identifier rename.
+3. The still-unconfirmed deeper Kili→Killi internal code identifier rename.
 
 ## How to run locally
 
