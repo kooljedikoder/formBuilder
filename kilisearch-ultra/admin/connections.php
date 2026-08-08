@@ -107,7 +107,7 @@ if ($do === 'set_app_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $notice = ['type' => 'error', 'text' => 'Unknown package.'];
     } else {
         kili_set_default_package($packageId);
-        $notice = ['type' => 'success', 'text' => "Default package set to \"$packageId\". Applies to anyone Kili doesn't recognize a host-app identity for."];
+        $notice = ['type' => 'success', 'text' => "Default package set to \"$packageId\". Applies to anyone Killi doesn't recognize a host-app identity for."];
     }
 } elseif ($do === 'activate_license' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = kili_activate_license(trim($_POST['license_key'] ?? ''));
@@ -174,7 +174,7 @@ foreach ($profiles as $profile) {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>KiliSearch Ultra — Connections</title>
+<title>KilliSearch Ultra — Connections</title>
 <style>
   body { font-family: -apple-system, Arial, sans-serif; background: #f5f6f8; color: #202124; margin: 0; padding: 24px; }
   .wrap { max-width: 780px; margin: 0 auto; }
@@ -211,7 +211,7 @@ foreach ($profiles as $profile) {
   <?php $packagesConfig = kili_read_json(__DIR__ . '/../config/packages.json'); ?>
   <div class="card">
     <h2 style="margin-top:0">Licensing / packages</h2>
-    <p style="font-size:13px;color:#5f6368">Used when Kili can't see a host application's identity (no <code>$_SESSION['kili_host_user']</code>) — e.g. running fully standalone, or before a real host-app integration exists. See <code>examples/host-app-demo.php</code> for how a host app assigns a package per-user instead.</p>
+    <p style="font-size:13px;color:#5f6368">Used when Killi can't see a host application's identity (no <code>$_SESSION['kili_host_user']</code>) — e.g. running fully standalone, or before a real host-app integration exists. See <code>examples/host-app-demo.php</code> for how a host app assigns a package per-user instead.</p>
     <table>
       <tr><th>Package</th><th>Features</th></tr>
       <?php foreach ($packagesConfig['packages'] ?? [] as $pkg): ?>

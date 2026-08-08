@@ -1,5 +1,5 @@
 {
-  "product_name": "KiliGoogle.ai",
+  "product_name": "KilliGoogle.ai",
   "tagline": "What can I help you find?",
   "logo": null,
   "favicon": null,
@@ -15,6 +15,6 @@
     "ai_bubble": "#ffffff"
   },
   "font": "system-ui",
-  "welcome_message": "Hi, I'm Kili. What are you looking for today?",
+  "welcome_message": "Hi, I'm Killi. What are you looking for today?",
   "search_placeholder": "Search businesses, services, products..."
 }

@@ -56,10 +56,10 @@ $packages = kili_entitlement_manager()->packageIds();
 <body>
 <div class="wrap">
   <h1>Example Host Application</h1>
-  <p>Stands in for a real CRM/portal that already has its own users and licensing. "Logging in" here sets the same session value a real integration would set server-side, then hands off to KiliSearch.</p>
+  <p>Stands in for a real CRM/portal that already has its own users and licensing. "Logging in" here sets the same session value a real integration would set server-side, then hands off to KilliSearch.</p>
 
   <div class="status <?= $current ? '' : 'none' ?>">
-    <?= $current ? 'Signed in as ' . htmlspecialchars($current['user_id']) . ' — package: <strong>' . htmlspecialchars($current['package']) . '</strong>' : 'Not signed in to the host app (KiliSearch will use its configured default package)' ?>
+    <?= $current ? 'Signed in as ' . htmlspecialchars($current['user_id']) . ' — package: <strong>' . htmlspecialchars($current['package']) . '</strong>' : 'Not signed in to the host app (KilliSearch will use its configured default package)' ?>
   </div>
 
   <form method="post">
@@ -71,7 +71,7 @@ $packages = kili_entitlement_manager()->packageIds();
     <button type="submit">Log in as this user</button>
   </form>
 
-  <a class="button" href="../portal/index.php" target="_blank">Continue to KiliSearch →</a>
+  <a class="button" href="../portal/index.php" target="_blank">Continue to KilliSearch →</a>
   <?php if ($current): ?><a class="logout" href="?logout=1">Log out of host app</a><?php endif; ?>
 </div>
 </body>

@@ -1,4 +1,4 @@
 [
-  { "key": "KILI-PRO-DEMO-0001", "package": "pro", "status": "active", "note": "Demo Pro key" },
-  { "key": "KILI-ULTRA-DEMO-0001", "package": "ultra", "status": "active", "note": "Demo Ultra key" }
+  { "key": "KILLI-STANDARD-DEMO-0001", "package": "standard", "status": "active", "note": "Demo Standard key" },
+  { "key": "KILLI-ULTRA-DEMO-0001", "package": "ultra", "status": "active", "note": "Demo Ultra key" }
 ]

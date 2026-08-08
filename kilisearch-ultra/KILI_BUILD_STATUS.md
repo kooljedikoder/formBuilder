@@ -312,6 +312,28 @@ Activating the demo **Ultra** key on top of that unlocks it. All through the rea
 UI, not just the underlying functions. Test artifacts (`.env`, `config/packages.json`)
 reverted to their shipped state (unactivated, `basic` default) afterward.
 
+### Naming correction + tier rename (this session)
+
+Per explicit direction:
+
+- The product name is **Killi**, not Kili (e.g. `KilliGoogle.ai`, `KilliSearch Ultra`).
+  Corrected everywhere it's user-visible — `config/branding.json`, page titles/headings
+  in `portal/index.php`, `admin/connections.php`, `examples/host-app-demo.php`. Left
+  internal code identifiers unchanged (the `Kili\Core` PHP namespace, `kili_*` function
+  names, CSS classes) since those are invisible implementation details with no
+  user-facing effect — renaming ~40 files' namespace/function names would be a large,
+  high-risk, purely-cosmetic-internally change. Flagged for confirmation before doing
+  that deeper rename, since it's a one-way, hard-to-partially-revert change.
+- Tiers renamed to match direction: `basic`→**`free`**, `pro`→**`standard`**,
+  `enterprise`→**`ultra`** (done in the previous entry). `default_package` is now
+  `"free"`. Demo license keys renamed to `KILLI-STANDARD-DEMO-0001` /
+  `KILLI-ULTRA-DEMO-0001`. Verified end to end again after the rename: fresh install →
+  Free (search only) → activate Standard demo key → forms unlock, DB features still
+  403 — same behavior as before the rename, just correctly named now.
+- **`PACKAGES.md`** — a Free/Standard/Ultra comparison table (accurate to what's
+  actually gated in code, not aspirational) plus license activation instructions,
+  requested as a deliverable in its own right.
+
 ## Suggested next phase
 
 1. **Admin FAQ-promotion screen** — a small page listing `query_log.json` sorted by

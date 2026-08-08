@@ -1,14 +1,14 @@
 {
-  "default_package": "basic",
+  "default_package": "free",
   "packages": [
     {
-      "id": "basic",
-      "name": "Basic",
+      "id": "free",
+      "name": "Free",
       "features": ["search"]
     },
     {
-      "id": "pro",
-      "name": "Pro",
+      "id": "standard",
+      "name": "Standard",
       "features": ["search", "forms", "memory", "attachments"]
     },
     {

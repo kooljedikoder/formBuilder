@@ -22,7 +22,7 @@ if (kili_app_password_configured()) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= htmlspecialchars($branding['product_name'] ?? 'KiliGoogle.ai') ?></title>
+<title><?= htmlspecialchars($branding['product_name'] ?? 'KilliGoogle.ai') ?></title>
 <style>
   body { font-family: -apple-system, Arial, sans-serif; background: <?= htmlspecialchars($colors['chat_header'] ?? '#1a73e8') ?>; color: #202124; margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; }
   .gate { background: #fff; border-radius: 14px; padding: 28px; width: 90%; max-width: 340px; text-align: center; }
@@ -35,7 +35,7 @@ if (kili_app_password_configured()) {
 </head>
 <body>
   <form class="gate" method="post">
-    <h1><?= htmlspecialchars($branding['product_name'] ?? 'KiliGoogle.ai') ?></h1>
+    <h1><?= htmlspecialchars($branding['product_name'] ?? 'KilliGoogle.ai') ?></h1>
     <p>This app is password-protected.</p>
     <input type="password" name="app_password" placeholder="Password" autofocus required>
     <button type="submit">Unlock</button>
@@ -55,7 +55,7 @@ $sectors = array_column(kili_taxonomy_engine()->tree(), 'sector');
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title><?= htmlspecialchars($branding['product_name'] ?? 'KiliGoogle.ai') ?></title>
+<title><?= htmlspecialchars($branding['product_name'] ?? 'KilliGoogle.ai') ?></title>
 <link rel="stylesheet" href="../assets/css/kili.css">
 <style>
 :root {
@@ -74,7 +74,7 @@ $sectors = array_column(kili_taxonomy_engine()->tree(), 'sector');
 <body>
 <div id="kili-app" class="kili-app">
   <header class="kili-header">
-    <div class="kili-header-title"><?= htmlspecialchars($branding['product_name'] ?? 'KiliGoogle.ai') ?></div>
+    <div class="kili-header-title"><?= htmlspecialchars($branding['product_name'] ?? 'KilliGoogle.ai') ?></div>
     <button id="kili-theme-toggle" class="kili-theme-toggle" type="button" aria-label="Toggle dark mode">&#127769;</button>
   </header>
 
