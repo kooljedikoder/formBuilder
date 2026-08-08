@@ -269,6 +269,28 @@ test against yet — only the hook and a simulated session), and no UI for assig
 users to packages (that's presumably the host app's job, or a future admin screen if
 Kili needs to manage packages itself in fully-standalone deployments).
 
+### Reference host-app integration + default-package control (this session)
+
+Both follow-ups from the entitlement work above, closing the two gaps just noted.
+
+| Area | File(s) | Status |
+|---|---|---|
+| **Reference host-app demo** | `examples/host-app-demo.php` — a small standalone page simulating an external application: "logging in" as a demo user with a chosen package sets `$_SESSION['kili_host_user']` exactly as a real integration's server-side code would, then hands off to the real portal. Clearly commented as illustrative, not a feature | Done |
+| **Default-package admin control** | New "Licensing / packages" card in `admin/connections.php` (admin-gated) — lists each package with its features and a dropdown to change `config/packages.json`'s `default_package`, for standalone deployments with no host app to delegate to | Done |
+
+**Verified with a real browser, not just curl**: opened the host-app demo, confirmed
+"not signed in" state, logged in as a `basic` user, opened the real Kili portal in the
+*same browser context* (shared cookies, exactly like a real handoff), asked it to
+"raise a request" and got the graceful decline. Then — without touching Kili at all —
+went back to the host-app tab, switched the same session to `enterprise`, returned to
+the already-open Kili tab, asked again, and it started the real form. That's the
+integration contract working live: the host app is the only thing that changed, and
+Kili's behavior followed. Separately verified the admin default-package dropdown:
+changed it to `basic`, confirmed `config/packages.json` updated, confirmed a completely
+fresh session (no host identity at all) picked up the new default and got forms
+blocked. Both test artifacts (`.env`, `config/packages.json`) reverted to their
+pre-test state afterward.
+
 ## Suggested next phase
 
 1. **Admin FAQ-promotion screen** — a small page listing `query_log.json` sorted by

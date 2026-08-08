@@ -101,6 +101,14 @@ if ($do === 'set_app_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         kili_save_env_value('KILI_ADMIN_PASSWORD_HASH', password_hash($password, PASSWORD_DEFAULT));
         $notice = ['type' => 'success', 'text' => 'Admin password changed.'];
     }
+} elseif ($do === 'set_default_package' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $packageId = $_POST['default_package'] ?? '';
+    if (!in_array($packageId, kili_entitlement_manager()->packageIds(), true)) {
+        $notice = ['type' => 'error', 'text' => 'Unknown package.'];
+    } else {
+        kili_set_default_package($packageId);
+        $notice = ['type' => 'success', 'text' => "Default package set to \"$packageId\". Applies to anyone Kili doesn't recognize a host-app identity for."];
+    }
 } elseif ($do === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     if ($name === '' || !preg_match('/^[A-Za-z0-9_]+$/', $name)) {
@@ -196,6 +204,30 @@ foreach ($profiles as $profile) {
   <?php if ($notice): ?>
     <div class="notice <?= $notice['type'] ?>"><?= htmlspecialchars($notice['text']) ?></div>
   <?php endif; ?>
+
+  <?php $packagesConfig = kili_read_json(__DIR__ . '/../config/packages.json'); ?>
+  <div class="card">
+    <h2 style="margin-top:0">Licensing / packages</h2>
+    <p style="font-size:13px;color:#5f6368">Used when Kili can't see a host application's identity (no <code>$_SESSION['kili_host_user']</code>) — e.g. running fully standalone, or before a real host-app integration exists. See <code>examples/host-app-demo.php</code> for how a host app assigns a package per-user instead.</p>
+    <table>
+      <tr><th>Package</th><th>Features</th></tr>
+      <?php foreach ($packagesConfig['packages'] ?? [] as $pkg): ?>
+        <tr>
+          <td><?= htmlspecialchars($pkg['name']) ?><?= $pkg['id'] === ($packagesConfig['default_package'] ?? '') ? ' <strong>(default)</strong>' : '' ?></td>
+          <td><?= htmlspecialchars(implode(', ', $pkg['features'])) ?></td>
+        </tr>
+      <?php endforeach; ?>
+    </table>
+    <form method="post" action="?do=set_default_package">
+      <label>Default package</label>
+      <select name="default_package">
+        <?php foreach ($packagesConfig['packages'] ?? [] as $pkg): ?>
+          <option value="<?= htmlspecialchars($pkg['id']) ?>" <?= $pkg['id'] === ($packagesConfig['default_package'] ?? '') ? 'selected' : '' ?>><?= htmlspecialchars($pkg['name']) ?></option>
+        <?php endforeach; ?>
+      </select>
+      <button type="submit">Save default</button>
+    </form>
+  </div>
 
   <div class="card">
     <h2 style="margin-top:0">App access</h2>

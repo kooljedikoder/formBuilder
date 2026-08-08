@@ -305,6 +305,15 @@ function kili_require_feature_json(string $feature): void
     }
 }
 
+/** Changes the package used when no host app has injected an identity — the standalone-deployment control. */
+function kili_set_default_package(string $packageId): void
+{
+    $path = __DIR__ . '/config/packages.json';
+    $config = kili_read_json($path);
+    $config['default_package'] = $packageId;
+    file_put_contents($path, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
 function kili_data_source_engine(): DataSourceEngine
 {
     static $engine = null;
