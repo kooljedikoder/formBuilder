@@ -72,27 +72,38 @@ iterate on, rather than a disconnected mockup.
   on the very next request (no separate re-index step, since the JSON file is the index).
   Test data was reverted afterward so the shipped demo dataset stays clean.
 
-## Explicitly NOT built yet (postponed per the revised V1 plan)
+### Minimal Customer Form + FAQ/memory engine
+
+| Area | File(s) | Status |
+|---|---|---|
+| **Form engine** | `core/FormEngine.php`, `config/forms.json` — one template ("Enquiry / Support Request": name, contact, message), one question per chat turn, required-field validation with re-ask, `{placeholder}` fill-in on the success message. No auth, no dynamic/cascading fields — deliberately minimal | Done |
+| **Form state** | `api/chat.php` — PHP session (`$_SESSION['kili_form']`) holds `{template_id, step, data}` across separate HTTP requests, so the form survives without a database. Started via the `start_enquiry` intent ("raise a request", "make an enquiry", ...) or the zero-result "Raise a request" quick reply | Done |
+| **Submissions storage** | `data/submissions.json` via the existing `JsonAdapter` (reused as-is — same zero-DB pattern as listings), `api/submissions.php` to view them | Done |
+| **FAQ / "has this been asked before" engine** | `core/FaqEngine.php` — deterministic token-overlap (Jaccard) similarity against `data/faq.json`, no AI/LLM. A match skips the search entirely, returns the curated answer, bumps `hit_count`, and can link back to specific listing records | Done |
+| **Query memory (the "learning" half)** | `kili_log_query()` in `bootstrap.php` writes every non-FAQ, non-small-talk message to `data/query_log.json` with a normalized form and a running count. Nothing here writes to `faq.json` automatically — an admin reviews frequent entries and promotes the good ones into a curated FAQ, which avoids ever "confidently" serving a wrong stored answer | Done |
+| **Zero-result → ticket bridge** | `api/search.php`'s `find_service` "zero" reply now offers to log a request; `api/chat.php` sets `offer_ticket: true` on zero-result searches; the UI shows a "Raise a request" quick reply that starts the same enquiry form | Done |
+
+## Explicitly NOT built yet (postponed)
 
 Remote DB connections / `.env` config / connection manager, API connector with response
-mapping, conversational forms/journeys, authentication-in-chat, dynamic/cascading form
-fields, admin console, widget/SDK, PWA (`manifest.json` + `sw.js`), SQLite/MySQL/
-PostgreSQL adapters, multilingual packs, analytics, security hardening (CSRF/rate
-limiting/roles), installer wizard, FAQ/knowledge-base memory engine (design proposed,
-not yet built — see conversation notes). Each should land as its own reviewed, tested
-slice.
+mapping, authentication-in-chat, dynamic/cascading form fields, additional form
+templates (quote/booking/vendor/etc.), an admin UI for reviewing `query_log.json` and
+promoting entries to `faq.json` (currently a manual JSON edit), admin console generally,
+widget/SDK, PWA (`manifest.json` + `sw.js`), SQLite/MySQL/PostgreSQL adapters,
+multilingual packs, analytics, security hardening (CSRF/rate limiting/roles), installer
+wizard. Each should land as its own reviewed, tested slice.
 
 ## Suggested next phase
 
-Customer Forms (V1 Phase 4) — the chat UI, reply engine and API envelope are now
-solid enough to carry a form; a single "Enquiry / Support Request" template proving
-state retention through the chat is the next structurally hard piece, and is what the
-V1 plan calls the most valuable feature. See conversation notes for the minimal scope
-proposed (one template, no auth, no cascading fields) and for a proposed FAQ/knowledge-
-base "memory of repeated questions" engine.
-
-Recommend (1) first since it's small and directly follows from this session's work,
-then (2).
+Two natural candidates:
+1. **Admin FAQ-promotion screen** — a small page listing `query_log.json` sorted by
+   count, with a "Save as FAQ" button that writes a curated answer into `faq.json`.
+   Closes the loop on the memory engine built this session; genuinely small.
+2. **Authentication-in-chat** — the form engine currently assumes guest submissions;
+   the master plan's harder requirement (form state must survive a login prompt without
+   being lost) is now easier to attempt since the session-based form state already
+   exists and just needs to survive a redirect/login step rather than being invented
+   from scratch.
 
 ## How to run locally
 

@@ -1,0 +1,10 @@
+[
+  {
+    "id": "faq-1",
+    "question": "how do i contact a business directly",
+    "answer": "Tap Call or WhatsApp on any result card to contact that business directly — no need to go through us.",
+    "tags": ["contact", "help"],
+    "hit_count": 0,
+    "linked_record_ids": []
+  }
+]

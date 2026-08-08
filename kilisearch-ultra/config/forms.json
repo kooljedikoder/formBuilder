@@ -1,0 +1,13 @@
+[
+  {
+    "id": "enquiry",
+    "name": "Enquiry / Support Request",
+    "intro": "Sure — let's get a few details so we can help.",
+    "fields": [
+      { "key": "name", "label": "What's your name?", "type": "text", "required": true },
+      { "key": "contact", "label": "Best phone number or email to reach you?", "type": "text", "required": true },
+      { "key": "message", "label": "What do you need help with?", "type": "textarea", "required": true }
+    ],
+    "success_message": "Thanks {name} — we've logged your request and will get back to you at {contact} soon."
+  }
+]

@@ -228,6 +228,19 @@
           return;
         }
         var data = payload.data;
+
+        // Conversational forms (data.intent === 'form') run one question
+        // per turn — no results/quick-replies while a form is active, and
+        // the user's next typed message is treated as the answer, not a
+        // new search (enforced server-side via the PHP session).
+        if (data.intent === 'form' || data.intent === 'form_complete') {
+          if (data.reply) addBubble('ai', data.reply);
+          if (data.form && data.form.active && data.form.field) {
+            addBubble('ai', data.form.field.label);
+          }
+          return;
+        }
+
         lastResults = data.results || [];
 
         var breadcrumb = detectedBreadcrumb(data.detected);
@@ -237,8 +250,17 @@
         if (data.results && data.results.length) {
           renderResults(data.results);
         }
+
         if (data.total > 1) {
           addQuickReplies(buildQuickReplies(message, {}));
+        } else if (data.offer_ticket) {
+          addQuickReplies([{
+            label: 'Raise a request',
+            onClick: function () {
+              addBubble('user', 'Raise a request');
+              runChat('raise a request');
+            },
+          }]);
         }
       })
       .catch(function () {

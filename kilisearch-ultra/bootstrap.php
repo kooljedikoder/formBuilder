@@ -7,6 +7,8 @@ require_once __DIR__ . '/core/LocationEngine.php';
 require_once __DIR__ . '/core/TaxonomyEngine.php';
 require_once __DIR__ . '/core/SourceRegistry.php';
 require_once __DIR__ . '/core/ConversationEngine.php';
+require_once __DIR__ . '/core/FormEngine.php';
+require_once __DIR__ . '/core/FaqEngine.php';
 
 use Kili\Adapters\JsonAdapter;
 use Kili\Core\SearchEngine;
@@ -14,6 +16,8 @@ use Kili\Core\LocationEngine;
 use Kili\Core\TaxonomyEngine;
 use Kili\Core\SourceRegistry;
 use Kili\Core\ConversationEngine;
+use Kili\Core\FormEngine;
+use Kili\Core\FaqEngine;
 
 /** Reads a JSON config file, returning [] if it doesn't exist or is invalid. */
 function kili_read_json(string $path): array
@@ -130,6 +134,91 @@ function kili_conversation_engine(): ConversationEngine
     }
 
     return $engine;
+}
+
+function kili_submissions_storage(): JsonAdapter
+{
+    static $storage = null;
+    if ($storage === null) {
+        $storage = new JsonAdapter(__DIR__ . '/data/submissions.json');
+    }
+
+    return $storage;
+}
+
+function kili_form_engine(): FormEngine
+{
+    static $engine = null;
+    if ($engine === null) {
+        $engine = new FormEngine(kili_read_json(__DIR__ . '/config/forms.json'));
+    }
+
+    return $engine;
+}
+
+function kili_faq_engine(): FaqEngine
+{
+    static $engine = null;
+    if ($engine === null) {
+        $engine = new FaqEngine(kili_read_json(__DIR__ . '/data/faq.json'));
+    }
+
+    return $engine;
+}
+
+/** Bumps a matched FAQ entry's hit_count — lets an admin see which stored answers get reused most. */
+function kili_bump_faq_hit(string $faqId): void
+{
+    $path = __DIR__ . '/data/faq.json';
+    $entries = kili_read_json($path);
+
+    foreach ($entries as &$entry) {
+        if ($entry['id'] === $faqId) {
+            $entry['hit_count'] = ($entry['hit_count'] ?? 0) + 1;
+            break;
+        }
+    }
+    unset($entry);
+
+    file_put_contents($path, json_encode($entries, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/**
+ * Logs a search query (normalized) so repeated questions become visible —
+ * the "memory" behind the FAQ engine. An admin reviews frequent entries
+ * here and promotes the good ones into data/faq.json with a curated
+ * answer; nothing here writes to faq.json automatically.
+ */
+function kili_log_query(string $query): void
+{
+    $path = __DIR__ . '/data/query_log.json';
+    $log = kili_read_json($path);
+    $normalized = mb_strtolower(trim(preg_replace('/\s+/', ' ', $query)));
+    if ($normalized === '') {
+        return;
+    }
+
+    $found = false;
+    foreach ($log as &$entry) {
+        if ($entry['normalized'] === $normalized) {
+            $entry['count'] = ($entry['count'] ?? 0) + 1;
+            $entry['last_asked_at'] = gmdate('Y-m-d\TH:i:s\Z');
+            $found = true;
+            break;
+        }
+    }
+    unset($entry);
+
+    if (!$found) {
+        $log[] = [
+            'query' => $query,
+            'normalized' => $normalized,
+            'count' => 1,
+            'last_asked_at' => gmdate('Y-m-d\TH:i:s\Z'),
+        ];
+    }
+
+    file_put_contents($path, json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
 }
 
 function kili_branding(): array

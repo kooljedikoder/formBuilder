@@ -26,12 +26,17 @@
       ]
     },
     {
+      "id": "start_enquiry",
+      "patterns": ["enquiry", "make an enquiry", "raise a request", "raise a ticket", "support request", "speak to someone", "file a complaint", "contact support", "submit a request", "open a ticket"],
+      "responses": []
+    },
+    {
       "id": "find_service",
       "patterns": [],
       "responses": {
         "zero": [
-          "I couldn’t find anything for “{query}”{location_suffix}.",
-          "No matches yet for “{query}”{location_suffix} — try a different word or a nearby area."
+          "I couldn’t find anything for “{query}”{location_suffix} — want me to log this as a request instead?",
+          "No matches yet for “{query}”{location_suffix}. Try a different word, or I can raise a request for you."
         ],
         "one": [
           "I found 1 match for “{query}”{location_suffix}.",
