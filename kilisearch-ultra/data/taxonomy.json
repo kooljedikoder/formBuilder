@@ -75,7 +75,9 @@
   {
     "sector": "Home Services",
     "categories": [
-      { "category": "Cleaning", "subcategories": ["Residential", "Office"] }
+      { "category": "Cleaning", "subcategories": ["Residential", "Office"] },
+      { "category": "Plumbing", "subcategories": ["Emergency Repair", "Installation"] },
+      { "category": "Electrical", "subcategories": ["Wiring", "Appliance Repair"] }
     ]
   }
 ]

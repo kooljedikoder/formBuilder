@@ -104,6 +104,32 @@ if ($action === 'import') {
     exit;
 }
 
+if ($action === 'publish') {
+    $name = trim($body['name'] ?? '');
+    if ($name === '') {
+        http_response_code(422);
+        echo json_encode([
+            'success' => false,
+            'error' => ['code' => 'VALIDATION_ERROR', 'message' => '"name" is required to publish a new data source.'],
+        ]);
+        exit;
+    }
+
+    $mapping = $body['mapping'] ?? $schema['mapping'];
+    $newSource = kili_publish_data_source($name, $rows, $mapping);
+
+    if (!empty($body['activate'])) {
+        kili_set_active_data_source($newSource['id']);
+    }
+
+    echo json_encode([
+        'success' => true,
+        'data' => ['source' => $newSource, 'activated' => !empty($body['activate'])],
+        'meta' => ['action' => 'publish'],
+    ]);
+    exit;
+}
+
 echo json_encode([
     'success' => true,
     'data' => $schema,

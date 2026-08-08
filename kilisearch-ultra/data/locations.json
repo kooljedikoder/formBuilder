@@ -19,5 +19,24 @@
         ]
       }
     ]
+  },
+  {
+    "country": "United Kingdom",
+    "states": [
+      {
+        "state": "Greater London",
+        "cities": [
+          {
+            "city": "London",
+            "areas": [
+              { "name": "Camden", "aliases": [], "latitude": 51.5390, "longitude": -0.1426 },
+              { "name": "Shoreditch", "aliases": [], "latitude": 51.5255, "longitude": -0.0806 },
+              { "name": "Brixton", "aliases": [], "latitude": 51.4613, "longitude": -0.1156 },
+              { "name": "Islington", "aliases": [], "latitude": 51.5362, "longitude": -0.1033 }
+            ]
+          }
+        ]
+      }
+    ]
   }
 ]

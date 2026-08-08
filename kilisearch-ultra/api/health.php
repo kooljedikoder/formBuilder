@@ -5,6 +5,7 @@ require_once __DIR__ . '/../bootstrap.php';
 header('Content-Type: application/json');
 
 $records = kili_storage()->all();
+$activeSource = kili_data_source_engine()->active();
 
 echo json_encode([
     'success' => true,
@@ -12,6 +13,7 @@ echo json_encode([
         'status' => 'ok',
         'records_indexed' => count($records),
         'storage_driver' => kili_config()['storage_driver'] ?? 'json',
+        'active_data_source' => $activeSource['name'] ?? null,
     ],
     'meta' => [],
 ]);

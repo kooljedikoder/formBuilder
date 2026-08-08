@@ -34,10 +34,40 @@ similarly-named-but-separate features:
 The **Form Engine** (`core/FormEngine.php`) is a fourth, separate piece — it's a state
 machine for multi-step conversational forms, not a search/knowledge concern.
 
-Everything operates against **one connected data source at a time** (currently the
-local `data/data.json` JSON file) — there is no web crawler and no general/open-domain
+Everything operates against **one connected data source at a time** — which local
+dataset that is is now configurable and swappable (see **Data Source Engine** below),
+not hardcoded to a single file. There is still no web crawler and no general/open-domain
 search. It's a site-search-and-chatbot engine over data you load into it, not a
 Google-style engine that indexes the internet.
+
+### Data Source Engine
+
+"Import" isn't just a one-off CSV upload tool — it's one capability of a broader **Data
+Source Engine** concept: managing *where* Kili's data comes from right now, and how new
+data gets brought in.
+
+- **`core/DataSourceEngine.php`** — picks which pre-configured local dataset backs
+  Search. `config/data_sources.json` lists them (`{id, name, type, file, description}`)
+  and records which one is `active`. `kili_storage()` in `bootstrap.php` reads whichever
+  file is active instead of a hardcoded path — switching sources takes effect on the
+  very next request, no re-index step (same as everywhere else in this zero-DB design).
+  `api/data_sources.php` lists sources / activates one by id.
+- **Two demo datasets ship** to prove swapping genuinely works, not just in theory: the
+  original 15-listing Nigeria business directory, and a second, different 6-listing UK
+  Home Services demo (plumbers/electricians/cleaners across four London areas). Taxonomy
+  (`data/taxonomy.json`) and Location (`data/locations.json`) are **shared reference
+  data** across both — only the listings themselves get swapped, which is the correct
+  design (a sector tree and a location hierarchy aren't really per-dataset concerns).
+- **`SchemaDetector` feeds into it**: `api/import.php?action=publish` takes rows +
+  a (possibly admin-edited) field mapping, saves them as a **brand-new, independently
+  switchable data source** (registered in `config/data_sources.json`, optionally
+  activated immediately) — rather than the existing `action=import`, which merges rows
+  into whatever's *currently* active. So there are now two distinct import behaviors:
+  "add a few rows to what's already loaded" vs. "this is a whole new dataset, save it
+  as its own thing I can switch to later."
+- **Not yet included**: remote database or API connections, `.env`/credentials config —
+  this slice is local-JSON-file sources only. That's the next piece, per your explicit
+  choice to build this smaller part first.
 
 ## What's built
 
@@ -122,15 +152,19 @@ wizard. Each should land as its own reviewed, tested slice.
 
 ## Suggested next phase
 
-Two natural candidates:
+Explicitly next, per direction: a **database credentials config screen** — the
+`.env`-backed Connection Manager (host/port/database/username/password, SSL, one or
+more named profiles) postponed until the local-file Data Source Engine existed. That
+now exists, so the natural extension is a new source `type` (`mysql`/`postgres`) whose
+credentials live in `.env` (never in `config/data_sources.json`, never sent to the
+browser) and a PDO-backed adapter alongside `JsonAdapter`.
+
+Other candidates, smaller and independent of that:
 1. **Admin FAQ-promotion screen** — a small page listing `query_log.json` sorted by
    count, with a "Save as FAQ" button that writes a curated answer into `faq.json`.
-   Closes the loop on the memory engine built this session; genuinely small.
 2. **Authentication-in-chat** — the form engine currently assumes guest submissions;
-   the master plan's harder requirement (form state must survive a login prompt without
-   being lost) is now easier to attempt since the session-based form state already
-   exists and just needs to survive a redirect/login step rather than being invented
-   from scratch.
+   the session-based form state already exists and just needs to survive a
+   redirect/login step rather than being invented from scratch.
 
 ## How to run locally
 
