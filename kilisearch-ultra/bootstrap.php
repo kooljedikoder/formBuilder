@@ -352,6 +352,17 @@ function kili_active_license_key(): ?string
     return $key !== '' ? $key : null;
 }
 
+/** Whether the guided standalone setup wizard (admin/setup.php) has been completed or explicitly skipped through. */
+function kili_setup_complete(): bool
+{
+    return (kili_load_env()['KILI_SETUP_COMPLETE'] ?? '') === 'true';
+}
+
+function kili_mark_setup_complete(): void
+{
+    kili_save_env_value('KILI_SETUP_COMPLETE', 'true');
+}
+
 function kili_data_source_engine(): DataSourceEngine
 {
     static $engine = null;

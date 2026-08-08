@@ -22,7 +22,7 @@ if (!kili_admin_password_configured()) {
         } else {
             kili_save_env_value('KILI_ADMIN_PASSWORD_HASH', password_hash($password, PASSWORD_DEFAULT));
             kili_set_admin_authenticated(true);
-            header('Location: connections.php');
+            header('Location: ' . (kili_setup_complete() ? 'connections.php' : 'setup.php'));
             exit;
         }
     }
@@ -48,7 +48,7 @@ if (!kili_admin_password_configured()) {
 if ($do === 'admin_login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (kili_verify_admin_password($_POST['password'] ?? '')) {
         kili_set_admin_authenticated(true);
-        header('Location: connections.php');
+        header('Location: ' . (kili_setup_complete() ? 'connections.php' : 'setup.php'));
         exit;
     }
     $notice = ['type' => 'error', 'text' => 'Incorrect password.'];
@@ -200,7 +200,10 @@ foreach ($profiles as $profile) {
 <div class="wrap">
   <div style="display:flex;justify-content:space-between;align-items:baseline">
     <h1>Data Source Connections</h1>
-    <a href="?do=admin_logout" style="font-size:13px;color:#5f6368">Log out</a>
+    <span style="font-size:13px">
+      <a href="setup.php" style="color:#5f6368;margin-right:14px">Re-run setup wizard</a>
+      <a href="?do=admin_logout" style="color:#5f6368">Log out</a>
+    </span>
   </div>
   <p>Credentials live in <code>.env</code> only — never in <code>config/data_sources.json</code>, never sent back to this page after saving.</p>
 

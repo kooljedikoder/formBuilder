@@ -333,6 +333,32 @@ Per explicit direction:
 - **`PACKAGES.md`** — a Free/Standard/Ultra comparison table (accurate to what's
   actually gated in code, not aspirational) plus license activation instructions,
   requested as a deliverable in its own right.
+- **Guided standalone setup wizard** (`admin/setup.php`) — so a fresh install needs no
+  documentation to configure, just "next, next, done." A 3-step linear flow gated
+  behind the same admin auth as `connections.php`:
+  1. **License** — activate a Standard/Ultra key inline (`kili_activate_license()`),
+     or "Continue with Free" to skip.
+  2. **App access** — optionally set the app-wide password, or skip to leave it open.
+  3. **Done** — a summary (current package, app-access status, active data source)
+     with links into the full admin panel and the live app.
+
+  Completion is tracked via a new `KILI_SETUP_COMPLETE=true` flag in `.env`
+  (`kili_setup_complete()` / `kili_mark_setup_complete()` in `bootstrap.php`). Both of
+  `connections.php`'s post-auth redirects (`admin_setup` and `admin_login`) now check
+  this flag: first-ever login sends you into the wizard, everything after sends you
+  straight to `connections.php`. A "Re-run setup wizard" link was added next to "Log
+  out" on `connections.php` so it's never a one-shot dead end — you can revisit it
+  (e.g. to activate a license bought later) without hand-editing `.env`.
+
+  Verified end-to-end with curl against a live PHP server: fresh admin password setup
+  → redirected into the wizard → activated `KILLI-STANDARD-DEMO-0001` at step 1 →
+  skipped app password at step 2 → step 3 correctly summarized "Standard / Open (no
+  password) / Nigeria Business Directory (Demo)" → "Finish setup" wrote
+  `KILI_SETUP_COMPLETE=true` and returned to `connections.php` → a subsequent login
+  went straight to `connections.php`, skipping the wizard, confirming the flag sticks.
+  All test-mutated `.env` and `config/packages.json` state was reverted to the clean
+  shipped defaults afterward (this repo ships with no admin password set and
+  `default_package: "free"`, exactly as before this feature).
 
 ## Suggested next phase
 
