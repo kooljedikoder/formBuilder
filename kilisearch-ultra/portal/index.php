@@ -49,6 +49,8 @@ if (kili_app_password_configured()) {
 }
 
 $sectors = array_column(kili_taxonomy_engine()->tree(), 'sector');
+$hasAttachments = kili_has_feature('attachments');
+$hasWhiteLabel = kili_has_feature('white_label');
 ?>
 <!doctype html>
 <html lang="en">
@@ -87,8 +89,10 @@ $sectors = array_column(kili_taxonomy_engine()->tree(), 'sector');
   </div>
 
   <form class="kili-searchbar" id="kili-searchbar" autocomplete="off">
+    <?php if ($hasAttachments): ?>
     <button type="button" id="kili-attach" class="kili-icon-btn" aria-label="Attach a file">&#128206;</button>
     <input type="file" id="kili-attach-input" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" hidden>
+    <?php endif; ?>
     <button type="button" id="kili-mic" class="kili-icon-btn" aria-label="Speak your search" hidden>&#127908;</button>
     <input
       type="search"
@@ -100,6 +104,9 @@ $sectors = array_column(kili_taxonomy_engine()->tree(), 'sector');
     <button type="submit" class="kili-send" aria-label="Search">&#8593;</button>
   </form>
   <div id="kili-suggestions" class="kili-suggestions" hidden></div>
+  <?php if (!$hasWhiteLabel): ?>
+  <div class="kili-attribution">Powered by Killi</div>
+  <?php endif; ?>
 </div>
 
 <script>

@@ -359,6 +359,38 @@ Per explicit direction:
   All test-mutated `.env` and `config/packages.json` state was reverted to the clean
   shipped defaults afterward (this repo ships with no admin password set and
   `default_package: "free"`, exactly as before this feature).
+- **Tier-representativeness audit** — went back through every chat/branding feature
+  built so far (`PACKAGES.md`, chat UX, `admin/connections.php`, `config/branding.json`)
+  and checked what's actually gated vs. what a Free/Standard/Ultra licensing model
+  should gate. Two findings, both addressed:
+  1. **Bug**: `attachments` was gated server-side in `api/chat.php` (a Free install got
+     a "feature unavailable" reply) but the 📎 button and `api/upload.php` had no gate
+     at all — a Free visitor could pick a file, it would upload and sit in
+     `storage/uploads/` on disk, *then* get rejected at the chat-reply step. Fixed by
+     hiding the attach button in `portal/index.php` when `!kili_has_feature('attachments')`
+     and adding `kili_require_feature_json('attachments')` to `api/upload.php` itself, so
+     the endpoint refuses the upload outright rather than accepting-then-discarding.
+  2. **Gap**: branding was entirely ungated — a Free install could fully customize
+     `config/branding.json` (name, colors, welcome message) with zero indication it's
+     running on a licensed platform, which undercuts the whole point of a paid tier in
+     a real product. Added a `white_label` feature (Ultra-only) and a small "Powered by
+     Killi" line under the search bar in `portal/index.php`, shown on Free and Standard,
+     removed on Ultra. This is the first feature that differentiates the *branding*
+     itself rather than functionality — Ultra buyers get to look like their own product,
+     not just get more capability.
+
+  Deliberately left alone: dark/light mode, voice input, and emoji reactions stay free
+  on every tier — they're client-side/negligible-cost UX polish with no real
+  business-value differentiation, so gating them would annoy users without giving Ultra
+  a meaningful reason to exist. The tier story instead rests on capture/memory
+  (Standard) and data ownership + brand (Ultra), which is the stronger differentiator.
+
+  Verified with a live PHP server across all three tiers: Free renders no attach button
+  and shows the "Powered by Killi" line; Standard renders the attach button and still
+  shows the line; Ultra renders the attach button with no line. Confirmed `api/upload.php`
+  rejects a real PNG on Free with `FEATURE_NOT_LICENSED` before any file-type check runs,
+  and accepts it once switched to Standard. `config/packages.json` and `.env` were
+  restored to clean shipped state afterward.
 
 ## Suggested next phase
 

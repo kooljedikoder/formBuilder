@@ -14,7 +14,7 @@
     {
       "id": "ultra",
       "name": "Ultra",
-      "features": ["search", "forms", "memory", "attachments", "import", "db_connections", "multi_source"]
+      "features": ["search", "forms", "memory", "attachments", "import", "db_connections", "multi_source", "white_label"]
     }
   ]
 }

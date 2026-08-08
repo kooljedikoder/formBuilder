@@ -386,6 +386,16 @@ body {
   border-bottom: 1px solid var(--kili-border, #f0f0f0);
 }
 .kili-suggestion-item:last-child { border-bottom: none; }
+
+.kili-attribution {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--kili-muted, #5f6368);
+  padding: 6px 12px max(6px, env(safe-area-inset-bottom));
+  flex-shrink: 0;
+  background: var(--kili-bg, #fff);
+}
 .kili-suggestion-item:active { background: rgba(127, 127, 127, 0.15); }
 
 .kili-empty {

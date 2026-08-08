@@ -14,6 +14,11 @@ These aren't feature-gated in code — every installation gets them regardless o
 - Chat UX: dark/light mode, voice input, message reactions, delivery ticks, animations
 - Swappable local data sources (JSON datasets) via the Data Source Engine
 
+These stay free on every tier deliberately: they cost nothing extra to run (client-side
+or negligible server load) and the tiers instead differentiate on business value —
+capturing/remembering visitors (Standard) and owning your own data infrastructure and
+brand (Ultra) — rather than on chat polish.
+
 ## Comparison
 
 | | **Free** | **Standard** | **Ultra** |
@@ -26,6 +31,7 @@ These aren't feature-gated in code — every installation gets them regardless o
 | CSV / JSON data import with auto field-mapping | — | — | ✅ |
 | Live database connections (MySQL / PostgreSQL) | — | — | ✅ |
 | Multiple, swappable data sources | — | — | ✅ |
+| Remove "Powered by Killi" branding (white-label) | — | — | ✅ |
 
 ## Feature keys (for reference)
 
@@ -41,6 +47,13 @@ Each row above maps to a feature key checked in code (`kili_has_feature()` /
 | `import` | | | ✅ |
 | `db_connections` | | | ✅ |
 | `multi_source` | | | ✅ |
+| `white_label` | | | ✅ |
+
+`attachments` is enforced both in the UI (the attach button doesn't render without it)
+and server-side in `api/upload.php` — a Free/Standard-without-license install can't
+stash files on disk just because someone bypasses the button. `white_label` controls a
+"Powered by Killi" line rendered under the search bar in `portal/index.php`, present on
+Free and Standard, gone on Ultra.
 
 ## Activating a license
 
