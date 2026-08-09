@@ -10,6 +10,9 @@
   var themeToggle = document.getElementById('killi-theme-toggle');
   var attachBtn = document.getElementById('killi-attach');
   var attachInput = document.getElementById('killi-attach-input');
+  var attachCameraPhoto = document.getElementById('killi-attach-camera-photo');
+  var attachCameraVideo = document.getElementById('killi-attach-camera-video');
+  var attachSheet = document.getElementById('killi-attach-sheet');
   var micBtn = document.getElementById('killi-mic');
   var branding = window.KILLI_BRANDING || {};
   var lastResults = [];
@@ -30,42 +33,31 @@
     chat.scrollTop = chat.scrollHeight;
   }
 
-  var REACTION_EMOJI = ['😍', '👍', '😐', '👎'];
-
-  function buildReactionRow(replyText) {
-    var wrap = el('div', 'killi-reactions');
-    REACTION_EMOJI.forEach(function (emoji) {
-      var btn = el('button', 'killi-reaction', emoji);
-      btn.type = 'button';
-      btn.setAttribute('aria-label', 'React with ' + emoji);
-      btn.addEventListener('click', function () {
-        Array.prototype.forEach.call(wrap.querySelectorAll('.killi-reaction'), function (b) {
-          b.classList.remove('selected');
-        });
-        btn.classList.add('selected');
-        fetch(API_BASE + 'feedback.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ emoji: emoji, reply: replyText }),
-        }).catch(function () {});
-      });
-      wrap.appendChild(btn);
-    });
-    return wrap;
+  function formatTimestamp(date) {
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   }
 
-  /** withReaction adds an emoji-reaction row under this bubble — used for "final answer" AI replies, not breadcrumbs or mid-form questions. Those same "final answer" turns are what get paired up for the end-of-conversation rating panel below. */
+  /**
+   * withReaction marks this bubble as a "final answer" AI reply (not a
+   * breadcrumb or mid-form question) — those are what get paired up for
+   * the end-of-conversation rating panel. There's no per-reply feedback
+   * control anymore: rating happens once, at the end of the session, via
+   * the star button this reveals — asking on every single reply was too
+   * much friction for how short most conversations are.
+   */
   function addBubble(role, text, withReaction) {
     var bubble = el('div', 'killi-bubble ' + role, escapeHtml(text));
+    var meta = el('div', 'killi-bubble-meta');
+    meta.appendChild(el('span', 'killi-timestamp', formatTimestamp(new Date())));
     if (role === 'user') {
       var tick = el('span', 'killi-tick', '&#10003;');
-      bubble.appendChild(tick);
+      meta.appendChild(tick);
       lastUserTick = tick;
       lastUserMessage = text;
     }
+    bubble.appendChild(meta);
     chat.appendChild(bubble);
     if (role === 'ai' && withReaction) {
-      chat.appendChild(buildReactionRow(text));
       sessionTurns.push({ query: lastUserMessage, reply: text });
       if (rateBtn && rateBtn.hidden) rateBtn.hidden = false;
     }
@@ -103,6 +95,12 @@
       img.alt = file.filename || 'Attachment';
       img.className = 'killi-attachment-img';
       bubble.appendChild(img);
+    } else if (file.mime && file.mime.indexOf('video/') === 0) {
+      var video = document.createElement('video');
+      video.src = file.url;
+      video.controls = true;
+      video.className = 'killi-attachment-video';
+      bubble.appendChild(video);
     } else {
       var link = el('a', 'killi-attachment-file', '&#128196; ' + escapeHtml(file.filename || 'Attachment'));
       link.href = file.url;
@@ -110,8 +108,11 @@
       link.rel = 'noopener';
       bubble.appendChild(link);
     }
+    var meta = el('div', 'killi-bubble-meta');
+    meta.appendChild(el('span', 'killi-timestamp', formatTimestamp(new Date())));
     var tick = el('span', 'killi-tick', '&#10003;');
-    bubble.appendChild(tick);
+    meta.appendChild(tick);
+    bubble.appendChild(meta);
     lastUserTick = tick;
     chat.appendChild(bubble);
     scrollToBottom();
@@ -251,24 +252,20 @@
       card.appendChild(thumb);
     }
 
-    // Expandable records (layout !== "simple") trade the inline rating in
-    // the title row for the "View" button — the rating moves into the meta
-    // line instead, so it's still visible without crowding the title.
-    var expandable = record._layout && record._layout !== 'simple';
-
+    // Every listing gets a View button now, regardless of layout — even a
+    // "simple" record with no rich fields still opens a (sparser) modal
+    // with at least its title/rating/actions, via buildBusinessProfileBody's
+    // graceful field-by-field degradation. The rating moves into the meta
+    // line so it's still visible without crowding the title.
     var top = el('div', 'killi-card-top');
     top.appendChild(el('div', 'killi-card-title', escapeHtml(record.title) + (record.verified ? '<span class="killi-badge">Verified</span>' : '')));
-    if (expandable) {
-      top.appendChild(buildViewButton(record));
-    } else if (record.rating) {
-      top.appendChild(el('div', 'killi-card-rating', starRating(record.rating)));
-    }
+    top.appendChild(buildViewButton(record));
     card.appendChild(top);
 
     var metaTextParts = [record.subcategory || record.category, record.location].filter(Boolean);
     if (record._distance_km !== undefined) metaTextParts.push(record._distance_km + ' km away');
     var metaHtml = escapeHtml(metaTextParts.join(' · '));
-    if (expandable && record.rating) metaHtml = starRating(record.rating) + (metaHtml ? ' · ' + metaHtml : '');
+    if (record.rating) metaHtml = starRating(record.rating) + (metaHtml ? ' · ' + metaHtml : '');
     card.appendChild(el('div', 'killi-card-meta', metaHtml));
 
     if (record.source && record.source.name) {
@@ -925,35 +922,57 @@
     hideSuggestions();
   });
 
-  // File attachment: pick a file, upload it, then send it to the bot as
-  // its own turn (see sendAttachment). Validation (type/size) is enforced
-  // server-side in api/upload.php; the accept="" attribute is just a UI hint.
-  if (attachBtn && attachInput) {
-    attachBtn.addEventListener('click', function () { attachInput.click(); });
+  // File attachment: pick a file (photo library, camera, or camera video),
+  // upload it, then send it to the bot as its own turn (see sendAttachment).
+  // Validation (type/size) is enforced server-side in api/upload.php; the
+  // accept/capture attributes are just UI hints.
+  function uploadAttachment(file) {
+    if (!file) return;
+    var formData = new FormData();
+    formData.append('file', file);
+    attachBtn.disabled = true;
 
-    attachInput.addEventListener('change', function () {
-      var file = attachInput.files[0];
-      if (!file) return;
+    fetch(API_BASE + 'upload.php', { method: 'POST', body: formData })
+      .then(function (res) { return res.json(); })
+      .then(function (payload) {
+        attachBtn.disabled = false;
+        if (!payload.success) {
+          addBubble('ai', payload.error && payload.error.message ? payload.error.message : 'Could not upload that file.');
+          return;
+        }
+        sendAttachment(payload.data);
+      })
+      .catch(function () {
+        attachBtn.disabled = false;
+        addBubble('ai', 'I’m having trouble uploading that file. Please try again.');
+      });
+  }
 
-      var formData = new FormData();
-      formData.append('file', file);
-      attachBtn.disabled = true;
+  if (attachBtn && attachInput && attachSheet) {
+    attachBtn.addEventListener('click', function () { attachSheet.hidden = false; });
 
-      fetch(API_BASE + 'upload.php', { method: 'POST', body: formData })
-        .then(function (res) { return res.json(); })
-        .then(function (payload) {
-          attachBtn.disabled = false;
-          attachInput.value = '';
-          if (!payload.success) {
-            addBubble('ai', payload.error && payload.error.message ? payload.error.message : 'Could not upload that file.');
-            return;
-          }
-          sendAttachment(payload.data);
-        })
-        .catch(function () {
-          attachBtn.disabled = false;
-          addBubble('ai', 'I’m having trouble uploading that file. Please try again.');
-        });
+    attachSheet.addEventListener('click', function (e) {
+      if (e.target === attachSheet) attachSheet.hidden = true;
+    });
+
+    var cancelAttach = document.getElementById('killi-attach-cancel');
+    if (cancelAttach) cancelAttach.addEventListener('click', function () { attachSheet.hidden = true; });
+
+    Array.prototype.forEach.call(attachSheet.querySelectorAll('.killi-attach-option[data-target]'), function (btn) {
+      btn.addEventListener('click', function () {
+        attachSheet.hidden = true;
+        var target = document.getElementById(btn.getAttribute('data-target'));
+        if (target) target.click();
+      });
+    });
+
+    [attachInput, attachCameraPhoto, attachCameraVideo].forEach(function (fileInput) {
+      if (!fileInput) return;
+      fileInput.addEventListener('change', function () {
+        var file = fileInput.files[0];
+        fileInput.value = '';
+        uploadAttachment(file);
+      });
     });
   }
 

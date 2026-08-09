@@ -1059,6 +1059,47 @@ function killi_memory_remember_query(string $query): void
     }
 
     file_put_contents($path, json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    killi_bump_daily_query_count();
+}
+
+/**
+ * A separate, minimal running tally of total searches per calendar day
+ * (UTC), independent of the per-query dedup above — that file tracks
+ * "how often has THIS query been asked," never a timeline, so it can't
+ * answer "is search volume trending up." Kept as its own small file
+ * rather than reshaping query_log.json's array-of-entries shape, which
+ * admin/faq.php already reads directly.
+ */
+function killi_bump_daily_query_count(): void
+{
+    $path = __DIR__ . '/data/query_daily.json';
+    $daily = killi_read_json($path);
+    if (!is_array($daily) || array_is_list($daily)) {
+        $daily = [];
+    }
+    $today = gmdate('Y-m-d');
+    $daily[$today] = ($daily[$today] ?? 0) + 1;
+    // Keep the file from growing forever — a rolling 90-day window is more
+    // than enough for any sparkline this admin will ever want.
+    $cutoff = gmdate('Y-m-d', strtotime('-90 days'));
+    foreach (array_keys($daily) as $day) {
+        if ($day < $cutoff) {
+            unset($daily[$day]);
+        }
+    }
+    file_put_contents($path, json_encode($daily, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/** @return array<string,int> the last $days days (oldest first), UTC, zero-filled for days with no searches. */
+function killi_daily_query_counts(int $days = 14): array
+{
+    $daily = killi_read_json(__DIR__ . '/data/query_daily.json');
+    $series = [];
+    for ($i = $days - 1; $i >= 0; $i--) {
+        $day = gmdate('Y-m-d', strtotime("-{$i} days"));
+        $series[$day] = (int) ($daily[$day] ?? 0);
+    }
+    return $series;
 }
 
 /** Records an emoji reaction to a specific AI reply — append-only, same shape as query logging. */

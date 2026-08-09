@@ -241,3 +241,53 @@ form.inline { display: inline; }
 .admin-source-row .count { font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .admin-empty { color: var(--admin-muted); font-size: 13.5px; padding: 6px 0; }
+
+.admin-sparkline { width: 100%; height: 44px; display: block; }
+
+/* Records: table on desktop, swipe-to-reveal card list on mobile */
+.admin-record-list { display: none; }
+@media (max-width: 860px) {
+  .admin-table-wrap { display: none; }
+  .admin-record-list { display: block; }
+}
+
+.admin-swipe-card {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--admin-border);
+}
+.admin-swipe-card:last-child { border-bottom: none; }
+
+.admin-swipe-actions {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  align-items: stretch;
+}
+.admin-swipe-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  text-decoration: none;
+  cursor: pointer;
+}
+.admin-swipe-btn.edit { background: var(--admin-primary); }
+.admin-swipe-btn.delete { background: var(--admin-danger-ink); }
+.admin-swipe-actions form { display: flex; }
+
+.admin-swipe-front {
+  position: relative;
+  background: var(--admin-surface);
+  padding: 12px 4px;
+  touch-action: pan-y;
+  transition: transform 0.2s ease;
+}
+.admin-swipe-title { font-size: 14px; font-weight: 600; }
+.admin-swipe-meta { font-size: 12.5px; color: var(--admin-muted); margin-top: 2px; }

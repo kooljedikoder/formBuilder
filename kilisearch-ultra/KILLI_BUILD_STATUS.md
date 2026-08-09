@@ -1093,3 +1093,70 @@ through the new chrome; the two pre-auth connections.php gates (admin
 creation, login) render exactly as before. All test-created admin
 accounts, license overrides, FAQ entries, and backup files were reverted
 after testing.
+
+## Chat polish batch: no per-reply prompts, always-on View, camera/video, timestamps
+
+Requested together: (1) stop asking for a rating on every single reply —
+only at the end of the session; (2) every listing response should get a
+View button, not just ones with rich fields; (3) the attach button should
+offer camera photo/video capture, not just a file picker; (4) a visible
+timestamp per message. Applied to the real app (`assets/js/killi.js`,
+`assets/css/killi.css`, `portal/index.php`, `api/upload.php`) and mirrored
+into the standalone chat-demo artifact for parity.
+
+- **Per-reply reactions removed.** `buildReactionRow()`/`REACTION_EMOJI`
+  and their CSS are gone; `addBubble()` no longer renders them. The
+  end-of-session star panel (`#killi-rate-panel`) is now the only feedback
+  prompt — unchanged otherwise, still reveals after the first "final
+  answer" AI turn. `admin/feedback.php`'s reaction-review section is left
+  in place (harmless; it just stops receiving new rows) rather than torn
+  out, since only the chat-side prompting was in scope.
+- **View button on every listing.** `renderCard()` no longer gates the
+  button behind `record._layout !== 'simple'` — every result gets one.
+  `buildBusinessProfileBody()` was already written to skip any field a
+  record doesn't have, so a Simple-layout record just opens a sparser
+  modal (title, rating, category, call/WhatsApp/website) instead of not
+  expanding at all. The now-unused `.killi-card-rating` inline-rating
+  style was removed as dead code.
+- **Attach → action sheet.** Clicking attach now opens a small bottom
+  sheet (Take Photo / Record Video / Choose File) instead of firing a
+  single file picker — same slide-up-card pattern as the admin's mobile
+  "More" sheet. Camera options use `capture="environment"` on dedicated
+  hidden inputs; all three funnel into the same `uploadAttachment()` call.
+  `api/upload.php` now accepts `video/mp4`, `video/quicktime`,
+  `video/webm` with its own 25MB ceiling (images/PDF stay at 5MB) — an
+  early size check at the larger limit runs before MIME sniffing, then a
+  type-specific check after. `addAttachmentBubble()` renders a
+  `<video controls>` for video attachments.
+- **Timestamps.** Every bubble now shows a small `h:mm AM/PM` stamp
+  (`toLocaleTimeString`, rendered client-side at paint time — never
+  server time, so it always matches the visitor's clock). Restructured
+  the tick/timestamp markup into a shared `.killi-bubble-meta` row so
+  both sit on one line instead of the tick's old block-level styling;
+  `addAttachmentBubble()` (which builds its own bubble outside
+  `addBubble()`) gets the same meta row so attachments aren't the one
+  bubble type missing a timestamp.
+
+Verified against a real running server: searched for a Simple-layout
+listing and confirmed its View button now opens a (sparser) modal that
+was previously not expandable at all; confirmed zero `.killi-reaction`
+elements render after a search, and that the star rate-button still
+reveals after the first answer; opened the attach sheet, picked "Take
+Photo," and completed a real upload+render round-trip with a synthetic
+image; did the same for "Record Video" with a synthetic minimal MP4
+(confirmed `video/mp4` sniffed correctly and rendered with `<video
+controls>`); confirmed timestamps render on user, AI, and attachment
+bubbles alike, and persist correctly through a dark-mode toggle. All
+synthetic uploads were deleted from `storage/uploads/` afterward (already
+gitignored, so nothing to revert in git).
+
+## Sentiment analysis: considered, not built
+
+Asked whether to add a sentiment-analysis library to make the chat feel
+more responsive to frustration. Recommended against it for now: Killi's
+replies are template-driven, not generated, so a real sentiment model
+adds a dependency and per-request latency for very little payoff — there's
+no free-text generation for it to steer. The data already collected (a
+1-2★ end-session rating, a repeated zero-result query) is a cheaper,
+zero-dependency signal for the same goal, if a "detect frustration and
+soften the fallback reply" feature is wanted later.

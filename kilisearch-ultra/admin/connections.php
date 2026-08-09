@@ -35,21 +35,21 @@ if (!killi_admin_password_configured()) {
         }
     }
     ?>
-    <!doctype html><html><head><meta charset="utf-8"><title>Set up admin access</title>
-    <style>body{font-family:-apple-system,Arial,sans-serif;background:#f5f6f8;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-    .card{background:#fff;border-radius:10px;padding:24px;max-width:340px;width:90%}
-    input{width:100%;padding:10px;border:1px solid #d0d0d0;border-radius:6px;margin-top:8px;box-sizing:border-box}
-    button{width:100%;margin-top:14px;padding:10px;border:none;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer}
-    .notice{padding:8px 12px;border-radius:6px;margin-top:12px;font-size:13px;background:#fce8e6;color:#c5221f}</style>
+    <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Set up admin access</title>
+    <link rel="stylesheet" href="../assets/css/admin.css">
+    <style>body{display:flex;align-items:center;justify-content:center;height:100vh;padding:20px;box-sizing:border-box}
+    .card{max-width:340px;width:100%;margin:0;box-shadow:var(--admin-shadow-lg)}
+    input{margin-top:8px}
+    button{width:100%;margin-top:14px}</style>
     </head><body><form class="card" method="post" action="?do=admin_setup">
       <?= killi_csrf_field() ?>
       <h2 style="margin-top:0">Set up admin access</h2>
-      <p style="font-size:13px;color:#5f6368">No admin account exists yet. Create the first one now — this page cannot be used until you do.</p>
+      <p class="lead" style="margin-top:0">No admin account exists yet. Create the first one now — this page cannot be used until you do.</p>
       <input name="username" placeholder="Username" value="admin" required autofocus>
       <input type="password" name="password" placeholder="Password (8+ characters)" required>
       <input type="password" name="password_confirm" placeholder="Confirm password" required>
       <button type="submit">Create admin &amp; continue</button>
-      <?php if ($notice): ?><div class="notice"><?= htmlspecialchars($notice['text']) ?></div><?php endif; ?>
+      <?php if ($notice): ?><div class="notice error"><?= htmlspecialchars($notice['text']) ?></div><?php endif; ?>
     </form></body></html>
     <?php
     exit;
@@ -83,20 +83,19 @@ if ($do === 'admin_logout') {
 if (!killi_is_admin_authenticated()) {
     $lockedFor = killi_admin_login_locked(killi_client_ip());
     ?>
-    <!doctype html><html><head><meta charset="utf-8"><title>Admin login</title>
-    <style>body{font-family:-apple-system,Arial,sans-serif;background:#f5f6f8;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-    .card{background:#fff;border-radius:10px;padding:24px;max-width:320px;width:90%}
-    input{width:100%;padding:10px;border:1px solid #d0d0d0;border-radius:6px;margin-top:8px;box-sizing:border-box}
-    button{width:100%;margin-top:14px;padding:10px;border:none;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer}
-    button:disabled{opacity:0.5;cursor:not-allowed}
-    .notice{padding:8px 12px;border-radius:6px;margin-top:12px;font-size:13px;background:#fce8e6;color:#c5221f}</style>
+    <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Admin login</title>
+    <link rel="stylesheet" href="../assets/css/admin.css">
+    <style>body{display:flex;align-items:center;justify-content:center;height:100vh;padding:20px;box-sizing:border-box}
+    .card{max-width:320px;width:100%;margin:0;box-shadow:var(--admin-shadow-lg)}
+    input{margin-top:8px}
+    button{width:100%;margin-top:14px}</style>
     </head><body><form class="card" method="post" action="?do=admin_login">
       <?= killi_csrf_field() ?>
       <h2 style="margin-top:0">Admin login</h2>
       <input name="username" placeholder="Username" required autofocus <?= $lockedFor > 0 ? 'disabled' : '' ?>>
       <input type="password" name="password" placeholder="Password" required <?= $lockedFor > 0 ? 'disabled' : '' ?>>
       <button type="submit" <?= $lockedFor > 0 ? 'disabled' : '' ?>>Log in</button>
-      <?php if ($notice): ?><div class="notice"><?= htmlspecialchars($notice['text']) ?></div><?php endif; ?>
+      <?php if ($notice): ?><div class="notice error"><?= htmlspecialchars($notice['text']) ?></div><?php endif; ?>
     </form></body></html>
     <?php
     exit;

@@ -318,6 +318,8 @@ killi_admin_body_open('records');
 
     <div class="card">
       <p style="font-size:13px;color:var(--admin-muted);margin-top:0"><?= $listing['total'] ?> record<?= $listing['total'] === 1 ? '' : 's' ?> in this source<?= $query !== '' ? ' matching "' . htmlspecialchars($query) . '"' : '' ?>.</p>
+
+      <div class="admin-table-wrap">
       <table>
         <tr><th>Title</th><th>Sector / category</th><th>Status</th><th>Updated</th><th></th></tr>
         <?php foreach ($listing['records'] as $r): ?>
@@ -346,6 +348,40 @@ killi_admin_body_open('records');
         <tr><td colspan="5" style="color:var(--admin-muted)">No records found.</td></tr>
         <?php endif; ?>
       </table>
+      </div>
+
+      <!-- Mobile: a swipe-to-reveal card list instead of a shrunk table.
+           Swipe (or drag) a card left to reveal Edit/Delete — see
+           admin.js's initSwipeCards(). Desktop hides this via CSS. -->
+      <div class="admin-record-list">
+        <?php if (!$listing['records']): ?>
+          <p class="admin-empty">No records found.</p>
+        <?php endif; ?>
+        <?php foreach ($listing['records'] as $r): ?>
+        <div class="admin-swipe-card">
+          <?php if (!$isLiveSource): ?>
+          <div class="admin-swipe-actions">
+            <a class="admin-swipe-btn edit" href="?source=<?= urlencode($sourceId) ?>&amp;edit=<?= urlencode($r['id']) ?>">Edit</a>
+            <form method="post" action="?do=delete" onsubmit="return confirm('Delete this record?')">
+              <?= killi_csrf_field() ?>
+              <input type="hidden" name="source" value="<?= htmlspecialchars($sourceId) ?>">
+              <input type="hidden" name="id" value="<?= htmlspecialchars($r['id']) ?>">
+              <button type="submit" class="admin-swipe-btn delete">Delete</button>
+            </form>
+          </div>
+          <?php endif; ?>
+          <div class="admin-swipe-front">
+            <div class="admin-swipe-title"><?= htmlspecialchars($r['title'] ?? '') ?><?= !empty($r['verified']) ? ' <span class="role-pill" style="background:var(--admin-success-bg);color:var(--admin-success-ink);padding:2px 7px;border-radius:999px;font-size:10px">VERIFIED</span>' : '' ?></div>
+            <div class="admin-swipe-meta">
+              <?= htmlspecialchars(trim(($r['sector'] ?? '') . ' / ' . ($r['category'] ?? ''), ' /')) ?>
+              · <?= htmlspecialchars($r['status'] ?? '') ?>
+              · <?= htmlspecialchars(substr($r['updated_at'] ?? '', 0, 10)) ?>
+            </div>
+            <?php if ($isLiveSource): ?><div class="admin-swipe-meta">read-only</div><?php endif; ?>
+          </div>
+        </div>
+        <?php endforeach; ?>
+      </div>
       <?php $totalPages = max(1, (int) ceil($listing['total'] / $listing['perPage'])); ?>
       <?php if ($totalPages > 1): ?>
       <div class="pager">

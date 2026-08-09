@@ -45,4 +45,69 @@
     var closeBtn = document.getElementById('admin-more-close');
     if (closeBtn) closeBtn.addEventListener('click', function () { moreSheet.hidden = true; });
   }
+
+  // Mobile record list: swipe (or drag) a card left to reveal Edit/Delete.
+  // Pointer Events cover touch/mouse/pen in one code path.
+  function initSwipeCards() {
+    var openFront = null;
+
+    function closeOpen() {
+      if (openFront) {
+        openFront.style.transform = 'translateX(0)';
+        openFront = null;
+      }
+    }
+
+    Array.prototype.forEach.call(document.querySelectorAll('.admin-swipe-card'), function (card) {
+      var front = card.querySelector('.admin-swipe-front');
+      var actions = card.querySelector('.admin-swipe-actions');
+      if (!front || !actions) return;
+      var revealWidth = 0;
+      var startX = 0;
+      var startTranslate = 0;
+      var dragging = false;
+
+      front.addEventListener('pointerdown', function (e) {
+        revealWidth = actions.offsetWidth;
+        if (openFront && openFront !== front) closeOpen();
+        startX = e.clientX;
+        var current = front.style.transform.match(/-?\d+(\.\d+)?/);
+        startTranslate = current ? parseFloat(current[0]) : 0;
+        dragging = true;
+        front.style.transition = 'none';
+        front.setPointerCapture && front.setPointerCapture(e.pointerId);
+      });
+
+      front.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        var delta = e.clientX - startX;
+        var next = Math.max(-revealWidth, Math.min(0, startTranslate + delta));
+        front.style.transform = 'translateX(' + next + 'px)';
+      });
+
+      function endDrag(e) {
+        if (!dragging) return;
+        dragging = false;
+        front.style.transition = 'transform 0.2s ease';
+        var current = front.style.transform.match(/-?\d+(\.\d+)?/);
+        var value = current ? parseFloat(current[0]) : 0;
+        if (value < -revealWidth / 2) {
+          front.style.transform = 'translateX(-' + revealWidth + 'px)';
+          openFront = front;
+        } else {
+          front.style.transform = 'translateX(0)';
+          if (openFront === front) openFront = null;
+        }
+      }
+
+      front.addEventListener('pointerup', endDrag);
+      front.addEventListener('pointercancel', endDrag);
+    });
+
+    document.addEventListener('pointerdown', function (e) {
+      if (openFront && !openFront.contains(e.target)) closeOpen();
+    });
+  }
+
+  if (document.querySelector('.admin-swipe-card')) initSwipeCards();
 })();

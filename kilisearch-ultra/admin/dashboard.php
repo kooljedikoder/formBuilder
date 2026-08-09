@@ -41,8 +41,9 @@ if ($sessionRatings) {
     $avgRating = array_sum(array_column($sessionRatings, 'rating')) / count($sessionRatings);
 }
 
-$reactions = killi_read_json(__DIR__ . '/../data/feedback.json');
-$negativeReactions = array_values(array_filter($reactions, fn($r) => in_array($r['emoji'] ?? '', ['😐', '👎'], true)));
+$dailySearches = killi_daily_query_counts(14);
+$searchesToday = end($dailySearches) ?: 0;
+$searchesThisWindow = array_sum($dailySearches);
 
 $tierLabels = ['free' => 'Free', 'standard' => 'Standard', 'ultra' => 'Ultra'];
 
@@ -77,10 +78,15 @@ killi_admin_body_open('dashboard');
     <div class="num"><?= $avgRating !== null ? number_format($avgRating, 1) . '★' : '—' ?></div>
     <div class="label"><?= count($sessionRatings) ?> end-of-chat rating<?= count($sessionRatings) === 1 ? '' : 's' ?></div>
   </div>
-  <div class="admin-stat" style="<?= $negativeReactions ? 'border-color:var(--admin-danger-ink)' : '' ?>">
-    <div class="num" style="<?= $negativeReactions ? 'color:var(--admin-danger-ink)' : '' ?>"><?= count($negativeReactions) ?></div>
-    <div class="label">Negative reactions to review</div>
+  <div class="admin-stat">
+    <div class="num"><?= $searchesToday ?></div>
+    <div class="label">Searches today</div>
   </div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Search volume — last 14 days (<?= $searchesThisWindow ?> total)</h2>
+  <?= killi_admin_sparkline($dailySearches) ?>
 </div>
 
 <div class="card">

@@ -141,6 +141,8 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
   <form class="killi-searchbar" id="killi-searchbar" autocomplete="off">
     <?php if ($hasAttachments): ?>
     <button type="button" id="killi-attach" class="killi-icon-btn" aria-label="Attach a file">&#128206;</button>
+    <input type="file" id="killi-attach-camera-photo" accept="image/jpeg,image/png,image/webp" capture="environment" hidden>
+    <input type="file" id="killi-attach-camera-video" accept="video/mp4,video/quicktime,video/webm" capture="environment" hidden>
     <input type="file" id="killi-attach-input" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" hidden>
     <?php endif; ?>
     <button type="button" id="killi-mic" class="killi-icon-btn" aria-label="Speak your search" hidden>&#127908;</button>
@@ -156,6 +158,16 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
   <div id="killi-suggestions" class="killi-suggestions" hidden></div>
   <?php if (!$hasWhiteLabel): ?>
   <div class="killi-attribution">Powered by Killi</div>
+  <?php endif; ?>
+  <?php if ($hasAttachments): ?>
+  <div class="killi-attach-sheet" id="killi-attach-sheet" hidden>
+    <div class="killi-attach-sheet-card">
+      <button type="button" class="killi-attach-option" data-target="killi-attach-camera-photo">&#128247; Take Photo</button>
+      <button type="button" class="killi-attach-option" data-target="killi-attach-camera-video">&#127909; Record Video</button>
+      <button type="button" class="killi-attach-option" data-target="killi-attach-input">&#128193; Choose File</button>
+      <button type="button" class="killi-attach-option killi-attach-cancel" id="killi-attach-cancel">Cancel</button>
+    </div>
+  </div>
   <?php endif; ?>
 </div>
 

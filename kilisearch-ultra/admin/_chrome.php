@@ -113,6 +113,34 @@ function killi_admin_body_open(string $active): void
     <?php
 }
 
+/**
+ * @param array<string,int> $series day => count, oldest first (see
+ * killi_daily_query_counts()). Renders as an inline SVG so it needs no JS
+ * chart library for what's genuinely just "line goes up or down."
+ */
+function killi_admin_sparkline(array $series, int $width = 280, int $height = 44): string
+{
+    $values = array_values($series);
+    $count = count($values);
+    if ($count < 2) {
+        return '<p class="admin-empty">Not enough data yet.</p>';
+    }
+    $max = max(1, max($values));
+    $stepX = $width / ($count - 1);
+    $points = [];
+    foreach ($values as $i => $v) {
+        $x = round($i * $stepX, 1);
+        $y = round($height - ($v / $max) * ($height - 6) - 3, 1);
+        $points[] = $x . ',' . $y;
+    }
+    $lastX = ($count - 1) * $stepX;
+    $lastY = $height - ($values[$count - 1] / $max) * ($height - 6) - 3;
+    return '<svg class="admin-sparkline" viewBox="0 0 ' . $width . ' ' . $height . '" preserveAspectRatio="none">'
+        . '<polyline points="' . htmlspecialchars(implode(' ', $points)) . '" style="fill:none;stroke:var(--admin-primary);stroke-width:2;stroke-linejoin:round;stroke-linecap:round"/>'
+        . '<circle cx="' . round($lastX, 1) . '" cy="' . round($lastY, 1) . '" r="3" style="fill:var(--admin-primary)"/>'
+        . '</svg>';
+}
+
 function killi_admin_body_close(): void
 {
     ?>

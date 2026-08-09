@@ -87,25 +87,6 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.killi-reactions {
-  display: flex;
-  gap: 4px;
-  align-self: flex-start;
-  margin-top: -4px;
-}
-
-.killi-reaction {
-  border: none;
-  background: transparent;
-  font-size: 15px;
-  padding: 2px 5px;
-  border-radius: 8px;
-  cursor: pointer;
-  opacity: 0.5;
-  line-height: 1;
-}
-.killi-reaction:active { background: rgba(127, 127, 127, 0.15); }
-.killi-reaction.selected { opacity: 1; background: rgba(127, 127, 127, 0.15); }
 
 .killi-rate-panel {
   position: absolute;
@@ -182,14 +163,20 @@ body {
   white-space: pre-wrap;
 }
 
-.killi-tick {
-  display: block;
-  text-align: right;
+.killi-bubble-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
   font-size: 11px;
-  letter-spacing: -1px;
-  margin-top: 2px;
-  opacity: 0.75;
+  opacity: 0.65;
 }
+.killi-bubble.user .killi-bubble-meta { justify-content: flex-end; }
+.killi-bubble.ai .killi-bubble-meta { justify-content: flex-start; }
+
+.killi-timestamp { white-space: nowrap; }
+
+.killi-tick { letter-spacing: -1px; }
 .killi-tick.delivered { color: #8ecfff; opacity: 1; }
 
 .killi-typing span {
@@ -314,12 +301,6 @@ body {
 .killi-card-title {
   font-weight: 600;
   font-size: 15px;
-}
-
-.killi-card-rating {
-  font-size: 13px;
-  color: #f2a600;
-  white-space: nowrap;
 }
 
 .killi-card-meta {
@@ -576,6 +557,55 @@ body {
   color: inherit;
   text-decoration: none;
   font-size: 14px;
+}
+
+.killi-attachment-video {
+  max-width: 240px;
+  max-height: 240px;
+  border-radius: 12px;
+  display: block;
+}
+
+.killi-attach-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.killi-attach-sheet[hidden] { display: none; }
+
+.killi-attach-sheet-card {
+  background: var(--killi-surface, #fff);
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 480px;
+  padding: 8px 8px calc(10px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+  animation: killi-rise 0.18s ease;
+}
+
+.killi-attach-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--killi-text, #202124);
+  font-size: 15px;
+  padding: 13px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.killi-attach-option:active { background: rgba(127, 127, 127, 0.12); }
+.killi-attach-cancel {
+  margin-top: 4px;
+  border-top: 1px solid var(--killi-border, #e0e0e0);
+  padding-top: 13px;
+  color: var(--killi-muted, #5f6368);
+  font-weight: 600;
 }
 
 .killi-send {
