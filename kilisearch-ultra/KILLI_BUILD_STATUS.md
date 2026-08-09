@@ -696,3 +696,21 @@ cd kilisearch-ultra
 php -S 127.0.0.1:8811
 # open http://127.0.0.1:8811/portal/index.php
 ```
+
+## Help documentation
+
+Added `help.html` — a single self-contained page covering all three audiences
+(Users, Admins, Developers) behind a sticky top-bar switcher, with a
+scroll-spy'd section rail per audience (collapsing to a horizontal chip nav
+on mobile). Covers: for **users**, searching/chatting, sectors, voice/
+attachments, PWA install, offline behavior, dark mode, and locked-app unlock;
+for **admins**, the setup wizard, admin roles, login security, licensing
+tiers, app access, data sources (local/import/cached/live), records, FAQ
+promotion, and backup/restore; for **developers**, the storage abstraction,
+the four pillars, key `bootstrap.php` helpers, API endpoints, host-app
+integration, the security model, and PWA internals. Verified with `php -l`,
+a Node syntax check on the extracted inline script, and a real headless
+Playwright pass (default pane, click-to-switch, hash updates, scroll-spy
+highlighting, and the mobile chip-nav breakpoint) — zero console errors.
+Also published as a standalone Claude Artifact for quick sharing outside
+the repo.
