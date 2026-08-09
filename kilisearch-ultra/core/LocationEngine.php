@@ -1,6 +1,6 @@
 <?php
 
-namespace Kili\Core;
+namespace Killi\Core;
 
 /**
  * Country > State > City > Area hierarchy with aliases, plus distance

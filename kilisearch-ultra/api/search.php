@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
-kili_require_app_auth_json();
+killi_require_app_auth_json();
 header('Content-Type: application/json');
 
 $query = trim($_GET['q'] ?? '');
@@ -28,22 +28,22 @@ if ($query === '') {
 // resolves to sector=Automotive/category=Vehicle Repair/subcategory=Mechanic
 // and location=Victoria Island (via the "vi" alias) without the caller having
 // to pass structured filters.
-$context = kili_extract_context($query);
+$context = killi_extract_context($query);
 
-$result = kili_search_engine()->search($query, $filters, $context, $limit, $offset);
-$locationEngine = kili_location_engine();
+$result = killi_search_engine()->search($query, $filters, $context, $limit, $offset);
+$locationEngine = killi_location_engine();
 
 $userLat = isset($_GET['lat']) ? (float) $_GET['lat'] : null;
 $userLng = isset($_GET['lng']) ? (float) $_GET['lng'] : null;
 $nearMode = $userLat !== null && $userLng !== null;
-$radiusKm = (float) ($_GET['radius_km'] ?? (kili_read_json(__DIR__ . '/../config/search.json')['default_near_radius_km'] ?? 15));
+$radiusKm = (float) ($_GET['radius_km'] ?? (killi_read_json(__DIR__ . '/../config/search.json')['default_near_radius_km'] ?? 15));
 
 $results = array_map(function ($record) use ($locationEngine, $userLat, $userLng) {
     if ($userLat !== null && $userLng !== null && isset($record['latitude'], $record['longitude'])) {
         $record['_distance_km'] = round($locationEngine->distanceKm($userLat, $userLng, (float) $record['latitude'], (float) $record['longitude']), 1);
     }
     return $record;
-}, kili_resolve_sources($result['results']));
+}, killi_resolve_sources($result['results']));
 
 if ($nearMode) {
     $results = array_values(array_filter($results, fn($r) => isset($r['_distance_km']) && $r['_distance_km'] <= $radiusKm));
@@ -56,7 +56,7 @@ $total = $nearMode ? count($results) : $result['total'];
 // api/chat.php (config/conversation.json), so chip/near-me searches and
 // free-text chat messages read consistently and an admin can edit the
 // wording in one place.
-$reply = kili_conversation_engine()->respond('find_service', [
+$reply = killi_conversation_engine()->respond('find_service', [
     'query' => $result['query'],
     'count' => $total,
     'location' => $nearMode ? null : $context['location'],

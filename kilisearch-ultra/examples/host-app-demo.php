@@ -2,17 +2,17 @@
 
 /**
  * Reference example, not a real feature — illustrates the integration
- * contract from KILI_BUILD_STATUS.md's "plugged into a main app" section.
+ * contract from KILLI_BUILD_STATUS.md's "plugged into a main app" section.
  *
  * A real host application (a CRM, a portal, whatever already has its own
  * users and licensing) authenticates its own user through its OWN login
  * system — nothing here — and then, in its own server-side code, sets:
  *
- *     $_SESSION['kili_host_user'] = ['user_id' => $user->id, 'package' => $user->plan];
+ *     $_SESSION['killi_host_user'] = ['user_id' => $user->id, 'package' => $user->plan];
  *
- * before sending the visitor into Kili (an iframe, a redirect, a shared
- * layout — whatever the integration looks like). Kili trusts that value
- * via kili_current_package() in bootstrap.php instead of running its own
+ * before sending the visitor into Killi (an iframe, a redirect, a shared
+ * layout — whatever the integration looks like). Killi trusts that value
+ * via killi_current_package() in bootstrap.php instead of running its own
  * login for this purpose. This page fakes the "host app already logged
  * someone in" part so the handoff can be demonstrated and tested without
  * a real host application to plug into yet.
@@ -20,19 +20,19 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
-kili_ensure_session();
+killi_ensure_session();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['package'])) {
     $package = $_POST['package'];
-    if (in_array($package, kili_entitlement_manager()->packageIds(), true)) {
-        $_SESSION['kili_host_user'] = ['user_id' => 'demo-' . $package, 'package' => $package];
+    if (in_array($package, killi_entitlement_manager()->packageIds(), true)) {
+        $_SESSION['killi_host_user'] = ['user_id' => 'demo-' . $package, 'package' => $package];
     }
 } elseif (isset($_GET['logout'])) {
-    unset($_SESSION['kili_host_user']);
+    unset($_SESSION['killi_host_user']);
 }
 
-$current = $_SESSION['kili_host_user'] ?? null;
-$packages = kili_entitlement_manager()->packageIds();
+$current = $_SESSION['killi_host_user'] ?? null;
+$packages = killi_entitlement_manager()->packageIds();
 ?>
 <!doctype html>
 <html lang="en">

@@ -1,8 +1,8 @@
 <?php
 
-namespace Kili\Core;
+namespace Killi\Core;
 
-use Kili\Adapters\StorageInterface;
+use Killi\Adapters\StorageInterface;
 
 /**
  * The other half of "index & cache" mode: a StorageInterface that queries

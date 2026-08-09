@@ -2,13 +2,13 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
-if (!kili_admin_password_configured() || !kili_is_admin_authenticated()) {
+if (!killi_admin_password_configured() || !killi_is_admin_authenticated()) {
     header('Location: connections.php');
     exit;
 }
 
-$sources = kili_data_source_engine()->all();
-$sourceId = $_REQUEST['source'] ?? kili_data_source_engine()->activeId();
+$sources = killi_data_source_engine()->all();
+$sourceId = $_REQUEST['source'] ?? killi_data_source_engine()->activeId();
 $notice = null;
 $editing = null; // null = list view, 'new' or a loaded record array = form view
 
@@ -21,18 +21,18 @@ const RECORD_FIELDS = [
 ];
 const RECORD_RESERVED = ['id', 'source_id', 'created_at', 'updated_at'];
 
-if (kili_has_feature('crud')) {
+if (killi_has_feature('crud')) {
     try {
-        $crud = kili_crud_engine($sourceId);
+        $crud = killi_crud_engine($sourceId);
     } catch (\InvalidArgumentException $e) {
         $notice = ['type' => 'error', 'text' => $e->getMessage()];
-        $sourceId = kili_data_source_engine()->activeId();
-        $crud = kili_crud_engine($sourceId);
+        $sourceId = killi_data_source_engine()->activeId();
+        $crud = killi_crud_engine($sourceId);
     }
 
     $do = $_REQUEST['do'] ?? '';
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !kili_verify_csrf($_POST['csrf'] ?? '')) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !killi_verify_csrf($_POST['csrf'] ?? '')) {
         $notice = ['type' => 'error', 'text' => 'Form expired — please reload and try again.'];
         $do = '';
     }
@@ -66,11 +66,11 @@ if (kili_has_feature('crud')) {
                 $id = trim($_POST['id'] ?? '');
                 if ($id !== '') {
                     $record = $crud->update($id, $data);
-                    kili_record_audit('update', $sourceId, $id, $record['title'] ?? '');
+                    killi_record_audit('update', $sourceId, $id, $record['title'] ?? '');
                     $notice = ['type' => 'success', 'text' => 'Saved "' . $record['title'] . '".'];
                 } else {
                     $record = $crud->create($data);
-                    kili_record_audit('create', $sourceId, $record['id'], $record['title'] ?? '');
+                    killi_record_audit('create', $sourceId, $record['id'], $record['title'] ?? '');
                     $notice = ['type' => 'success', 'text' => 'Created "' . $record['title'] . '".'];
                 }
             } catch (\Throwable $e) {
@@ -90,7 +90,7 @@ if (kili_has_feature('crud')) {
             $deleted = false;
         }
         if ($deleted) {
-            kili_record_audit('delete', $sourceId, $id, $existing['title'] ?? '');
+            killi_record_audit('delete', $sourceId, $id, $existing['title'] ?? '');
             $notice = ['type' => 'success', 'text' => 'Deleted "' . ($existing['title'] ?? $id) . '".'];
         } elseif (!$notice) {
             $notice = ['type' => 'error', 'text' => 'Could not delete that record.'];
@@ -110,7 +110,7 @@ if (kili_has_feature('crud')) {
     $listing = $crud->list($query, $page, 20);
 }
 
-$taxonomy = kili_read_json(__DIR__ . '/../data/taxonomy.json');
+$taxonomy = killi_read_json(__DIR__ . '/../data/taxonomy.json');
 $sectorNames = array_column($taxonomy, 'sector');
 ?>
 <!doctype html>
@@ -163,7 +163,7 @@ $sectorNames = array_column($taxonomy, 'sector');
     <div class="notice <?= $notice['type'] ?>"><?= htmlspecialchars($notice['text']) ?></div>
   <?php endif; ?>
 
-  <?php if (!kili_has_feature('crud')): ?>
+  <?php if (!killi_has_feature('crud')): ?>
     <div class="upsell">Full record management is a Standard/Ultra feature. Activate a license key on the <a class="link" href="connections.php">Connections</a> page to unlock it — Free stays search-only.</div>
   <?php else: ?>
 
@@ -187,7 +187,7 @@ $sectorNames = array_column($taxonomy, 'sector');
     <div class="card">
       <h2 style="margin-top:0"><?= empty($record['id']) ? 'Add a new record' : 'Edit record' ?></h2>
       <form method="post" action="?do=save">
-        <?= kili_csrf_field() ?>
+        <?= killi_csrf_field() ?>
         <input type="hidden" name="source" value="<?= htmlspecialchars($sourceId) ?>">
         <input type="hidden" name="id" value="<?= htmlspecialchars($record['id'] ?? '') ?>">
 
@@ -323,7 +323,7 @@ $sectorNames = array_column($taxonomy, 'sector');
             <a class="link" href="?source=<?= urlencode($sourceId) ?>&amp;edit=<?= urlencode($r['id']) ?>">Edit</a>
             &nbsp;
             <form class="inline" method="post" action="?do=delete" onsubmit="return confirm('Delete this record?')">
-              <?= kili_csrf_field() ?>
+              <?= killi_csrf_field() ?>
               <input type="hidden" name="source" value="<?= htmlspecialchars($sourceId) ?>">
               <input type="hidden" name="id" value="<?= htmlspecialchars($r['id']) ?>">
               <button type="submit" class="danger">Delete</button>

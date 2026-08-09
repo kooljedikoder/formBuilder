@@ -6,7 +6,7 @@ require_once __DIR__ . '/../bootstrap.php';
 // gate as connections.php — but it must never become a second setup path.
 // If no admin password exists yet, send the visitor to connections.php,
 // which owns creating that password; it will bounce back here afterwards.
-if (!kili_admin_password_configured() || !kili_is_admin_authenticated()) {
+if (!killi_admin_password_configured() || !killi_is_admin_authenticated()) {
     header('Location: connections.php');
     exit;
 }
@@ -14,7 +14,7 @@ if (!kili_admin_password_configured() || !kili_is_admin_authenticated()) {
 // The very first run (fresh install) is always by the owner just created in
 // admin_setup. Re-running the wizard afterward touches licensing/app-access —
 // owner-only — so an editor has no legitimate reason to be here.
-if (kili_setup_complete() && !kili_is_admin_owner()) {
+if (killi_setup_complete() && !killi_is_admin_owner()) {
     header('Location: connections.php');
     exit;
 }
@@ -26,7 +26,7 @@ if ($step < 1 || $step > 3) {
 $notice = null;
 $do = $_REQUEST['do'] ?? '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !kili_verify_csrf($_POST['csrf'] ?? '')) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !killi_verify_csrf($_POST['csrf'] ?? '')) {
     $notice = ['type' => 'error', 'text' => 'Form expired — please reload and try again.'];
     $do = '';
 }
@@ -37,7 +37,7 @@ if ($do === 'activate_license' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: setup.php?step=2');
         exit;
     }
-    $result = kili_activate_license($key);
+    $result = killi_activate_license($key);
     if ($result['success']) {
         header('Location: setup.php?step=2');
         exit;
@@ -49,7 +49,7 @@ if ($do === 'activate_license' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 } elseif ($do === 'set_app_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = trim($_POST['app_password'] ?? '');
     if ($password !== '') {
-        kili_save_env_value('KILI_APP_PASSWORD_HASH', password_hash($password, PASSWORD_DEFAULT));
+        killi_save_env_value('KILLI_APP_PASSWORD_HASH', password_hash($password, PASSWORD_DEFAULT));
     }
     header('Location: setup.php?step=3');
     exit;
@@ -57,16 +57,16 @@ if ($do === 'activate_license' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Location: setup.php?step=3');
     exit;
 } elseif ($do === 'finish') {
-    kili_mark_setup_complete();
+    killi_mark_setup_complete();
     header('Location: connections.php');
     exit;
 }
 
-$branding = kili_branding();
+$branding = killi_branding();
 $productName = $branding['product_name'] ?? 'KilliGoogle.ai';
-$currentPackage = kili_current_package();
-$packageName = kili_entitlement_manager()->packageIds();
-$packagesConfig = kili_read_json(__DIR__ . '/../config/packages.json');
+$currentPackage = killi_current_package();
+$packageName = killi_entitlement_manager()->packageIds();
+$packagesConfig = killi_read_json(__DIR__ . '/../config/packages.json');
 $currentPackageLabel = $currentPackage;
 foreach ($packagesConfig['packages'] ?? [] as $pkg) {
     if ($pkg['id'] === $currentPackage) {
@@ -74,7 +74,7 @@ foreach ($packagesConfig['packages'] ?? [] as $pkg) {
         break;
     }
 }
-$activeSource = kili_data_source_engine()->active();
+$activeSource = killi_data_source_engine()->active();
 ?>
 <!doctype html>
 <html lang="en">
@@ -121,7 +121,7 @@ $activeSource = kili_data_source_engine()->active();
     <h1>Step 1 of 3 — License</h1>
     <p class="lead">You're on <strong>Free</strong> by default. If you have a Standard or Ultra license key, enter it now to unlock those features for this installation — or skip and add one later from <code>connections.php</code>.</p>
     <form method="post" action="?do=activate_license&amp;step=1">
-      <?= kili_csrf_field() ?>
+      <?= killi_csrf_field() ?>
       <label>License key</label>
       <input name="license_key" placeholder="e.g. KILLI-ULTRA-DEMO-0001" autofocus>
       <div class="actions">
@@ -134,7 +134,7 @@ $activeSource = kili_data_source_engine()->active();
     <h1>Step 2 of 3 — App access</h1>
     <p class="lead">Optional. By default the customer-facing chat app is open to anyone with the link. Set a shared password here if you'd rather gate it — you can change this anytime from <code>connections.php</code>.</p>
     <form method="post" action="?do=set_app_password&amp;step=2">
-      <?= kili_csrf_field() ?>
+      <?= killi_csrf_field() ?>
       <label>App password (optional)</label>
       <input type="password" name="app_password" placeholder="Leave blank to keep it open">
       <div class="actions">
@@ -147,10 +147,10 @@ $activeSource = kili_data_source_engine()->active();
     <h1>Step 3 of 3 — You're set up</h1>
     <p class="lead"><?= htmlspecialchars($productName) ?> is ready to use.</p>
     <div class="summary-row"><span>License / package</span><strong><?= htmlspecialchars($currentPackageLabel) ?></strong></div>
-    <div class="summary-row"><span>App access</span><strong><?= kili_app_password_configured() ? 'Password required' : 'Open (no password)' ?></strong></div>
+    <div class="summary-row"><span>App access</span><strong><?= killi_app_password_configured() ? 'Password required' : 'Open (no password)' ?></strong></div>
     <div class="summary-row"><span>Active data source</span><strong><?= htmlspecialchars($activeSource['name'] ?? 'Default demo dataset') ?></strong></div>
     <form method="post" action="?do=finish">
-      <?= kili_csrf_field() ?>
+      <?= killi_csrf_field() ?>
       <button type="submit">Finish setup</button>
     </form>
     <p style="margin-top:20px">

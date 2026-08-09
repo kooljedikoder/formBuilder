@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
-if (!kili_admin_password_configured() || !kili_is_admin_authenticated()) {
+if (!killi_admin_password_configured() || !killi_is_admin_authenticated()) {
     header('Location: connections.php');
     exit;
 }
@@ -10,7 +10,7 @@ if (!kili_admin_password_configured() || !kili_is_admin_authenticated()) {
 $notice = null;
 $do = $_REQUEST['do'] ?? '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !kili_verify_csrf($_POST['csrf'] ?? '')) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !killi_verify_csrf($_POST['csrf'] ?? '')) {
     $notice = ['type' => 'error', 'text' => 'Form expired — please reload and try again.'];
     $do = '';
 }
@@ -18,14 +18,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !kili_verify_csrf($_POST['csrf'] ??
 $faqPath = __DIR__ . '/../data/faq.json';
 $logPath = __DIR__ . '/../data/query_log.json';
 
-if (kili_has_feature('memory')) {
+if (killi_has_feature('memory')) {
     if ($do === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $question = trim($_POST['question'] ?? '');
         $answer = trim($_POST['answer'] ?? '');
         if ($question === '' || $answer === '') {
             $notice = ['type' => 'error', 'text' => 'Question and answer are both required.'];
         } else {
-            $faqs = kili_read_json($faqPath);
+            $faqs = killi_read_json($faqPath);
             $tags = array_values(array_filter(array_map('trim', explode(',', $_POST['tags'] ?? ''))));
             $id = trim($_POST['id'] ?? '');
 
@@ -62,21 +62,21 @@ if (kili_has_feature('memory')) {
         }
     } elseif ($do === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = $_POST['id'] ?? '';
-        $faqs = kili_read_json($faqPath);
+        $faqs = killi_read_json($faqPath);
         $remaining = array_values(array_filter($faqs, fn($f) => $f['id'] !== $id));
         file_put_contents($faqPath, json_encode($remaining, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
         $notice = ['type' => 'success', 'text' => count($remaining) < count($faqs) ? 'FAQ deleted.' : 'Unknown FAQ.'];
     } elseif ($do === 'dismiss_query' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $normalized = $_POST['normalized'] ?? '';
-        $log = kili_read_json($logPath);
+        $log = killi_read_json($logPath);
         $remaining = array_values(array_filter($log, fn($e) => $e['normalized'] !== $normalized));
         file_put_contents($logPath, json_encode($remaining, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
         $notice = ['type' => 'success', 'text' => 'Dismissed from the unanswered list.'];
     }
 }
 
-$faqs = kili_read_json($faqPath);
-$log = kili_read_json($logPath);
+$faqs = killi_read_json($faqPath);
+$log = killi_read_json($logPath);
 usort($log, fn($a, $b) => ($b['count'] ?? 0) <=> ($a['count'] ?? 0));
 
 $editing = null;
@@ -133,7 +133,7 @@ $prefillQuestion = $_GET['question'] ?? ($editing['question'] ?? '');
     <div class="notice <?= $notice['type'] ?>"><?= htmlspecialchars($notice['text']) ?></div>
   <?php endif; ?>
 
-  <?php if (!kili_has_feature('memory')): ?>
+  <?php if (!killi_has_feature('memory')): ?>
     <div class="upsell">The Memory engine is a Standard/Ultra feature. Activate a license key on the <a class="link" href="connections.php">Connections</a> page to unlock it.</div>
   <?php else: ?>
 
@@ -154,7 +154,7 @@ $prefillQuestion = $_GET['question'] ?? ($editing['question'] ?? '');
           <a class="link" href="?question=<?= urlencode($entry['query']) ?>#faq-form">Save as FAQ</a>
           &nbsp;
           <form class="inline" method="post" action="?do=dismiss_query">
-            <?= kili_csrf_field() ?>
+            <?= killi_csrf_field() ?>
             <input type="hidden" name="normalized" value="<?= htmlspecialchars($entry['normalized']) ?>">
             <button type="submit" class="secondary" style="padding:4px 8px;margin-top:0">Dismiss</button>
           </form>
@@ -168,7 +168,7 @@ $prefillQuestion = $_GET['question'] ?? ($editing['question'] ?? '');
   <div class="card" id="faq-form">
     <h2 style="margin-top:0"><?= $editing ? 'Edit FAQ' : 'Add a FAQ' ?></h2>
     <form method="post" action="?do=save">
-      <?= kili_csrf_field() ?>
+      <?= killi_csrf_field() ?>
       <input type="hidden" name="id" value="<?= htmlspecialchars($editing['id'] ?? '') ?>">
       <label>Question (what people ask)</label>
       <input name="question" value="<?= htmlspecialchars($prefillQuestion) ?>" required>
@@ -197,7 +197,7 @@ $prefillQuestion = $_GET['question'] ?? ($editing['question'] ?? '');
           <a class="link" href="?edit=<?= urlencode($f['id']) ?>#faq-form">Edit</a>
           &nbsp;
           <form class="inline" method="post" action="?do=delete" onsubmit="return confirm('Delete this FAQ?')">
-            <?= kili_csrf_field() ?>
+            <?= killi_csrf_field() ?>
             <input type="hidden" name="id" value="<?= htmlspecialchars($f['id']) ?>">
             <button type="submit" class="danger" style="padding:4px 8px;margin-top:0">Delete</button>
           </form>

@@ -1,6 +1,6 @@
 <?php
 
-namespace Kili\Adapters;
+namespace Killi\Adapters;
 
 interface StorageInterface
 {

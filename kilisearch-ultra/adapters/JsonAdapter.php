@@ -1,6 +1,6 @@
 <?php
 
-namespace Kili\Adapters;
+namespace Killi\Adapters;
 
 /**
  * Zero-DB storage adapter. Records live in a single JSON file so the

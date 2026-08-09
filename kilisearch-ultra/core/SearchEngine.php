@@ -1,10 +1,10 @@
 <?php
 
-namespace Kili\Core;
+namespace Killi\Core;
 
 /**
- * KiliSearch core engine: exact / partial / synonym / fuzzy / phonetic
- * matching over the universal Kili record model. Works entirely locally,
+ * KilliSearch core engine: exact / partial / synonym / fuzzy / phonetic
+ * matching over the universal Killi record model. Works entirely locally,
  * no external AI API required.
  */
 class SearchEngine

@@ -2,16 +2,16 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
-kili_require_admin_auth_json();
-kili_require_feature_json('crud');
+killi_require_admin_auth_json();
+killi_require_feature_json('crud');
 header('Content-Type: application/json');
 
 $action = $_GET['action'] ?? 'list';
 $sourceId = $_GET['source'] ?? $_POST['source'] ?? null;
 
 try {
-    $crud = kili_crud_engine($sourceId);
-    $resolvedSourceId = $sourceId ?? kili_data_source_engine()->activeId();
+    $crud = killi_crud_engine($sourceId);
+    $resolvedSourceId = $sourceId ?? killi_data_source_engine()->activeId();
 } catch (\InvalidArgumentException $e) {
     http_response_code(422);
     echo json_encode(['success' => false, 'error' => ['code' => 'VALIDATION_ERROR', 'message' => $e->getMessage()]]);
@@ -58,19 +58,19 @@ unset($body['source']);
 try {
     if ($action === 'create') {
         $record = $crud->create($body);
-        kili_record_audit('create', $resolvedSourceId, $record['id'], $record['title'] ?? '');
+        killi_record_audit('create', $resolvedSourceId, $record['id'], $record['title'] ?? '');
         echo json_encode(['success' => true, 'data' => $record, 'meta' => []]);
     } elseif ($action === 'update') {
         $id = $body['id'] ?? '';
         $record = $crud->update($id, $body);
-        kili_record_audit('update', $resolvedSourceId, $id, $record['title'] ?? '');
+        killi_record_audit('update', $resolvedSourceId, $id, $record['title'] ?? '');
         echo json_encode(['success' => true, 'data' => $record, 'meta' => []]);
     } else {
         $id = $body['id'] ?? '';
         $existing = $crud->get($id);
         $deleted = $crud->delete($id);
         if ($deleted) {
-            kili_record_audit('delete', $resolvedSourceId, $id, $existing['title'] ?? '');
+            killi_record_audit('delete', $resolvedSourceId, $id, $existing['title'] ?? '');
         }
         echo json_encode(['success' => $deleted, 'data' => ['id' => $id], 'meta' => []]);
     }

@@ -2,20 +2,20 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
-$branding = kili_branding();
+$branding = killi_branding();
 $colors = $branding['colors'] ?? [];
 $authError = null;
 
-if (kili_app_password_configured()) {
+if (killi_app_password_configured()) {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['app_password'])) {
-        if (kili_verify_app_password($_POST['app_password'])) {
-            kili_set_app_authenticated(true);
+        if (killi_verify_app_password($_POST['app_password'])) {
+            killi_set_app_authenticated(true);
         } else {
             $authError = 'Incorrect password.';
         }
     }
 
-    if (!kili_is_app_authenticated()) {
+    if (!killi_is_app_authenticated()) {
         ?>
 <!doctype html>
 <html lang="en">
@@ -48,12 +48,12 @@ if (kili_app_password_configured()) {
     }
 }
 
-$sectors = array_column(kili_taxonomy_engine()->tree(), 'sector');
-$hasAttachments = kili_has_feature('attachments');
-$hasWhiteLabel = kili_has_feature('white_label');
+$sectors = array_column(killi_taxonomy_engine()->tree(), 'sector');
+$hasAttachments = killi_has_feature('attachments');
+$hasWhiteLabel = killi_has_feature('white_label');
 // The PWA (installable app, manifest, service worker) is a standalone-only
 // feature — a host app embedding this page (an iframe, a shared layout)
-// has its own wrapper and shouldn't have Kili offering to install itself
+// has its own wrapper and shouldn't have Killi offering to install itself
 // as a separate app on top of it. A real integration signals that by
 // linking/iframing with ?embed=1; its absence means "this is being opened
 // as its own page," which covers both a fully standalone deployment and a
@@ -74,64 +74,64 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="<?= htmlspecialchars(mb_substr($branding['product_name'] ?? 'Killi', 0, 12)) ?>">
 <?php endif; ?>
-<link rel="stylesheet" href="../assets/css/kili.css">
+<link rel="stylesheet" href="../assets/css/killi.css">
 <style>
 :root {
-  --kili-primary: <?= htmlspecialchars($colors['primary'] ?? '#1a73e8') ?>;
-  --kili-secondary: <?= htmlspecialchars($colors['secondary'] ?? '#0f9d58') ?>;
-  --kili-accent: <?= htmlspecialchars($colors['accent'] ?? '#fbbc04') ?>;
-  --kili-bg: <?= htmlspecialchars($colors['background'] ?? '#ffffff') ?>;
-  --kili-text: <?= htmlspecialchars($colors['text'] ?? '#202124') ?>;
-  --kili-chat-header: <?= htmlspecialchars($colors['chat_header'] ?? '#1a73e8') ?>;
-  --kili-chat-bg: <?= htmlspecialchars($colors['chat_background'] ?? '#f8f9fa') ?>;
-  --kili-user-bubble: <?= htmlspecialchars($colors['user_bubble'] ?? '#1a73e8') ?>;
-  --kili-ai-bubble: <?= htmlspecialchars($colors['ai_bubble'] ?? '#ffffff') ?>;
+  --killi-primary: <?= htmlspecialchars($colors['primary'] ?? '#1a73e8') ?>;
+  --killi-secondary: <?= htmlspecialchars($colors['secondary'] ?? '#0f9d58') ?>;
+  --killi-accent: <?= htmlspecialchars($colors['accent'] ?? '#fbbc04') ?>;
+  --killi-bg: <?= htmlspecialchars($colors['background'] ?? '#ffffff') ?>;
+  --killi-text: <?= htmlspecialchars($colors['text'] ?? '#202124') ?>;
+  --killi-chat-header: <?= htmlspecialchars($colors['chat_header'] ?? '#1a73e8') ?>;
+  --killi-chat-bg: <?= htmlspecialchars($colors['chat_background'] ?? '#f8f9fa') ?>;
+  --killi-user-bubble: <?= htmlspecialchars($colors['user_bubble'] ?? '#1a73e8') ?>;
+  --killi-ai-bubble: <?= htmlspecialchars($colors['ai_bubble'] ?? '#ffffff') ?>;
 }
 </style>
 </head>
 <body>
-<div id="kili-app" class="kili-app">
-  <header class="kili-header">
-    <div class="kili-header-title"><?= htmlspecialchars($branding['product_name'] ?? 'KilliGoogle.ai') ?></div>
+<div id="killi-app" class="killi-app">
+  <header class="killi-header">
+    <div class="killi-header-title"><?= htmlspecialchars($branding['product_name'] ?? 'KilliGoogle.ai') ?></div>
     <div style="display:flex;gap:8px">
       <?php if (!$isEmbedded): ?>
-      <button id="kili-install" class="kili-theme-toggle" type="button" aria-label="Install app" hidden>&#8615;</button>
+      <button id="killi-install" class="killi-theme-toggle" type="button" aria-label="Install app" hidden>&#8615;</button>
       <?php endif; ?>
-      <button id="kili-theme-toggle" class="kili-theme-toggle" type="button" aria-label="Toggle dark mode">&#127769;</button>
+      <button id="killi-theme-toggle" class="killi-theme-toggle" type="button" aria-label="Toggle dark mode">&#127769;</button>
     </div>
   </header>
 
-  <div class="kili-chat" id="kili-chat"></div>
+  <div class="killi-chat" id="killi-chat"></div>
 
-  <div class="kili-chips" id="kili-chips">
+  <div class="killi-chips" id="killi-chips">
     <?php foreach ($sectors as $sector): ?>
-      <button class="kili-chip" data-sector="<?= htmlspecialchars($sector) ?>"><?= htmlspecialchars($sector) ?></button>
+      <button class="killi-chip" data-sector="<?= htmlspecialchars($sector) ?>"><?= htmlspecialchars($sector) ?></button>
     <?php endforeach; ?>
   </div>
 
-  <form class="kili-searchbar" id="kili-searchbar" autocomplete="off">
+  <form class="killi-searchbar" id="killi-searchbar" autocomplete="off">
     <?php if ($hasAttachments): ?>
-    <button type="button" id="kili-attach" class="kili-icon-btn" aria-label="Attach a file">&#128206;</button>
-    <input type="file" id="kili-attach-input" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" hidden>
+    <button type="button" id="killi-attach" class="killi-icon-btn" aria-label="Attach a file">&#128206;</button>
+    <input type="file" id="killi-attach-input" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" hidden>
     <?php endif; ?>
-    <button type="button" id="kili-mic" class="kili-icon-btn" aria-label="Speak your search" hidden>&#127908;</button>
+    <button type="button" id="killi-mic" class="killi-icon-btn" aria-label="Speak your search" hidden>&#127908;</button>
     <input
       type="search"
-      id="kili-input"
-      class="kili-input"
+      id="killi-input"
+      class="killi-input"
       placeholder="<?= htmlspecialchars($branding['search_placeholder'] ?? 'Search...') ?>"
       aria-label="Search"
     >
-    <button type="submit" class="kili-send" aria-label="Search">&#8593;</button>
+    <button type="submit" class="killi-send" aria-label="Search">&#8593;</button>
   </form>
-  <div id="kili-suggestions" class="kili-suggestions" hidden></div>
+  <div id="killi-suggestions" class="killi-suggestions" hidden></div>
   <?php if (!$hasWhiteLabel): ?>
-  <div class="kili-attribution">Powered by Killi</div>
+  <div class="killi-attribution">Powered by Killi</div>
   <?php endif; ?>
 </div>
 
 <script>
-window.KILI_BRANDING = <?= json_encode($branding) ?>;
+window.KILLI_BRANDING = <?= json_encode($branding) ?>;
 </script>
 <?php if (!$isEmbedded): ?>
 <script>
@@ -144,7 +144,7 @@ if ('serviceWorker' in navigator) {
 }
 
 (function () {
-  var installBtn = document.getElementById('kili-install');
+  var installBtn = document.getElementById('killi-install');
   if (!installBtn) return;
   var deferredPrompt = null;
 
@@ -169,6 +169,6 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 <?php endif; ?>
-<script src="../assets/js/kili.js"></script>
+<script src="../assets/js/killi.js"></script>
 </body>
 </html>

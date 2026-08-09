@@ -1,8 +1,8 @@
-# KiliSearch Ultra — Build Status
+# KilliSearch Ultra — Build Status
 
 ## Context
 
-There was no existing KiliSearch / KiliGoogle codebase or `kiligoogle-master-bundle.md`
+There was no existing KilliSearch / KilliGoogle codebase or `kiligoogle-master-bundle.md`
 attached to this session's repos (`formbuilder`, `brizy-project-22672745` — the latter
 is a single exported Brizy HTML page, the former is the unrelated `kevinchappell/formBuilder`
 jQuery plugin). Per direction, this build lives fresh in **`formbuilder/kilisearch-ultra/`**
@@ -43,12 +43,12 @@ Google-style engine that indexes the internet.
 ### Data Source Engine
 
 "Import" isn't just a one-off CSV upload tool — it's one capability of a broader **Data
-Source Engine** concept: managing *where* Kili's data comes from right now, and how new
+Source Engine** concept: managing *where* Killi's data comes from right now, and how new
 data gets brought in.
 
 - **`core/DataSourceEngine.php`** — picks which pre-configured local dataset backs
   Search. `config/data_sources.json` lists them (`{id, name, type, file, description}`)
-  and records which one is `active`. `kili_storage()` in `bootstrap.php` reads whichever
+  and records which one is `active`. `killi_storage()` in `bootstrap.php` reads whichever
   file is active instead of a hardcoded path — switching sources takes effect on the
   very next request, no re-index step (same as everywhere else in this zero-DB design).
   `api/data_sources.php` lists sources / activates one by id.
@@ -83,15 +83,15 @@ data gets brought in.
 | **Source engine** | `core/SourceRegistry.php`, `data/sources.json` — every record has a `source_id`; API resolves it to `{id, type, name, url, last_synced}` so results/UI show provenance | Done |
 | Config | `config/config.json`, `config/search.json` (synonyms, stop words, scoring weights incl. context bonuses), `config/branding.json` | Done |
 | REST API | `api/search.php` (extracts location/sector context from free text, accepts `lat`/`lng`/`radius_km` for near-me distance sort, attaches resolved source per result), `api/suggest.php`, `api/categories.php` (now lists sectors), `api/taxonomy.php`, `api/locations.php`, `api/config.php`, `api/health.php` | Done |
-| KiliGoogle.ai portal | `portal/index.php`, `assets/css/kili.css`, `assets/js/kili.js` — mobile-first conversational search: welcome message, sector chips, debounced autocomplete, result cards (Call/WhatsApp/Website actions, source caption, distance when available), detected sector/category/location breadcrumb, "Highest rated" / "Verified only" / "Near me" (real browser geolocation) quick replies | Done |
+| KilliGoogle.ai portal | `portal/index.php`, `assets/css/killi.css`, `assets/js/killi.js` — mobile-first conversational search: welcome message, sector chips, debounced autocomplete, result cards (Call/WhatsApp/Website actions, source caption, distance when available), detected sector/category/location breadcrumb, "Highest rated" / "Verified only" / "Near me" (real browser geolocation) quick replies | Done |
 | Entry point / hosting | `index.php` (redirect), `.htaccess` (deflate, deny direct JSON access, cPanel-friendly) | Done |
 
 ### This session's additions — Schema Detector + rule-based Conversation Engine
 
 | Area | File(s) | Status |
 |---|---|---|
-| **Schema detector** | `core/SchemaDetector.php` — infers column types (email/phone/url/date/number/boolean) from sample values and suggests a mapping onto the universal record fields, matching header names ("Business Name", "Phone Number", "Web Address", ...) against known aliases first, falling back to type-based guesses. `api/import.php` — `?action=detect` (CSV upload as multipart `file`, or JSON `{"rows":[...]}`) returns detected columns/types/mapping; `?action=preview` applies a (possibly admin-edited) mapping to the first 5 rows so you can see the resulting Kili records before committing to an import. No import execution/indexing yet — detect+map+preview only, matching the "Upload → Detect → Map → Preview" workflow up to the point where you'd hit Import | Done |
-| **Conversation engine (no AI/LLM)** | `core/ConversationEngine.php`, `config/conversation.json` — deterministic keyword-pattern intent detection (`greeting`, `thanks`, `help`, `find_service`, `unknown`) and templated replies with multiple phrasings per intent (varied, not robotic-repeating) selected by `array_rand`; count-bucketed replies for `find_service` (zero/one/many results). All wording lives in the JSON config, editable without touching PHP — that's the "admin handles this" part. `api/chat.php` — new endpoint: small talk gets a templated reply with no search; anything else runs through `kili_extract_context()` (same Location/Taxonomy engines as search.php) → `SearchEngine::search()` → source resolution → a `find_service` reply | Done |
+| **Schema detector** | `core/SchemaDetector.php` — infers column types (email/phone/url/date/number/boolean) from sample values and suggests a mapping onto the universal record fields, matching header names ("Business Name", "Phone Number", "Web Address", ...) against known aliases first, falling back to type-based guesses. `api/import.php` — `?action=detect` (CSV upload as multipart `file`, or JSON `{"rows":[...]}`) returns detected columns/types/mapping; `?action=preview` applies a (possibly admin-edited) mapping to the first 5 rows so you can see the resulting Killi records before committing to an import. No import execution/indexing yet — detect+map+preview only, matching the "Upload → Detect → Map → Preview" workflow up to the point where you'd hit Import | Done |
+| **Conversation engine (no AI/LLM)** | `core/ConversationEngine.php`, `config/conversation.json` — deterministic keyword-pattern intent detection (`greeting`, `thanks`, `help`, `find_service`, `unknown`) and templated replies with multiple phrasings per intent (varied, not robotic-repeating) selected by `array_rand`; count-bucketed replies for `find_service` (zero/one/many results). All wording lives in the JSON config, editable without touching PHP — that's the "admin handles this" part. `api/chat.php` — new endpoint: small talk gets a templated reply with no search; anything else runs through `killi_extract_context()` (same Location/Taxonomy engines as search.php) → `SearchEngine::search()` → source resolution → a `find_service` reply | Done |
 | **Response consistency** | `api/search.php` now also generates its `meta.reply` from the same `ConversationEngine`, so chip clicks and free-text chat messages produce consistently-worded responses from one place instead of duplicated hardcoded strings in JS | Done |
 | **Relevance-gate fix** | `SearchEngine::scoreRecord()` — without an exact phrase match, at least half the query's tokens must match *something*, or the record scores 0. Found via testing: "submarine repair in antarctica" was returning 5 results because "repair" alone matched unrelated tags; regression-checked against every existing test (typo correction, location ranking, alias resolution) before/after | Done |
 | **Regression fix** | `data/categories.json` (flat, stale after the sector/category remap) was deleted; chips now render from `TaxonomyEngine`'s sector list and filter via the `sector` param — clicking a chip previously would have returned zero results | Done |
@@ -115,7 +115,7 @@ data gets brought in.
   no search call) and `find_service` (reply + detected context + results, matching
   `api/search.php`'s shape); curl-verified `api/import.php?action=detect` correctly maps
   messy headers ("Business Name", "Phone Number", "Web Address") to the universal fields,
-  and `?action=preview` produces correctly-shaped Kili records. Playwright re-run of the
+  and `?action=preview` produces correctly-shaped Killi records. Playwright re-run of the
   full chat flow: typed "hello" gets a small-talk reply with no cards; "I need a good
   mechanic in Lekki" gets the breadcrumb + server-generated reply + 3 mechanic cards; the
   "Hospitality" sector chip (previously broken) now returns Ocean Basket Lekki; "submarine
@@ -132,10 +132,10 @@ data gets brought in.
 | Area | File(s) | Status |
 |---|---|---|
 | **Form engine** | `core/FormEngine.php`, `config/forms.json` — one template ("Enquiry / Support Request": name, contact, message), one question per chat turn, required-field validation with re-ask, `{placeholder}` fill-in on the success message. No auth, no dynamic/cascading fields — deliberately minimal | Done |
-| **Form state** | `api/chat.php` — PHP session (`$_SESSION['kili_form']`) holds `{template_id, step, data}` across separate HTTP requests, so the form survives without a database. Started via the `start_enquiry` intent ("raise a request", "make an enquiry", ...) or the zero-result "Raise a request" quick reply | Done |
+| **Form state** | `api/chat.php` — PHP session (`$_SESSION['killi_form']`) holds `{template_id, step, data}` across separate HTTP requests, so the form survives without a database. Started via the `start_enquiry` intent ("raise a request", "make an enquiry", ...) or the zero-result "Raise a request" quick reply | Done |
 | **Submissions storage** | `data/submissions.json` via the existing `JsonAdapter` (reused as-is — same zero-DB pattern as listings), `api/submissions.php` to view them | Done |
-| **Memory Engine — recall** | `core/MemoryEngine.php` (`kili_memory_engine()`) — deterministic token-overlap (Jaccard) similarity against `data/faq.json`, no AI/LLM. A match skips the search entirely, returns the curated answer, bumps `hit_count`, and can link back to specific listing records | Done |
-| **Memory Engine — remember** | `kili_memory_remember_query()` in `bootstrap.php` writes every non-recalled, non-small-talk message to `data/query_log.json` with a normalized form and a running count. Nothing here writes to `faq.json` automatically — an admin reviews frequent entries and promotes the good ones into a curated answer, which avoids ever "confidently" serving a wrong stored answer | Done |
+| **Memory Engine — recall** | `core/MemoryEngine.php` (`killi_memory_engine()`) — deterministic token-overlap (Jaccard) similarity against `data/faq.json`, no AI/LLM. A match skips the search entirely, returns the curated answer, bumps `hit_count`, and can link back to specific listing records | Done |
+| **Memory Engine — remember** | `killi_memory_remember_query()` in `bootstrap.php` writes every non-recalled, non-small-talk message to `data/query_log.json` with a normalized form and a running count. Nothing here writes to `faq.json` automatically — an admin reviews frequent entries and promotes the good ones into a curated answer, which avoids ever "confidently" serving a wrong stored answer | Done |
 | **Zero-result → ticket bridge** | `api/search.php`'s `find_service` "zero" reply now offers to log a request; `api/chat.php` sets `offer_ticket: true` on zero-result searches; the UI shows a "Raise a request" quick reply that starts the same enquiry form | Done |
 
 *(Originally built as a separate `FaqEngine` + a loose query-logging function; consolidated into one `MemoryEngine` pillar alongside Search and Conversational — same behavior, cleaner architecture.)*
@@ -144,9 +144,9 @@ data gets brought in.
 
 | Area | File(s) | Status |
 |---|---|---|
-| **Emoji reactions** | `assets/js/kili.js` (reaction row under "final answer" bubbles: find_service/FAQ/small-talk, not breadcrumbs or form questions), `api/feedback.php` + `kili_record_feedback()` — append-only log, same shape as query logging | Done |
+| **Emoji reactions** | `assets/js/killi.js` (reaction row under "final answer" bubbles: find_service/FAQ/small-talk, not breadcrumbs or form questions), `api/feedback.php` + `killi_record_feedback()` — append-only log, same shape as query logging | Done |
 | **File attachment** | `api/upload.php` — validates by **sniffed content** (`finfo`), not client-claimed type/filename (prevents a renamed `.php` posing as `.jpg`); allowlist is JPG/PNG/GIF/WEBP/PDF only (SVG/HTML excluded — script-content risk); stores under a random filename in `storage/uploads/`, which has its own `.htaccess` disabling script execution and denying HTML/SVG/JS. `api/chat.php` acknowledges an attachment as its own turn, ahead of form-state/intent handling | Done |
-| **Voice input** | `assets/js/kili.js` — Web Speech API, feature-detected (mic button stays `hidden` if unsupported). Fills the input rather than auto-submitting, same "review before sending" pattern as chip-fill, since misheard transcripts are common | Done — **with a caveat**, see Verified below |
+| **Voice input** | `assets/js/killi.js` — Web Speech API, feature-detected (mic button stays `hidden` if unsupported). Fills the input rather than auto-submitting, same "review before sending" pattern as chip-fill, since misheard transcripts are common | Done — **with a caveat**, see Verified below |
 | **Bot media responses + card images** | `renderCard()` now shows `record.image` as a card thumbnail; FAQ entries in `data/faq.json` can carry an `image` shown alongside the answer. One demo listing (ABC Auto Services) and one FAQ entry ("what areas do you cover") were given real inline-generated SVG images (data URIs, no external fetch) to prove both paths render, not just in theory | Done |
 
 ### Database credentials + real remote connections (this session)
@@ -156,8 +156,8 @@ against an **actual local PostgreSQL server** started in this environment — no
 
 | Area | File(s) | Status |
 |---|---|---|
-| **Connection Manager** | `core/ConnectionManager.php` — named profiles loaded from `.env` via `kili_load_env()`/`kili_connection_manager()` in `bootstrap.php`. `profile()` returns everything except the password (safe for a browser); `credentials()` (internal only) includes it. `testConnection()`, `listTables()`, `fetchRows()` (table name validated as a plain identifier — no SQL injection surface) | Done |
-| **Storing credentials safely** | `.env` (gitignored — see `kilisearch-ultra/.gitignore`) + `.env.example` template committed instead. Root `.htaccess` now denies any `.env*` request. `kili_save_env_profile()` writes/updates one profile's keys without disturbing the rest of the file; an empty password field on update means "keep the existing one," never "clear it" | Done |
+| **Connection Manager** | `core/ConnectionManager.php` — named profiles loaded from `.env` via `killi_load_env()`/`killi_connection_manager()` in `bootstrap.php`. `profile()` returns everything except the password (safe for a browser); `credentials()` (internal only) includes it. `testConnection()`, `listTables()`, `fetchRows()` (table name validated as a plain identifier — no SQL injection surface) | Done |
+| **Storing credentials safely** | `.env` (gitignored — see `kilisearch-ultra/.gitignore`) + `.env.example` template committed instead. Root `.htaccess` now denies any `.env*` request. `killi_save_env_profile()` writes/updates one profile's keys without disturbing the rest of the file; an empty password field on update means "keep the existing one," never "clear it" | Done |
 | **Admin screen** | `admin/connections.php` — plain server-rendered PHP (no JS framework, no build step, consistent with the rest of the app): list profiles (masked) with a Test button, an Add-connection form, per-profile table listing, and a Detect → Preview → Publish flow for turning a live DB table into a new switchable data source | Done |
 | **JSON API** | `api/connections.php` (list/test/save/tables) for programmatic use | Done |
 | **DB rows feed the existing pipeline** | `api/import.php` now accepts `{"connection": "...", "table": "..."}` as a third row source alongside file upload and JSON rows — same `SchemaDetector` detect/preview/publish flow either way. Published sources are tagged with real provenance (`type: "postgres"`, not generic `"import"`) | Done |
@@ -173,7 +173,7 @@ that the live-DB-sourced rows were immediately searchable with correct source
 provenance. The test database/user were dropped afterward; nothing DB-specific ships
 in the repo, only the mechanism.
 
-**Explicit scope limit — "index & cache" only, not "live query"**: Kili pulls rows
+**Explicit scope limit — "index & cache" only, not "live query"**: Killi pulls rows
 from the database once (via Detect/Publish) into a local JSON dataset and searches
 that, the same as every other data source. It does **not** query the database on every
 search — that "live query" mode from the original plan would need a PDO-backed
@@ -205,11 +205,11 @@ installer wizard.
 
 | Area | File(s) | Status |
 |---|---|---|
-| **Dark / light theme toggle** | `portal/index.php` (toggle button in header), `assets/css/kili.css` — CSS variables (`--kili-surface`, `--kili-border`, `--kili-muted` added alongside the existing branding-driven vars) redefined under `@media (prefers-color-scheme: dark)` for automatic OS-following, and again under `:root[data-theme="dark"]` for the explicit toggle (persisted via `localStorage`, wins in both directions) | Done |
-| **Chip behavior change** | `assets/js/kili.js` — sector chips now **fill the search input** (e.g. "Automotive ") instead of firing a search immediately, so the input is the single "search prompt" surface and chip text can be extended before sending (e.g. "Automotive mechanic in lekki"). Verified this still returns correct results via the existing sector-field token matching, not a behavior regression | Done |
+| **Dark / light theme toggle** | `portal/index.php` (toggle button in header), `assets/css/killi.css` — CSS variables (`--killi-surface`, `--killi-border`, `--killi-muted` added alongside the existing branding-driven vars) redefined under `@media (prefers-color-scheme: dark)` for automatic OS-following, and again under `:root[data-theme="dark"]` for the explicit toggle (persisted via `localStorage`, wins in both directions) | Done |
+| **Chip behavior change** | `assets/js/killi.js` — sector chips now **fill the search input** (e.g. "Automotive ") instead of firing a search immediately, so the input is the single "search prompt" surface and chip text can be extended before sending (e.g. "Automotive mechanic in lekki"). Verified this still returns correct results via the existing sector-field token matching, not a behavior regression | Done |
 | **Typing/loading indicator** | A bouncing-dots bubble shown during every `search.php`/`chat.php` fetch, removed when the response (or an error) arrives | Done |
 | **Two-tick delivery indicator** | Every user message shows a single tick immediately ("sent"); it upgrades to a double tick the moment a reply arrives ("delivered") — cosmetic, since this is a single user↔bot exchange with no real multi-party delivery state | Done |
-| **Entrance animation** | Bubbles, quick-reply rows and result cards fade + slide up as they're added, via a CSS keyframe (`kili-rise`) | Done |
+| **Entrance animation** | Bubbles, quick-reply rows and result cards fade + slide up as they're added, via a CSS keyframe (`killi-rise`) | Done |
 
 Verified via Playwright: chip click fills the input without auto-searching, the
 follow-up search still returns correct results; typing indicator appears and is gone
@@ -224,9 +224,9 @@ Two deliberately different credentials, matching how each surface should behave:
 
 | Area | File(s) | Status |
 |---|---|---|
-| **Admin auth — always mandatory** | `bootstrap.php` (`kili_admin_password_configured()`, `kili_is_admin_authenticated()`, `kili_verify_admin_password()`, `kili_set_admin_authenticated()`, `kili_require_admin_auth_json()`). No configured password means "not set up yet," never "wide open" — `admin/connections.php` shows a one-time mandatory setup form (min 8 chars, confirm field) until one exists, then a login form every session after. Hash lives in `.env` as `KILI_ADMIN_PASSWORD_HASH` (bcrypt via `password_hash()`), never returned by any response | Done |
-| **App-wide password — optional, off by default** | Same pattern (`kili_app_password_configured()`, etc., `KILI_APP_PASSWORD_HASH`), but absent by default so the customer-facing demo stays zero-friction/"plug and play." An admin turns it on from the new "App access" card in `admin/connections.php`. Gates *access* to the whole app instance, not individual features — consistent with the original "no artificial feature-lock passwords" rule | Done |
-| **Gated surfaces** | `portal/index.php` shows a password gate page (styled, branding-aware) before rendering the chat when the app password is set. Customer-facing APIs (search/chat/suggest/categories/taxonomy/locations/config/health/upload/feedback) call `kili_require_app_auth_json()` and return a clean 401 JSON error, not a crash, when locked | Done |
+| **Admin auth — always mandatory** | `bootstrap.php` (`killi_admin_password_configured()`, `killi_is_admin_authenticated()`, `killi_verify_admin_password()`, `killi_set_admin_authenticated()`, `killi_require_admin_auth_json()`). No configured password means "not set up yet," never "wide open" — `admin/connections.php` shows a one-time mandatory setup form (min 8 chars, confirm field) until one exists, then a login form every session after. Hash lives in `.env` as `KILLI_ADMIN_PASSWORD_HASH` (bcrypt via `password_hash()`), never returned by any response | Done |
+| **App-wide password — optional, off by default** | Same pattern (`killi_app_password_configured()`, etc., `KILLI_APP_PASSWORD_HASH`), but absent by default so the customer-facing demo stays zero-friction/"plug and play." An admin turns it on from the new "App access" card in `admin/connections.php`. Gates *access* to the whole app instance, not individual features — consistent with the original "no artificial feature-lock passwords" rule | Done |
+| **Gated surfaces** | `portal/index.php` shows a password gate page (styled, branding-aware) before rendering the chat when the app password is set. Customer-facing APIs (search/chat/suggest/categories/taxonomy/locations/config/health/upload/feedback) call `killi_require_app_auth_json()` and return a clean 401 JSON error, not a crash, when locked | Done |
 | **Admin-only endpoints reclassified** | `api/connections.php`, `api/import.php`, `api/data_sources.php` and `api/submissions.php` (this one exposes submitters' names/contact info — genuinely sensitive) now require admin auth, not app auth — confirmed the customer-facing JS never calls any of these, so this reclassification has zero effect on the chat UI | Done |
 
 **Verified end to end via Playwright** covering the full lifecycle in one run: first-run
@@ -242,14 +242,14 @@ existing demo experience — nothing changes for anyone who doesn't turn this on
 
 Feature access is package-based (a license bundles a fixed feature set), not arbitrary
 per-feature passwords — and critically, **who decides the package is pluggable**: a
-host application's own auth system can hand Kili an identity, or Kili falls back to a
+host application's own auth system can hand Killi an identity, or Killi falls back to a
 configured default when running standalone.
 
 | Area | File(s) | Status |
 |---|---|---|
 | **Package definitions** | `config/packages.json` — `basic` (search only), `pro` (+ forms, memory, attachments), `enterprise` (+ import, db_connections, multi_source). `default_package: "enterprise"` so nothing is gated in standalone/demo mode unless something explicitly says otherwise | Done |
-| **Entitlement checks** | `core/EntitlementManager.php` (package → feature list, pure lookup) + `bootstrap.php` (`kili_current_package()`, `kili_has_feature()`, `kili_require_feature_json()`) | Done |
-| **The pluggable hook itself** | `kili_current_package()` reads `$_SESSION['kili_host_user']['package']` first — this is the integration point: a host app authenticates its own user, then sets that session value before handing off to Kili, and Kili trusts it instead of running its own login for this purpose. No host identity present → falls back to `packages.json`'s `default_package` | Done |
+| **Entitlement checks** | `core/EntitlementManager.php` (package → feature list, pure lookup) + `bootstrap.php` (`killi_current_package()`, `killi_has_feature()`, `killi_require_feature_json()`) | Done |
+| **The pluggable hook itself** | `killi_current_package()` reads `$_SESSION['killi_host_user']['package']` first — this is the integration point: a host app authenticates its own user, then sets that session value before handing off to Killi, and Killi trusts it instead of running its own login for this purpose. No host identity present → falls back to `packages.json`'s `default_package` | Done |
 | **Hard-gated (admin operations)** | `api/connections.php` requires `db_connections`, `api/data_sources.php` requires `multi_source`, `api/import.php` requires `import` generally and `db_connections` specifically for DB-sourced rows — all return a clean `403 FEATURE_NOT_LICENSED`, checked *in addition to* (not instead of) admin authentication. Confirmed these are genuinely independent axes: an authenticated admin can still be blocked by their package | Done |
 | **Gracefully degraded (customer chat)** | `api/chat.php` — starting a form without `forms`, or sending an attachment without `attachments`, gets a plain "not included in your plan" reply rather than an error; missing `memory` silently skips FAQ recall and falls through to ordinary search. Nothing crashes, nothing looks broken — a Basic-tier user just doesn't see the extra capabilities | Done |
 
@@ -267,7 +267,7 @@ this") are checked independently, exactly as a real licensing model needs.
 **Not built**: an actual reference host-app integration (there's no real "main app" to
 test against yet — only the hook and a simulated session), and no UI for assigning
 users to packages (that's presumably the host app's job, or a future admin screen if
-Kili needs to manage packages itself in fully-standalone deployments).
+Killi needs to manage packages itself in fully-standalone deployments).
 
 ### Reference host-app integration + default-package control (this session)
 
@@ -275,17 +275,17 @@ Both follow-ups from the entitlement work above, closing the two gaps just noted
 
 | Area | File(s) | Status |
 |---|---|---|
-| **Reference host-app demo** | `examples/host-app-demo.php` — a small standalone page simulating an external application: "logging in" as a demo user with a chosen package sets `$_SESSION['kili_host_user']` exactly as a real integration's server-side code would, then hands off to the real portal. Clearly commented as illustrative, not a feature | Done |
+| **Reference host-app demo** | `examples/host-app-demo.php` — a small standalone page simulating an external application: "logging in" as a demo user with a chosen package sets `$_SESSION['killi_host_user']` exactly as a real integration's server-side code would, then hands off to the real portal. Clearly commented as illustrative, not a feature | Done |
 | **Default-package admin control** | New "Licensing / packages" card in `admin/connections.php` (admin-gated) — lists each package with its features and a dropdown to change `config/packages.json`'s `default_package`, for standalone deployments with no host app to delegate to | Done |
 
 **Verified with a real browser, not just curl**: opened the host-app demo, confirmed
-"not signed in" state, logged in as a `basic` user, opened the real Kili portal in the
+"not signed in" state, logged in as a `basic` user, opened the real Killi portal in the
 *same browser context* (shared cookies, exactly like a real handoff), asked it to
-"raise a request" and got the graceful decline. Then — without touching Kili at all —
+"raise a request" and got the graceful decline. Then — without touching Killi at all —
 went back to the host-app tab, switched the same session to `enterprise`, returned to
-the already-open Kili tab, asked again, and it started the real form. That's the
+the already-open Killi tab, asked again, and it started the real form. That's the
 integration contract working live: the host app is the only thing that changed, and
-Kili's behavior followed. Separately verified the admin default-package dropdown:
+Killi's behavior followed. Separately verified the admin default-package dropdown:
 changed it to `basic`, confirmed `config/packages.json` updated, confirmed a completely
 fresh session (no host identity at all) picked up the new default and got forms
 blocked. Both test artifacts (`.env`, `config/packages.json`) reverted to their
@@ -302,7 +302,7 @@ front door onto the entitlement system above, not a separate mechanism.
 | **Top package renamed** | `enterprise` → **`ultra`** everywhere in `config/packages.json`, matching the product's own name. Nothing in PHP code hardcoded the old id, so this was a safe rename | Done |
 | **⚠️ Default package changed: `basic`, not `ultra`** | This is a deliberate behavior change, not a bug: the whole point of a license-key-gated product is that the *unlicensed* state is the free/Basic tier. A fresh install now starts with search only — forms, memory, attachments, imports and DB connections are locked until a valid key is entered. Anyone testing this standalone from here on will see that, unlike every prior session which defaulted to everything unlocked | Done — **flagging clearly since it changes what "out of the box" means** |
 | **License list** | `data/licenses.json` — a flat list of `{key, package, status}`, checked with `hash_equals()` (no timing side-channel). No remote activation server, no network call — consistent with the zero-DB philosophy everywhere else in this build. Two demo keys ship for testing (`KILI-PRO-DEMO-0001`, `KILI-ULTRA-DEMO-0001`) | Done |
-| **Activation** | `core/LicenseManager.php` (validate a key → package) + `kili_activate_license()` in `bootstrap.php`, which — on a valid key — calls the *same* `kili_set_default_package()` the admin dropdown already used, and records the active key in `.env` as `KILI_ACTIVE_LICENSE_KEY` (not a secret, but instance-specific activation state, so it lives alongside other per-install config rather than in version-controlled JSON) | Done |
+| **Activation** | `core/LicenseManager.php` (validate a key → package) + `killi_activate_license()` in `bootstrap.php`, which — on a valid key — calls the *same* `killi_set_default_package()` the admin dropdown already used, and records the active key in `.env` as `KILLI_ACTIVE_LICENSE_KEY` (not a secret, but instance-specific activation state, so it lives alongside other per-install config rather than in version-controlled JSON) | Done |
 | **Admin UI** | New "Activate a license key" section in the existing "Licensing / packages" card — shows the currently activated key (or "none"), one field, one button. Invalid keys get a clear rejection message | Done |
 
 **Verified end to end**: fresh/unactivated install — search works, forms don't. An
@@ -316,10 +316,10 @@ reverted to their shipped state (unactivated, `basic` default) afterward.
 
 Per explicit direction:
 
-- The product name is **Killi**, not Kili (e.g. `KilliGoogle.ai`, `KilliSearch Ultra`).
+- The product name is **Killi**, not Killi (e.g. `KilliGoogle.ai`, `KilliSearch Ultra`).
   Corrected everywhere it's user-visible — `config/branding.json`, page titles/headings
   in `portal/index.php`, `admin/connections.php`, `examples/host-app-demo.php`. Left
-  internal code identifiers unchanged (the `Kili\Core` PHP namespace, `kili_*` function
+  internal code identifiers unchanged (the `Killi\Core` PHP namespace, `killi_*` function
   names, CSS classes) since those are invisible implementation details with no
   user-facing effect — renaming ~40 files' namespace/function names would be a large,
   high-risk, purely-cosmetic-internally change. Flagged for confirmation before doing
@@ -336,14 +336,14 @@ Per explicit direction:
 - **Guided standalone setup wizard** (`admin/setup.php`) — so a fresh install needs no
   documentation to configure, just "next, next, done." A 3-step linear flow gated
   behind the same admin auth as `connections.php`:
-  1. **License** — activate a Standard/Ultra key inline (`kili_activate_license()`),
+  1. **License** — activate a Standard/Ultra key inline (`killi_activate_license()`),
      or "Continue with Free" to skip.
   2. **App access** — optionally set the app-wide password, or skip to leave it open.
   3. **Done** — a summary (current package, app-access status, active data source)
      with links into the full admin panel and the live app.
 
-  Completion is tracked via a new `KILI_SETUP_COMPLETE=true` flag in `.env`
-  (`kili_setup_complete()` / `kili_mark_setup_complete()` in `bootstrap.php`). Both of
+  Completion is tracked via a new `KILLI_SETUP_COMPLETE=true` flag in `.env`
+  (`killi_setup_complete()` / `killi_mark_setup_complete()` in `bootstrap.php`). Both of
   `connections.php`'s post-auth redirects (`admin_setup` and `admin_login`) now check
   this flag: first-ever login sends you into the wizard, everything after sends you
   straight to `connections.php`. A "Re-run setup wizard" link was added next to "Log
@@ -354,7 +354,7 @@ Per explicit direction:
   → redirected into the wizard → activated `KILLI-STANDARD-DEMO-0001` at step 1 →
   skipped app password at step 2 → step 3 correctly summarized "Standard / Open (no
   password) / Nigeria Business Directory (Demo)" → "Finish setup" wrote
-  `KILI_SETUP_COMPLETE=true` and returned to `connections.php` → a subsequent login
+  `KILLI_SETUP_COMPLETE=true` and returned to `connections.php` → a subsequent login
   went straight to `connections.php`, skipping the wizard, confirming the flag sticks.
   All test-mutated `.env` and `config/packages.json` state was reverted to the clean
   shipped defaults afterward (this repo ships with no admin password set and
@@ -367,8 +367,8 @@ Per explicit direction:
      a "feature unavailable" reply) but the 📎 button and `api/upload.php` had no gate
      at all — a Free visitor could pick a file, it would upload and sit in
      `storage/uploads/` on disk, *then* get rejected at the chat-reply step. Fixed by
-     hiding the attach button in `portal/index.php` when `!kili_has_feature('attachments')`
-     and adding `kili_require_feature_json('attachments')` to `api/upload.php` itself, so
+     hiding the attach button in `portal/index.php` when `!killi_has_feature('attachments')`
+     and adding `killi_require_feature_json('attachments')` to `api/upload.php` itself, so
      the endpoint refuses the upload outright rather than accepting-then-discarding.
   2. **Gap**: branding was entirely ungated — a Free install could fully customize
      `config/branding.json` (name, colors, welcome message) with zero indication it's
@@ -444,7 +444,7 @@ Per explicit direction:
 Closed out every item in the previous "Suggested next phase" list in one pass.
 
 - **CSRF protection** on every admin form (`connections.php`, `setup.php`,
-  `records.php`, `backup.php`, `faq.php`) — a per-session token (`kili_csrf_token()`
+  `records.php`, `backup.php`, `faq.php`) — a per-session token (`killi_csrf_token()`
   in `bootstrap.php`) rendered as a hidden field and checked on every POST before any
   `do=` handler runs; a mismatch or missing token shows "Form expired" instead of
   silently proceeding.
@@ -452,14 +452,14 @@ Closed out every item in the previous "Suggested next phase" list in one pass.
   (`data/login_attempts.json`), checked *before* password verification so even a
   correct password is rejected while locked. The login form disables its own inputs
   while locked rather than just showing an error.
-- **Role-based admin access** — replaced the single shared `KILI_ADMIN_PASSWORD_HASH`
-  in `.env` with named accounts in `data/admins.json` (`kili_create_admin()`,
-  `kili_verify_admin_login()`, `kili_delete_admin()`, `kili_change_admin_password()`).
+- **Role-based admin access** — replaced the single shared `KILLI_ADMIN_PASSWORD_HASH`
+  in `.env` with named accounts in `data/admins.json` (`killi_create_admin()`,
+  `killi_verify_admin_login()`, `killi_delete_admin()`, `killi_change_admin_password()`).
   The setup wizard's first step now creates the first named admin instead of a bare
   password; `connections.php` gained an "Admin accounts" card to add/remove admins
   (can't delete yourself, can't delete the last remaining admin) and change your own
   password. The audit log's `admin` field is now the real logged-in username
-  (`kili_current_admin_username()`) instead of the hardcoded string `"admin"`.
+  (`killi_current_admin_username()`) instead of the hardcoded string `"admin"`.
 - **FAQ-promotion screen** (`admin/faq.php`) — lists `query_log.json` sorted by
   ask-count with a one-click "Save as FAQ" link that pre-fills the promotion form;
   also lists and lets you edit/delete existing `faq.json` entries, and dismiss a
@@ -469,7 +469,7 @@ Closed out every item in the previous "Suggested next phase" list in one pass.
   *while* a visitor was mid-conversation (possibly mid-way through the multi-turn
   Enquiry form), and the next message would just fail. Added `api/app_auth.php` (a
   JSON unlock endpoint) and an inline unlock prompt rendered directly into the chat
-  transcript (`showUnlockPrompt()` in `assets/js/kili.js`) whenever any chat/upload
+  transcript (`showUnlockPrompt()` in `assets/js/killi.js`) whenever any chat/upload
   call comes back `AUTH_REQUIRED` — no page reload, so the rendered transcript is
   never lost, and after unlocking the exact same message is resent automatically. The
   server-side form state was never actually at risk (it lives in the PHP session,
@@ -484,12 +484,12 @@ Closed out every item in the previous "Suggested next phase" list in one pass.
   backup.
 - **Live-query DB mode — the other half of "index & cache."** Until now a database
   table could only become a data source by copying its rows into a JSON snapshot
-  (`kili_publish_data_source()`); changes in the live table needed a manual
+  (`killi_publish_data_source()`); changes in the live table needed a manual
   re-publish to show up in search. Added `core/DbAdapter.php`, a `StorageInterface`
   that calls `ConnectionManager::fetchRows()` fresh on every `all()` — no snapshot,
   no persisted cache, so a row inserted directly in the database appears in search on
   the very next request. `admin/connections.php`'s publish form gained a "Live
-  query" checkbox (`kili_publish_live_source()` registers the connection/table/
+  query" checkbox (`killi_publish_live_source()` registers the connection/table/
   mapping in `config/data_sources.json` under `type: "live_db"`, copying zero rows).
   Deliberately read-only: `DbAdapter::save()`/`delete()` throw rather than attempting
   a generic reverse-mapped `UPDATE`/`DELETE` against an arbitrary table schema, which
@@ -508,7 +508,7 @@ Closed out every item in the previous "Suggested next phase" list in one pass.
   previewed/mapped a custom-column table (`biz_name` → `title`, etc.), published it
   as a live source, confirmed search returned its rows with correct source
   attribution, then inserted a new row directly via `psql` with zero interaction with
-  Kili and confirmed it appeared in search on the next request. Confirmed the
+  Killi and confirmed it appeared in search on the next request. Confirmed the
   read-only guard end-to-end (UI hides the controls, API returns 422, no 500) and
   confirmed backups correctly capture the live source's *configuration*
   (connection/table/mapping) without attempting to snapshot its data.
@@ -521,7 +521,7 @@ Closed out every item in the previous "Suggested next phase" list in one pass.
   publish a source (cached *or* live) directly through the browser, bypassing the
   Ultra tier entirely. Gated the `save`/`test`/`preview`/`publish` actions and the
   "Configured profiles"/"Add a connection"/"Preview" cards behind
-  `kili_has_feature('db_connections')`, with the same upsell-notice pattern used on
+  `killi_has_feature('db_connections')`, with the same upsell-notice pattern used on
   `records.php`/`backup.php`/`faq.php`. Verified: Free sees only an upsell card and a
   `save` POST is rejected with a clear message; switching to Ultra restores full
   functionality with no other change.
@@ -548,8 +548,8 @@ revert blast radius across ~40+ files, and stayed unconfirmed.)
   connections, and backup delete/restore. Editors get the day-to-day surfaces —
   records, FAQ, backup create/download — without those. The very first admin
   (created during setup) is always `owner` regardless of what's passed to
-  `kili_create_admin()`, since there's no one yet to have granted them a lesser
-  role; `kili_delete_admin()` now also refuses to remove the last remaining owner
+  `killi_create_admin()`, since there's no one yet to have granted them a lesser
+  role; `killi_delete_admin()` now also refuses to remove the last remaining owner
   (not just the last remaining admin). `admin/connections.php` gates every
   owner-only `do=` action through one blanket check (mirroring the CSRF check
   pattern) and hides the corresponding UI cards/buttons for editors rather than
@@ -583,7 +583,7 @@ revert blast radius across ~40+ files, and stayed unconfirmed.)
   a `?embed=1` query param (for a host app that's genuinely iframing the page, as
   opposed to opening it in its own tab the way `examples/host-app-demo.php` does)
   suppresses the manifest link, icons, service-worker registration, and install
-  button entirely — a host app has its own wrapper story and shouldn't have Kili
+  button entirely — a host app has its own wrapper story and shouldn't have Killi
   offering to install itself as a separate app on top of it.
 
 Verified end-to-end: an owner created an editor account, logged in as that editor,
@@ -622,7 +622,7 @@ shape yet to build without more direction.
 - **Manifest shortcuts** — `portal/manifest.php` now lists the first four sectors
   from the taxonomy as installable-app shortcuts (long-press the icon → jump
   straight to Automotive/Hospitality/etc.). Each links to `index.php?sector=X`;
-  `assets/js/kili.js` reads that param on load and fills the search input exactly
+  `assets/js/killi.js` reads that param on load and fills the search input exactly
   the way clicking the sector's chip would — not auto-submitted, consistent with
   the existing "chips are prompts, not direct actions" design.
 
@@ -641,6 +641,44 @@ failure, and the offline page rendered exactly as designed. Also reconfirmed the
 manifest's shortcuts array and the `?sector=` deep-link both work as intended in a
 live Chromium session.
 
+## Internal Kili→Killi rename
+
+The internal identifier rename flagged as needing explicit confirmation in every
+previous entry finally got one — applied across the whole codebase in one pass:
+the PHP namespace (`Kili\Core`/`Kili\Adapters` → `Killi\Core`/`Killi\Adapters`),
+every `kili_*` global function (~30 of them, e.g. `kili_read_json()` →
+`killi_read_json()`), every `kili-`-prefixed CSS class/id/data-attribute in
+`assets/css/kili.css` and `assets/js/kili.js`, every `KILI_*` env var key and the
+`window.KILI_BRANDING` global, and the general prose "Kili" → "Killi" in comments
+and docs. Two files were renamed to match: `assets/js/kili.js` →
+`assets/js/killi.js`, `assets/css/kili.css` → `assets/css/killi.css` (with every
+reference to them updated), and this file itself, `KILI_BUILD_STATUS.md` →
+`KILLI_BUILD_STATUS.md`.
+
+Deliberately **not** renamed: the top-level `kilisearch-ultra/` project folder and
+the git branch name. Both are structural/deployment-path concerns rather than
+in-code identifiers, carry a much bigger blast radius for zero functional benefit,
+and weren't what was specifically flagged as needing confirmation.
+
+Mechanically, this was a single ordered set of find/replace patterns applied across
+every `.php`/`.js`/`.css`/`.md` file plus `.env`/`.env.example` (four non-overlapping
+character-class patterns — `kili_`, `kili-`, `KILI_`, and the generic word `Kili` —
+run in that order, verified not to collide with each other or with the correctly-
+spelled `KilliGoogle.ai`/`Killi` text already in place), rather than hand-editing
+each file, to eliminate the far larger risk of missing a reference by hand across
+~50 files.
+
+Verified: `php -l` clean on every PHP file, `node -c` clean on both JS files, and an
+exhaustive grep sweep confirmed zero remaining `kili_`, `kili-`, `Kili\`, or bare
+`KILI_` occurrences anywhere in the codebase. Then a full functional regression:
+fresh admin creation, login, the complete setup wizard, search, chat, the admin
+Records/FAQ/Backups pages, a create-then-delete CRUD round-trip, and the renamed
+`assets/css/killi.css`/`assets/js/killi.js` both resolving correctly from the
+rendered page — plus a live Chromium/Playwright pass confirming zero console/page
+errors and a working chat exchange against the renamed DOM ids/classes
+(`#killi-input`, `.killi-bubble`, etc.). All test-mutated `.env`/`data/*.json`/
+`config/*.json` state was reverted to the clean shipped defaults afterward.
+
 ## Suggested next phase
 
 1. **Role granularity beyond owner/editor** — e.g. a role that can view but not
@@ -650,7 +688,6 @@ live Chromium session.
    isn't rolled back), no optimistic-concurrency check (two admins editing the same
    live row can silently clobber each other), and tags/booleans are converted with
    a fixed convention (comma-joined string, 1/0) that may not match every schema.
-3. The still-unconfirmed deeper Kili→Killi internal code identifier rename.
 
 ## How to run locally
 

@@ -2,7 +2,7 @@
 
 Three license tiers. A fresh install starts on **Free**; entering a valid license key
 (`admin/connections.php`) unlocks **Standard** or **Ultra** for the whole installation.
-See `KILI_BUILD_STATUS.md` for how the entitlement system works internally.
+See `KILLI_BUILD_STATUS.md` for how the entitlement system works internally.
 
 Four pillars make up the product: **Search** (find it), **Conversational** (talk about
 it), **Memory** (remember what's been asked), and **CRUD** (own it — create, edit,
@@ -41,8 +41,8 @@ brand (Ultra) — rather than on chat polish.
 
 ## Feature keys (for reference)
 
-Each row above maps to a feature key checked in code (`kili_has_feature()` /
-`kili_require_feature_json()`), defined in `config/packages.json`:
+Each row above maps to a feature key checked in code (`killi_has_feature()` /
+`killi_require_feature_json()`), defined in `config/packages.json`:
 
 | Feature key | Free | Standard | Ultra |
 |---|:---:|:---:|:---:|

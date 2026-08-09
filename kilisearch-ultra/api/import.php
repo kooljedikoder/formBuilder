@@ -3,14 +3,14 @@
 require_once __DIR__ . '/../bootstrap.php';
 require_once __DIR__ . '/../core/SchemaDetector.php';
 
-use Kili\Core\SchemaDetector;
+use Killi\Core\SchemaDetector;
 
-kili_require_admin_auth_json();
-kili_require_feature_json('import');
+killi_require_admin_auth_json();
+killi_require_feature_json('import');
 header('Content-Type: application/json');
 
 /** @return array<int, array<string, mixed>> */
-function kili_parse_csv_upload(string $path): array
+function killi_parse_csv_upload(string $path): array
 {
     $rows = [];
     $handle = fopen($path, 'r');
@@ -40,7 +40,7 @@ $body = [];
 $rows = [];
 
 if (!empty($_FILES['file']['tmp_name'])) {
-    $rows = kili_parse_csv_upload($_FILES['file']['tmp_name']);
+    $rows = killi_parse_csv_upload($_FILES['file']['tmp_name']);
 } else {
     $body = json_decode(file_get_contents('php://input'), true) ?: [];
     $rows = $body['rows'] ?? [];
@@ -51,9 +51,9 @@ if (!empty($_FILES['file']['tmp_name'])) {
 // preview/import/publish flow either way, since it's all just "rows" by
 // the time SchemaDetector sees them.
 if (empty($rows) && !empty($body['connection']) && !empty($body['table'])) {
-    kili_require_feature_json('db_connections');
+    killi_require_feature_json('db_connections');
     try {
-        $rows = kili_connection_manager()->fetchRows($body['connection'], $body['table'], (int) ($body['limit'] ?? 200));
+        $rows = killi_connection_manager()->fetchRows($body['connection'], $body['table'], (int) ($body['limit'] ?? 200));
     } catch (\Throwable $e) {
         http_response_code(422);
         echo json_encode([
@@ -96,9 +96,9 @@ if ($action === 'import') {
     $mapped = $detector->applyMapping($rows, $mapping);
 
     $sourceId = $body['source_id'] ?? 'src-import';
-    kili_ensure_source($sourceId, 'import', $body['source_name'] ?? 'Imported Data');
+    killi_ensure_source($sourceId, 'import', $body['source_name'] ?? 'Imported Data');
 
-    $storage = kili_storage();
+    $storage = killi_storage();
     $imported = [];
     foreach ($mapped as $record) {
         if (empty($record['title'])) {
@@ -138,13 +138,13 @@ if ($action === 'publish') {
     $mapping = $body['mapping'] ?? $schema['mapping'];
     $provenanceType = 'import';
     if (!empty($body['connection'])) {
-        $connectionProfile = kili_connection_manager()->profile($body['connection']);
+        $connectionProfile = killi_connection_manager()->profile($body['connection']);
         $provenanceType = $connectionProfile['driver'] ?? 'database';
     }
-    $newSource = kili_publish_data_source($name, $rows, $mapping, $provenanceType);
+    $newSource = killi_publish_data_source($name, $rows, $mapping, $provenanceType);
 
     if (!empty($body['activate'])) {
-        kili_set_active_data_source($newSource['id']);
+        killi_set_active_data_source($newSource['id']);
     }
 
     echo json_encode([

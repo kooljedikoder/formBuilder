@@ -1,6 +1,6 @@
 <?php
 
-namespace Kili\Core;
+namespace Killi\Core;
 
 /**
  * Minimal conversational form state machine: one question per turn,

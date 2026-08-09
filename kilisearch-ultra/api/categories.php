@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
-kili_require_app_auth_json();
+killi_require_app_auth_json();
 header('Content-Type: application/json');
 
 // Flat sector list for simple UI clients (chips, dropdowns). Clients that
@@ -10,7 +10,7 @@ header('Content-Type: application/json');
 // api/taxonomy.php instead.
 $sectors = array_map(
     fn($node) => ['name' => $node['sector'], 'category_count' => count($node['categories'] ?? [])],
-    kili_taxonomy_engine()->tree()
+    killi_taxonomy_engine()->tree()
 );
 
 echo json_encode([

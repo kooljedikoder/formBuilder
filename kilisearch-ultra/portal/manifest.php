@@ -4,14 +4,14 @@ require_once __DIR__ . '/../bootstrap.php';
 
 header('Content-Type: application/manifest+json');
 
-$branding = kili_branding();
+$branding = killi_branding();
 $colors = $branding['colors'] ?? [];
 $name = $branding['product_name'] ?? 'Killi';
 
 // Long-press the installed icon → jump straight into a sector, same as
 // tapping its chip on the main screen (fills the search input, no
-// auto-submit — see the ?sector= handling in assets/js/kili.js).
-$sectors = array_slice(array_column(kili_taxonomy_engine()->tree(), 'sector'), 0, 4);
+// auto-submit — see the ?sector= handling in assets/js/killi.js).
+$sectors = array_slice(array_column(killi_taxonomy_engine()->tree(), 'sector'), 0, 4);
 $shortcuts = array_map(fn($sector) => [
     'name' => $sector,
     'url' => 'index.php?sector=' . rawurlencode($sector),

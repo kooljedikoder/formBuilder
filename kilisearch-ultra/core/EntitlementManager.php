@@ -1,13 +1,13 @@
 <?php
 
-namespace Kili\Core;
+namespace Killi\Core;
 
 /**
  * Feature access is license/package based, not arbitrary per-feature
  * passwords: a package (e.g. "Basic"/"Pro"/"Enterprise") bundles a fixed
  * set of features, and a user gets everything their package includes.
  * This class only answers "does package X include feature Y" — see
- * kili_current_package() in bootstrap.php for how the package itself is
+ * killi_current_package() in bootstrap.php for how the package itself is
  * resolved (from a host app's injected identity, or a configured default
  * when running standalone).
  */

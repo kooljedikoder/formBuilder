@@ -1,9 +1,9 @@
 <?php
 
-namespace Kili\Core;
+namespace Killi\Core;
 
 /**
- * Manages which dataset currently backs Search — the "where does Kili's
+ * Manages which dataset currently backs Search — the "where does Killi's
  * data come from right now" concern. This is the local-file slice of a
  * broader Data Source Engine concept that also includes:
  *  - SchemaDetector + api/import.php: bringing one-off rows (CSV/JSON)

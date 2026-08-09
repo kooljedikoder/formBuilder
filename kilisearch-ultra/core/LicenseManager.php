@@ -1,6 +1,6 @@
 <?php
 
-namespace Kili\Core;
+namespace Killi\Core;
 
 /**
  * Validates a license key against a simple local list (data/licenses.json)

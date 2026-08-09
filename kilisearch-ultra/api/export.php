@@ -2,14 +2,14 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
-kili_require_admin_auth_json();
-kili_require_feature_json('crud');
+killi_require_admin_auth_json();
+killi_require_feature_json('crud');
 
-$sourceId = $_GET['source'] ?? kili_data_source_engine()->activeId();
+$sourceId = $_GET['source'] ?? killi_data_source_engine()->activeId();
 $format = $_GET['format'] ?? 'json';
 
 try {
-    $storage = kili_storage_for_source($sourceId);
+    $storage = killi_storage_for_source($sourceId);
 } catch (\InvalidArgumentException $e) {
     http_response_code(422);
     header('Content-Type: application/json');

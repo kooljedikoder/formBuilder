@@ -5,7 +5,7 @@ require_once __DIR__ . '/../bootstrap.php';
 $size = (int) ($_GET['size'] ?? 192);
 $size = in_array($size, [192, 512], true) ? $size : 192;
 
-$branding = kili_branding();
+$branding = killi_branding();
 $bg = $branding['colors']['primary'] ?? '#1a73e8';
 [$r, $g, $b] = sscanf($bg, '#%02x%02x%02x') ?: [26, 115, 232];
 

@@ -2,14 +2,14 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
-use Kili\Core\FormEngine;
+use Killi\Core\FormEngine;
 
-kili_require_app_auth_json();
-kili_ensure_session();
+killi_require_app_auth_json();
+killi_ensure_session();
 header('Content-Type: application/json');
 
 /** Shapes the response for an in-progress (or just-started) form turn. */
-function kili_chat_form_turn(FormEngine $formEngine, array $state, ?string $message): array
+function killi_chat_form_turn(FormEngine $formEngine, array $state, ?string $message): array
 {
     $field = $formEngine->currentField($state);
     $template = $formEngine->template($state['template_id']);
@@ -38,14 +38,14 @@ $attachment = $input['attachment'] ?? null;
 // state / intent detection — it doesn't consume a pending form question,
 // since no current form field is a file type yet.
 if (is_array($attachment) && !empty($attachment['filename'])) {
-    $reply = kili_has_feature('attachments')
+    $reply = killi_has_feature('attachments')
         ? 'Got it — I\'ve received “' . $attachment['filename'] . '”. Someone from our team will take a look.'
         : 'File attachments aren\'t included in your current plan.';
 
     echo json_encode([
         'success' => true,
         'data' => [
-            'intent' => kili_has_feature('attachments') ? 'attachment_ack' : 'feature_unavailable',
+            'intent' => killi_has_feature('attachments') ? 'attachment_ack' : 'feature_unavailable',
             'reply' => $reply,
             'detected' => [],
             'results' => [],
@@ -64,18 +64,18 @@ if ($message === '') {
     exit;
 }
 
-$conversation = kili_conversation_engine();
-$formEngine = kili_form_engine();
+$conversation = killi_conversation_engine();
+$formEngine = killi_form_engine();
 
 // 1. A form is already in progress — the message is the answer to the
 // current field, not a new intent. Session-based, so no database needed.
-if (!empty($_SESSION['kili_form'])) {
-    $result = $formEngine->submitAnswer($_SESSION['kili_form'], $message);
+if (!empty($_SESSION['killi_form'])) {
+    $result = $formEngine->submitAnswer($_SESSION['killi_form'], $message);
     $state = $result['state'];
 
     if ($result['error'] !== null) {
-        $_SESSION['kili_form'] = $state; // unchanged — re-ask the same field
-        echo json_encode(['success' => true, 'data' => kili_chat_form_turn($formEngine, $state, $result['error'])]);
+        $_SESSION['killi_form'] = $state; // unchanged — re-ask the same field
+        echo json_encode(['success' => true, 'data' => killi_chat_form_turn($formEngine, $state, $result['error'])]);
         exit;
     }
 
@@ -83,8 +83,8 @@ if (!empty($_SESSION['kili_form'])) {
         $submission = $state['data'];
         $submission['template_id'] = $state['template_id'];
         $submission['status'] = 'new';
-        $saved = kili_submissions_storage()->save($submission);
-        unset($_SESSION['kili_form']);
+        $saved = killi_submissions_storage()->save($submission);
+        unset($_SESSION['killi_form']);
 
         echo json_encode([
             'success' => true,
@@ -100,8 +100,8 @@ if (!empty($_SESSION['kili_form'])) {
         exit;
     }
 
-    $_SESSION['kili_form'] = $state;
-    echo json_encode(['success' => true, 'data' => kili_chat_form_turn($formEngine, $state, null)]);
+    $_SESSION['killi_form'] = $state;
+    echo json_encode(['success' => true, 'data' => killi_chat_form_turn($formEngine, $state, null)]);
     exit;
 }
 
@@ -109,7 +109,7 @@ $intent = $conversation->detectIntent($message);
 
 // 2. Start a new form.
 if ($intent === 'start_enquiry') {
-    if (!kili_has_feature('forms')) {
+    if (!killi_has_feature('forms')) {
         echo json_encode([
             'success' => true,
             'data' => [
@@ -124,10 +124,10 @@ if ($intent === 'start_enquiry') {
     }
 
     $state = $formEngine->start('enquiry');
-    $_SESSION['kili_form'] = $state;
+    $_SESSION['killi_form'] = $state;
     $template = $formEngine->template('enquiry');
 
-    echo json_encode(['success' => true, 'data' => kili_chat_form_turn($formEngine, $state, $template['intro'] ?? null)]);
+    echo json_encode(['success' => true, 'data' => killi_chat_form_turn($formEngine, $state, $template['intro'] ?? null)]);
     exit;
 }
 
@@ -150,11 +150,11 @@ if (in_array($intent, ['greeting', 'thanks', 'help', 'unknown'], true)) {
 // the search entirely if so, and can point back to specific listings.
 // Gracefully skipped (not an error) when the plan doesn't include it —
 // falls straight through to ordinary search below.
-$faqMatch = kili_has_feature('memory') ? kili_memory_engine()->recall($message) : null;
+$faqMatch = killi_has_feature('memory') ? killi_memory_engine()->recall($message) : null;
 if ($faqMatch !== null) {
-    kili_memory_record_hit($faqMatch['id']);
-    $linked = kili_resolve_sources(array_values(array_filter(array_map(
-        fn($id) => kili_storage()->find($id),
+    killi_memory_record_hit($faqMatch['id']);
+    $linked = killi_resolve_sources(array_values(array_filter(array_map(
+        fn($id) => killi_storage()->find($id),
         $faqMatch['linked_record_ids'] ?? []
     ))));
 
@@ -175,11 +175,11 @@ if ($faqMatch !== null) {
 
 // 5. Ordinary search — remembered so repeated questions become visible
 // and can later be promoted into data/faq.json by an admin.
-kili_memory_remember_query($message);
+killi_memory_remember_query($message);
 
-$context = kili_extract_context($message);
-$result = kili_search_engine()->search($message, [], $context, 10, 0);
-$results = kili_resolve_sources($result['results']);
+$context = killi_extract_context($message);
+$result = killi_search_engine()->search($message, [], $context, 10, 0);
+$results = killi_resolve_sources($result['results']);
 
 $reply = $conversation->respond('find_service', [
     'query' => $message,

@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
-kili_require_app_auth_json();
+killi_require_app_auth_json();
 header('Content-Type: application/json');
 
 const ALLOWED_EMOJI = ['😍', '👍', '😐', '👎'];
@@ -20,6 +20,6 @@ if (!in_array($emoji, ALLOWED_EMOJI, true) || $reply === '') {
     exit;
 }
 
-kili_record_feedback($emoji, $reply, is_array($body['context'] ?? null) ? $body['context'] : []);
+killi_record_feedback($emoji, $reply, is_array($body['context'] ?? null) ? $body['context'] : []);
 
 echo json_encode(['success' => true, 'data' => ['recorded' => true], 'meta' => []]);

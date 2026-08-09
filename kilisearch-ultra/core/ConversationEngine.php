@@ -1,6 +1,6 @@
 <?php
 
-namespace Kili\Core;
+namespace Killi\Core;
 
 /**
  * Deterministic, rule-based conversational layer — keyword pattern

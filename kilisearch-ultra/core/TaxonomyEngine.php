@@ -1,9 +1,9 @@
 <?php
 
-namespace Kili\Core;
+namespace Killi\Core;
 
 /**
- * Universal Sector > Category > Subcategory taxonomy so Kili isn't
+ * Universal Sector > Category > Subcategory taxonomy so Killi isn't
  * hard-coded to "business directory" — the same tree works for any
  * vertical (Automotive, Healthcare, Hospitality, ...).
  */

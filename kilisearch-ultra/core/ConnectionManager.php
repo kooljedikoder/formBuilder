@@ -1,6 +1,6 @@
 <?php
 
-namespace Kili\Core;
+namespace Killi\Core;
 
 /**
  * Manages named remote-database connection profiles loaded from .env
@@ -22,7 +22,7 @@ class ConnectionManager
 
     public function profileNames(): array
     {
-        $raw = $this->env['KILI_DB_PROFILES'] ?? '';
+        $raw = $this->env['KILLI_DB_PROFILES'] ?? '';
 
         return array_values(array_filter(array_map('trim', explode(',', $raw))));
     }
@@ -63,7 +63,7 @@ class ConnectionManager
 
     private function key(string $name, string $suffix): string
     {
-        return 'KILI_DB_' . strtoupper($name) . '_' . $suffix;
+        return 'KILLI_DB_' . strtoupper($name) . '_' . $suffix;
     }
 
     public function buildDsn(array $profile): string

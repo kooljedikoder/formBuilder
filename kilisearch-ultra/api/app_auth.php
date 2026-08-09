@@ -7,14 +7,14 @@ header('Content-Type: application/json');
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 $password = $body['password'] ?? '';
 
-if (!kili_app_password_configured()) {
-    kili_set_app_authenticated(true);
+if (!killi_app_password_configured()) {
+    killi_set_app_authenticated(true);
     echo json_encode(['success' => true, 'data' => ['authenticated' => true], 'meta' => []]);
     exit;
 }
 
-if (kili_verify_app_password($password)) {
-    kili_set_app_authenticated(true);
+if (killi_verify_app_password($password)) {
+    killi_set_app_authenticated(true);
     echo json_encode(['success' => true, 'data' => ['authenticated' => true], 'meta' => []]);
     exit;
 }

@@ -1,9 +1,9 @@
 <?php
 
-namespace Kili\Core;
+namespace Killi\Core;
 
 /**
- * Detects column types and suggests a mapping onto the universal Kili
+ * Detects column types and suggests a mapping onto the universal Killi
  * record model from raw rows (CSV/JSON/DB query results). Heuristic only
  * — header-name aliases first, then value-pattern sniffing (email/phone/
  * url/date/number) as a fallback. No AI involved.
@@ -70,7 +70,7 @@ class SchemaDetector
     }
 
     /**
-     * Transform raw rows into the universal Kili record shape using a
+     * Transform raw rows into the universal Killi record shape using a
      * (possibly admin-edited) column => field mapping. Unmapped columns
      * (field === null) are dropped.
      */

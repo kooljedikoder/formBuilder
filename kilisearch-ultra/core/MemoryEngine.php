@@ -1,14 +1,14 @@
 <?php
 
-namespace Kili\Core;
+namespace Killi\Core;
 
 /**
- * Kili's third pillar alongside SearchEngine and ConversationEngine:
+ * Killi's third pillar alongside SearchEngine and ConversationEngine:
  * "has this been asked before?" Matches new questions against a curated
  * list of Q&A (data/faq.json) using deterministic token-overlap (Jaccard)
  * similarity — no AI/LLM. Remembering *new* questions (so repeated ones
  * become visible for an admin to promote into a curated answer) is
- * handled by the kili_memory_remember_query() helper in bootstrap.php,
+ * handled by the killi_memory_remember_query() helper in bootstrap.php,
  * which writes to data/query_log.json — kept separate from this class
  * only because it's pure file I/O, not matching logic.
  */

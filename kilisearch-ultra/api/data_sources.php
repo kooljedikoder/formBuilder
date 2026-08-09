@@ -2,11 +2,11 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
-kili_require_admin_auth_json();
-kili_require_feature_json('multi_source');
+killi_require_admin_auth_json();
+killi_require_feature_json('multi_source');
 header('Content-Type: application/json');
 
-$engine = kili_data_source_engine();
+$engine = killi_data_source_engine();
 $action = $_GET['action'] ?? 'list';
 
 if ($action === 'activate') {
@@ -22,7 +22,7 @@ if ($action === 'activate') {
         exit;
     }
 
-    kili_set_active_data_source($id);
+    killi_set_active_data_source($id);
     echo json_encode(['success' => true, 'data' => ['active' => $id], 'meta' => []]);
     exit;
 }

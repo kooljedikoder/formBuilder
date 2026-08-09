@@ -5,10 +5,10 @@
 // that a fully offline visit to index.php falls back to a brand-neutral
 // static page (offline.html) rather than a stale-but-branded one. Bump
 // CACHE_NAME to invalidate old caches after changing this list.
-const CACHE_NAME = 'kili-shell-v2';
+const CACHE_NAME = 'killi-shell-v2';
 const SHELL_ASSETS = [
-  '../assets/css/kili.css',
-  '../assets/js/kili.js',
+  '../assets/css/killi.css',
+  '../assets/js/killi.js',
   'offline.html',
 ];
 

@@ -1,8 +1,8 @@
 <?php
 
-namespace Kili\Core;
+namespace Killi\Core;
 
-use Kili\Adapters\StorageInterface;
+use Killi\Adapters\StorageInterface;
 
 /**
  * The fourth pillar alongside Search, Conversational and Memory: owning

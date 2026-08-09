@@ -2,16 +2,16 @@
   'use strict';
 
   var API_BASE = '../api/';
-  var chat = document.getElementById('kili-chat');
-  var form = document.getElementById('kili-searchbar');
-  var input = document.getElementById('kili-input');
-  var suggestionsBox = document.getElementById('kili-suggestions');
-  var chips = document.getElementById('kili-chips');
-  var themeToggle = document.getElementById('kili-theme-toggle');
-  var attachBtn = document.getElementById('kili-attach');
-  var attachInput = document.getElementById('kili-attach-input');
-  var micBtn = document.getElementById('kili-mic');
-  var branding = window.KILI_BRANDING || {};
+  var chat = document.getElementById('killi-chat');
+  var form = document.getElementById('killi-searchbar');
+  var input = document.getElementById('killi-input');
+  var suggestionsBox = document.getElementById('killi-suggestions');
+  var chips = document.getElementById('killi-chips');
+  var themeToggle = document.getElementById('killi-theme-toggle');
+  var attachBtn = document.getElementById('killi-attach');
+  var attachInput = document.getElementById('killi-attach-input');
+  var micBtn = document.getElementById('killi-mic');
+  var branding = window.KILLI_BRANDING || {};
   var lastResults = [];
   var suggestTimer = null;
   var lastUserTick = null;
@@ -30,13 +30,13 @@
   var REACTION_EMOJI = ['😍', '👍', '😐', '👎'];
 
   function buildReactionRow(replyText) {
-    var wrap = el('div', 'kili-reactions');
+    var wrap = el('div', 'killi-reactions');
     REACTION_EMOJI.forEach(function (emoji) {
-      var btn = el('button', 'kili-reaction', emoji);
+      var btn = el('button', 'killi-reaction', emoji);
       btn.type = 'button';
       btn.setAttribute('aria-label', 'React with ' + emoji);
       btn.addEventListener('click', function () {
-        Array.prototype.forEach.call(wrap.querySelectorAll('.kili-reaction'), function (b) {
+        Array.prototype.forEach.call(wrap.querySelectorAll('.killi-reaction'), function (b) {
           b.classList.remove('selected');
         });
         btn.classList.add('selected');
@@ -53,9 +53,9 @@
 
   /** withReaction adds an emoji-reaction row under this bubble — used for "final answer" AI replies, not breadcrumbs or mid-form questions. */
   function addBubble(role, text, withReaction) {
-    var bubble = el('div', 'kili-bubble ' + role, escapeHtml(text));
+    var bubble = el('div', 'killi-bubble ' + role, escapeHtml(text));
     if (role === 'user') {
-      var tick = el('span', 'kili-tick', '&#10003;');
+      var tick = el('span', 'killi-tick', '&#10003;');
       bubble.appendChild(tick);
       lastUserTick = tick;
     }
@@ -78,33 +78,33 @@
 
   function showTyping() {
     hideTyping();
-    var bubble = el('div', 'kili-bubble ai kili-typing', '<span></span><span></span><span></span>');
-    bubble.id = 'kili-typing-bubble';
+    var bubble = el('div', 'killi-bubble ai killi-typing', '<span></span><span></span><span></span>');
+    bubble.id = 'killi-typing-bubble';
     chat.appendChild(bubble);
     scrollToBottom();
   }
 
   function hideTyping() {
-    var existing = document.getElementById('kili-typing-bubble');
+    var existing = document.getElementById('killi-typing-bubble');
     if (existing) existing.remove();
   }
 
   function addAttachmentBubble(file) {
-    var bubble = el('div', 'kili-bubble user kili-attachment');
+    var bubble = el('div', 'killi-bubble user killi-attachment');
     if (file.mime && file.mime.indexOf('image/') === 0) {
       var img = document.createElement('img');
       img.src = file.url;
       img.alt = file.filename || 'Attachment';
-      img.className = 'kili-attachment-img';
+      img.className = 'killi-attachment-img';
       bubble.appendChild(img);
     } else {
-      var link = el('a', 'kili-attachment-file', '&#128196; ' + escapeHtml(file.filename || 'Attachment'));
+      var link = el('a', 'killi-attachment-file', '&#128196; ' + escapeHtml(file.filename || 'Attachment'));
       link.href = file.url;
       link.target = '_blank';
       link.rel = 'noopener';
       bubble.appendChild(link);
     }
-    var tick = el('span', 'kili-tick', '&#10003;');
+    var tick = el('span', 'killi-tick', '&#10003;');
     bubble.appendChild(tick);
     lastUserTick = tick;
     chat.appendChild(bubble);
@@ -141,9 +141,9 @@
   }
 
   function addQuickReplies(replies) {
-    var wrap = el('div', 'kili-quick-replies');
+    var wrap = el('div', 'killi-quick-replies');
     replies.forEach(function (r) {
-      var btn = el('button', 'kili-quick-reply', escapeHtml(r.label));
+      var btn = el('button', 'killi-quick-reply', escapeHtml(r.label));
       btn.type = 'button';
       btn.addEventListener('click', r.onClick);
       wrap.appendChild(btn);
@@ -164,16 +164,16 @@
    * the app-password flag), so retrying picks up exactly where it left off.
    */
   function showUnlockPrompt(retryFn) {
-    var wrap = el('div', 'kili-unlock-prompt');
-    var text = el('p', 'kili-unlock-text', 'This app is password-protected. Enter the password to continue.');
-    var row = el('div', 'kili-unlock-row');
+    var wrap = el('div', 'killi-unlock-prompt');
+    var text = el('p', 'killi-unlock-text', 'This app is password-protected. Enter the password to continue.');
+    var row = el('div', 'killi-unlock-row');
     var pwInput = document.createElement('input');
     pwInput.type = 'password';
     pwInput.placeholder = 'Password';
-    pwInput.className = 'kili-unlock-input';
-    var btn = el('button', 'kili-unlock-btn', 'Unlock');
+    pwInput.className = 'killi-unlock-input';
+    var btn = el('button', 'killi-unlock-btn', 'Unlock');
     btn.type = 'button';
-    var errorEl = el('p', 'kili-unlock-error', '');
+    var errorEl = el('p', 'killi-unlock-error', '');
     errorEl.hidden = true;
 
     function submit() {
@@ -235,44 +235,44 @@
   }
 
   function renderCard(record) {
-    var card = el('div', 'kili-card');
+    var card = el('div', 'killi-card');
 
     if (record.image) {
       var thumb = document.createElement('img');
       thumb.src = record.image;
       thumb.alt = record.title;
-      thumb.className = 'kili-card-image';
+      thumb.className = 'killi-card-image';
       card.appendChild(thumb);
     }
 
-    var top = el('div', 'kili-card-top');
-    top.appendChild(el('div', 'kili-card-title', escapeHtml(record.title) + (record.verified ? '<span class="kili-badge">Verified</span>' : '')));
-    if (record.rating) top.appendChild(el('div', 'kili-card-rating', starRating(record.rating)));
+    var top = el('div', 'killi-card-top');
+    top.appendChild(el('div', 'killi-card-title', escapeHtml(record.title) + (record.verified ? '<span class="killi-badge">Verified</span>' : '')));
+    if (record.rating) top.appendChild(el('div', 'killi-card-rating', starRating(record.rating)));
     card.appendChild(top);
 
     var metaParts = [record.subcategory || record.category, record.location].filter(Boolean);
     if (record._distance_km !== undefined) metaParts.push(record._distance_km + ' km away');
-    card.appendChild(el('div', 'kili-card-meta', escapeHtml(metaParts.join(' · '))));
+    card.appendChild(el('div', 'killi-card-meta', escapeHtml(metaParts.join(' · '))));
 
     if (record.source && record.source.name) {
-      card.appendChild(el('div', 'kili-card-source', 'Source: ' + escapeHtml(record.source.name)));
+      card.appendChild(el('div', 'killi-card-source', 'Source: ' + escapeHtml(record.source.name)));
     }
 
-    var actions = el('div', 'kili-card-actions');
+    var actions = el('div', 'killi-card-actions');
     if (record.phone) {
-      var call = el('a', 'kili-action call', 'Call');
+      var call = el('a', 'killi-action call', 'Call');
       call.href = 'tel:' + record.phone;
       actions.appendChild(call);
     }
     if (record.whatsapp) {
-      var wa = el('a', 'kili-action whatsapp', 'WhatsApp');
+      var wa = el('a', 'killi-action whatsapp', 'WhatsApp');
       wa.href = waLink(record.whatsapp);
       wa.target = '_blank';
       wa.rel = 'noopener';
       actions.appendChild(wa);
     }
     if (record.website) {
-      var site = el('a', 'kili-action website', 'Website');
+      var site = el('a', 'killi-action website', 'Website');
       site.href = record.website;
       site.target = '_blank';
       site.rel = 'noopener';
@@ -284,9 +284,9 @@
   }
 
   function renderResults(records) {
-    var wrap = el('div', 'kili-results');
+    var wrap = el('div', 'killi-results');
     if (records.length === 0) {
-      wrap.appendChild(el('div', 'kili-empty', 'No matches yet — try a different word or category.'));
+      wrap.appendChild(el('div', 'killi-empty', 'No matches yet — try a different word or category.'));
     } else {
       records.slice(0, 6).forEach(function (r) {
         wrap.appendChild(renderCard(r));
@@ -446,7 +446,7 @@
           var media = document.createElement('img');
           media.src = data.image;
           media.alt = '';
-          media.className = 'kili-media';
+          media.className = 'killi-media';
           chat.appendChild(media);
           scrollToBottom();
         }
@@ -495,7 +495,7 @@
     }
     suggestionsBox.innerHTML = '';
     items.forEach(function (text) {
-      var item = el('div', 'kili-suggestion-item', escapeHtml(text));
+      var item = el('div', 'killi-suggestion-item', escapeHtml(text));
       item.addEventListener('click', function () {
         input.value = text;
         hideSuggestions();
@@ -533,7 +533,7 @@
   // input (the single "search prompt" surface) so the user can send it
   // as-is or add more text — e.g. tap "Automotive" then type " in lekki".
   chips.addEventListener('click', function (e) {
-    var chip = e.target.closest('.kili-chip');
+    var chip = e.target.closest('.killi-chip');
     if (!chip) return;
     var sector = chip.getAttribute('data-sector');
     input.value = sector + ' ';
@@ -610,7 +610,7 @@
 
   // Theme toggle: defaults to the OS/browser preference (handled in CSS),
   // an explicit choice is remembered in localStorage and wins from then on.
-  var THEME_KEY = 'kili-theme';
+  var THEME_KEY = 'killi-theme';
 
   function systemPrefersDark() {
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
