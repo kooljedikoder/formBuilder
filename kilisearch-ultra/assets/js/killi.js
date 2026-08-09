@@ -251,14 +251,25 @@
       card.appendChild(thumb);
     }
 
+    // Expandable records (layout !== "simple") trade the inline rating in
+    // the title row for the "View" button — the rating moves into the meta
+    // line instead, so it's still visible without crowding the title.
+    var expandable = record._layout && record._layout !== 'simple';
+
     var top = el('div', 'killi-card-top');
     top.appendChild(el('div', 'killi-card-title', escapeHtml(record.title) + (record.verified ? '<span class="killi-badge">Verified</span>' : '')));
-    if (record.rating) top.appendChild(el('div', 'killi-card-rating', starRating(record.rating)));
+    if (expandable) {
+      top.appendChild(buildViewButton(record));
+    } else if (record.rating) {
+      top.appendChild(el('div', 'killi-card-rating', starRating(record.rating)));
+    }
     card.appendChild(top);
 
-    var metaParts = [record.subcategory || record.category, record.location].filter(Boolean);
-    if (record._distance_km !== undefined) metaParts.push(record._distance_km + ' km away');
-    card.appendChild(el('div', 'killi-card-meta', escapeHtml(metaParts.join(' · '))));
+    var metaTextParts = [record.subcategory || record.category, record.location].filter(Boolean);
+    if (record._distance_km !== undefined) metaTextParts.push(record._distance_km + ' km away');
+    var metaHtml = escapeHtml(metaTextParts.join(' · '));
+    if (expandable && record.rating) metaHtml = starRating(record.rating) + (metaHtml ? ' · ' + metaHtml : '');
+    card.appendChild(el('div', 'killi-card-meta', metaHtml));
 
     if (record.source && record.source.name) {
       card.appendChild(el('div', 'killi-card-source', 'Source: ' + escapeHtml(record.source.name)));
@@ -287,6 +298,289 @@
     card.appendChild(actions);
 
     return card;
+  }
+
+  // ---------------------------------------------------------------------
+  // Result-detail layouts: "View" expands a record into a richer modal.
+  // Which layout applies is decided server-side per data source
+  // (DataSourceEngine::layoutFor(), stamped onto every record as
+  // record._layout) — never picked or built by markup here. Every slot
+  // below is optional: a record missing a field just skips that piece,
+  // it never errors. See kilisearch-ultra/samples/*.sample.json for the
+  // exact shape each layout expects.
+  // ---------------------------------------------------------------------
+
+  var ICONS = {
+    eye: '<svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+    phone: '<svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>',
+    pin: '<svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+    share: '<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
+    globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></svg>',
+    star: '<svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2Z"/></svg>',
+  };
+
+  function buildViewButton(record) {
+    var btn = el('button', 'killi-view-btn', ICONS.eye + ' View');
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'View full details for ' + record.title);
+    btn.addEventListener('click', function () { openRecordModal(record); });
+    return btn;
+  }
+
+  function mapsLink(record) {
+    if (record.address) return 'https://maps.google.com/?q=' + encodeURIComponent(record.address);
+    return null;
+  }
+
+  function shareRecord(record) {
+    var shareData = { title: record.title, text: record.title, url: record.website || window.location.href };
+    if (navigator.share) {
+      navigator.share(shareData).catch(function () {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareData.url).catch(function () {});
+    }
+  }
+
+  function buildActionRow(record) {
+    var row = el('div', 'killi-modal-actions');
+    var entries = [
+      ['phone', ICONS.phone, 'Call', record.phone ? 'tel:' + record.phone : null, false],
+      ['pin', ICONS.pin, 'Directions', mapsLink(record), true],
+      ['share', ICONS.share, 'Share', '#', false],
+      ['globe', ICONS.globe, 'Website', record.website || null, true],
+    ];
+    entries.forEach(function (entry) {
+      var href = entry[3];
+      if (!href) return;
+      var a = document.createElement('a');
+      a.innerHTML = '<span class="killi-modal-action-icon">' + entry[1] + '</span><span class="killi-modal-action-label">' + entry[2] + '</span>';
+      if (entry[0] === 'share') {
+        a.href = '#';
+        a.addEventListener('click', function (e) { e.preventDefault(); shareRecord(record); });
+      } else {
+        a.href = href;
+        if (entry[4]) { a.target = '_blank'; a.rel = 'noopener'; }
+      }
+      row.appendChild(a);
+    });
+    return row;
+  }
+
+  function buildRatingBars(breakdown) {
+    if (!Array.isArray(breakdown) || !breakdown.length) return null;
+    var max = Math.max.apply(null, breakdown) || 1;
+    var wrap = el('div', 'killi-rating-bars');
+    breakdown.forEach(function (count) {
+      var bar = el('div', 'bar');
+      bar.style.height = Math.max(4, (count / max) * 100) + '%';
+      wrap.appendChild(bar);
+    });
+    return wrap;
+  }
+
+  function buildPhotoStrip(photos) {
+    if (!Array.isArray(photos) || !photos.length) return null;
+    var strip = el('div', 'killi-photo-strip');
+    photos.slice(0, 6).forEach(function (src) {
+      var img = document.createElement('img');
+      img.src = src;
+      img.alt = '';
+      img.loading = 'lazy';
+      strip.appendChild(img);
+    });
+    return strip;
+  }
+
+  function buildTabs(tabNames, onSwitch) {
+    var tabs = el('div', 'killi-modal-tabs');
+    tabNames.forEach(function (name, i) {
+      var tab = el('button', 'killi-modal-tab' + (i === 0 ? ' current' : ''), escapeHtml(name));
+      tab.type = 'button';
+      tab.addEventListener('click', function () {
+        Array.prototype.forEach.call(tabs.querySelectorAll('.killi-modal-tab'), function (t) { t.classList.remove('current'); });
+        tab.classList.add('current');
+        onSwitch(name);
+      });
+      tabs.appendChild(tab);
+    });
+    return tabs;
+  }
+
+  function buildBusinessProfileBody(record) {
+    var body = document.createDocumentFragment();
+
+    var header = el('div', 'killi-modal-header');
+    header.appendChild(el('p', 'killi-modal-title', escapeHtml(record.title)));
+    var sublineParts = [];
+    if (record.rating) sublineParts.push('<span class="killi-star">' + ICONS.star + '</span> ' + Number(record.rating).toFixed(1));
+    if (record.review_count) sublineParts.push('(' + record.review_count + ')');
+    if (record.price_range) sublineParts.push(escapeHtml(record.price_range));
+    if (record.category) sublineParts.push(escapeHtml(record.category));
+    if (record.hours_today) sublineParts.push('<span class="' + (record.is_open_now ? 'killi-modal-status-open' : '') + '">' + escapeHtml(record.hours_today) + '</span>');
+    header.appendChild(el('p', 'killi-modal-subline', sublineParts.join(' · ')));
+    body.appendChild(header);
+
+    var sections = {};
+    body.appendChild(buildTabs(['Overview', 'Reviews', 'Photos', 'Menu'], function (name) {
+      Object.keys(sections).forEach(function (key) { sections[key].classList.toggle('current', key === name); });
+    }));
+
+    var overviewSection = el('div', 'killi-tab-section current');
+    var photoStrip = buildPhotoStrip(record.photos);
+    if (photoStrip) overviewSection.appendChild(photoStrip);
+    overviewSection.appendChild(buildActionRow(record));
+    if (record.order_online_url) {
+      var cta = document.createElement('a');
+      cta.className = 'killi-modal-cta';
+      cta.href = record.order_online_url;
+      cta.target = '_blank';
+      cta.rel = 'noopener';
+      cta.textContent = 'Order online';
+      overviewSection.appendChild(cta);
+    }
+    var infoGrid = el('div', 'killi-info-grid');
+    if (Array.isArray(record.menu_items) && record.menu_items.length) {
+      var menuTile = el('div', 'killi-info-tile');
+      menuTile.appendChild(el('div', 'killi-info-tile-label', 'Menu'));
+      var thumbs = el('div', 'killi-menu-thumbs');
+      record.menu_items.slice(0, 3).forEach(function (item) {
+        if (!item.photo) return;
+        var img = document.createElement('img');
+        img.src = item.photo;
+        img.alt = item.name || '';
+        thumbs.appendChild(img);
+      });
+      menuTile.appendChild(thumbs);
+      infoGrid.appendChild(menuTile);
+    }
+    if (record.rating) {
+      var reviewTile = el('div', 'killi-info-tile');
+      reviewTile.appendChild(el('div', 'killi-info-tile-label', 'Reviews'));
+      var ratingBig = el('div', 'killi-rating-big', Number(record.rating).toFixed(1) + ' ' + ICONS.star);
+      reviewTile.appendChild(ratingBig);
+      var bars = buildRatingBars(record.rating_breakdown);
+      if (bars) reviewTile.appendChild(bars);
+      infoGrid.appendChild(reviewTile);
+    }
+    if (infoGrid.children.length) overviewSection.appendChild(infoGrid);
+    var footerParts = [];
+    if (record.address) footerParts.push('<span>' + escapeHtml(record.address) + '</span>');
+    if (record.hours_today) footerParts.push('<span class="' + (record.is_open_now ? 'killi-modal-status-open' : '') + '">' + escapeHtml(record.hours_today) + '</span>');
+    if (footerParts.length) overviewSection.appendChild(el('div', 'killi-modal-footer', footerParts.join('')));
+    body.appendChild(overviewSection);
+
+    var reviewsSection = el('div', 'killi-tab-section');
+    reviewsSection.appendChild(el('p', 'killi-modal-title', 'Reviews'));
+    if (record.rating) {
+      var reviewsHead = el('div', 'killi-info-tile');
+      reviewsHead.appendChild(el('div', 'killi-rating-big', Number(record.rating).toFixed(1) + ' ' + ICONS.star + (record.review_count ? ' <span style="font-size:13px;font-weight:400">(' + record.review_count + ')</span>' : '')));
+      var reviewsBars = buildRatingBars(record.rating_breakdown);
+      if (reviewsBars) reviewsHead.appendChild(reviewsBars);
+      reviewsSection.appendChild(reviewsHead);
+    } else {
+      reviewsSection.appendChild(el('p', 'killi-modal-footer', 'No reviews yet.'));
+    }
+    body.appendChild(reviewsSection);
+
+    var photosSection = el('div', 'killi-tab-section');
+    var fullStrip = buildPhotoStrip(record.photos);
+    if (fullStrip) {
+      fullStrip.style.height = 'auto';
+      fullStrip.style.flexWrap = 'wrap';
+      Array.prototype.forEach.call(fullStrip.querySelectorAll('img'), function (img) {
+        img.style.width = 'calc(50% - 2px)';
+        img.style.height = '120px';
+      });
+      photosSection.appendChild(fullStrip);
+    } else {
+      photosSection.appendChild(el('p', 'killi-modal-footer', 'No photos yet.'));
+    }
+    body.appendChild(photosSection);
+
+    var menuSection = el('div', 'killi-tab-section');
+    if (Array.isArray(record.menu_items) && record.menu_items.length) {
+      var menuList = el('div', 'killi-item-list');
+      record.menu_items.forEach(function (item) {
+        var row = el('div', 'killi-item-row');
+        if (item.photo) {
+          var mi = document.createElement('img');
+          mi.src = item.photo;
+          mi.alt = '';
+          row.appendChild(mi);
+        }
+        row.appendChild(el('div', '', '<div class="killi-item-row-title">' + escapeHtml(item.name || '') + '</div>'));
+        menuList.appendChild(row);
+      });
+      menuSection.appendChild(menuList);
+    } else {
+      menuSection.appendChild(el('p', 'killi-modal-footer', 'No menu yet.'));
+    }
+    body.appendChild(menuSection);
+
+    sections.Overview = overviewSection;
+    sections.Reviews = reviewsSection;
+    sections.Photos = photosSection;
+    sections.Menu = menuSection;
+
+    return body;
+  }
+
+  function buildMenuCatalogBody(record) {
+    var body = document.createDocumentFragment();
+
+    var header = el('div', 'killi-modal-header');
+    header.appendChild(el('p', 'killi-modal-title', escapeHtml(record.title)));
+    var sublineParts = [];
+    if (record.price) sublineParts.push('<strong>' + escapeHtml(String(record.price)) + '</strong>');
+    if (record.stock_status) sublineParts.push(escapeHtml(record.stock_status));
+    if (record.rating) sublineParts.push('<span class="killi-star">' + ICONS.star + '</span> ' + Number(record.rating).toFixed(1));
+    if (record.category) sublineParts.push(escapeHtml(record.category));
+    header.appendChild(el('p', 'killi-modal-subline', sublineParts.join(' · ')));
+    body.appendChild(header);
+
+    var photoStrip = buildPhotoStrip(record.photos);
+    if (photoStrip) body.appendChild(photoStrip);
+
+    if (record.description) {
+      var desc = el('p', 'killi-modal-footer', escapeHtml(record.description));
+      desc.style.display = 'block';
+      body.appendChild(desc);
+    }
+
+    if (Array.isArray(record.variants) && record.variants.length) {
+      var variantList = el('div', 'killi-item-list');
+      record.variants.forEach(function (variant) {
+        var row = el('div', 'killi-item-row');
+        row.appendChild(el('div', '', '<div class="killi-item-row-title">' + escapeHtml(variant.label || '') + '</div>' + (variant.extra_price ? '<div class="killi-item-row-sub">' + escapeHtml(variant.extra_price) + '</div>' : '')));
+        variantList.appendChild(row);
+      });
+      body.appendChild(variantList);
+    }
+
+    body.appendChild(buildActionRow(record));
+
+    return body;
+  }
+
+  function openRecordModal(record) {
+    var overlay = el('div', 'killi-modal-overlay');
+    var modal = el('div', 'killi-modal');
+    var closeBtn = el('button', 'killi-modal-close', '&times;');
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', 'Close');
+    modal.appendChild(closeBtn);
+
+    var bodyBuilder = record._layout === 'menu_catalog' ? buildMenuCatalogBody : buildBusinessProfileBody;
+    modal.appendChild(bodyBuilder(record));
+
+    overlay.appendChild(modal);
+    function close() { overlay.remove(); document.removeEventListener('keydown', onKey); }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', onKey);
+
+    document.body.appendChild(overlay);
   }
 
   function renderResults(records) {

@@ -363,6 +363,137 @@ body {
 .killi-action.whatsapp { border-color: #25d366; color: #128c3e; }
 .killi-action.website { border-color: #5f6368; }
 
+/* "View" — the eye-icon button that opens the expanded result-detail
+   modal. Only rendered on cards whose source's layout isn't "simple";
+   see resolveLayoutSlots() in killi.js. */
+.killi-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--killi-border, #d0d0d0);
+  background: var(--killi-surface, #fafafa);
+  color: var(--killi-muted, #5f6368);
+  border-radius: 999px;
+  padding: 4px 10px 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.killi-view-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.killi-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 40;
+}
+.killi-modal {
+  background: var(--killi-bg, #fff);
+  color: var(--killi-text, #202124);
+  width: 100%;
+  max-width: 480px;
+  max-height: 88vh;
+  overflow-y: auto;
+  border-radius: 16px 16px 0 0;
+  animation: killi-modal-up 0.2s ease;
+}
+@media (min-width: 560px) {
+  .killi-modal-overlay { align-items: center; }
+  .killi-modal { border-radius: 16px; max-height: 80vh; }
+}
+@keyframes killi-modal-up { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.killi-modal-close {
+  position: sticky;
+  top: 0;
+  float: right;
+  margin: 10px 10px 0 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--killi-text, #202124);
+  font-size: 16px;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.killi-modal-header { padding: 16px 18px 10px; }
+.killi-modal-title { font-size: 19px; font-weight: 700; margin: 0; }
+.killi-modal-subline { font-size: 13px; color: var(--killi-muted, #5f6368); margin-top: 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.killi-modal-subline .killi-star { color: #f2a600; display: inline-flex; }
+.killi-modal-subline .killi-star svg { width: 13px; height: 13px; fill: currentColor; }
+.killi-modal-status-open { color: var(--killi-secondary, #0f9d58); font-weight: 600; }
+
+.killi-modal-tabs { display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; }
+.killi-modal-tab {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--killi-border, #d0d0d0);
+  background: transparent;
+  color: var(--killi-muted, #5f6368);
+  cursor: pointer;
+}
+.killi-modal-tab.current { background: var(--killi-primary, #1a73e8); color: #fff; border-color: transparent; }
+
+.killi-photo-strip { display: flex; gap: 3px; overflow-x: auto; height: 160px; }
+.killi-photo-strip img { flex-shrink: 0; height: 100%; object-fit: cover; }
+.killi-photo-strip img:first-child { width: 78%; }
+.killi-photo-strip img:not(:first-child) { width: 45%; }
+
+.killi-modal-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 14px 18px 6px; text-align: center; }
+.killi-modal-actions a { text-decoration: none; color: var(--killi-primary, #1a73e8); }
+.killi-modal-action-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid var(--killi-primary, #1a73e8);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 4px;
+}
+.killi-modal-action-icon svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.killi-modal-action-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+
+.killi-modal-cta {
+  display: block;
+  margin: 6px 18px 14px;
+  text-align: center;
+  border: 1px solid var(--killi-primary, #1a73e8);
+  color: var(--killi-primary, #1a73e8);
+  border-radius: 999px;
+  padding: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.killi-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 18px 16px; }
+.killi-info-tile { background: var(--killi-chat-bg, #f8f9fa); border-radius: 10px; padding: 10px 12px; }
+.killi-info-tile-label { font-size: 12.5px; font-weight: 700; margin-bottom: 6px; }
+.killi-menu-thumbs { display: flex; gap: 5px; }
+.killi-menu-thumbs img { flex: 1; aspect-ratio: 1; border-radius: 6px; object-fit: cover; min-width: 0; }
+.killi-rating-big { font-size: 21px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+.killi-rating-big svg { width: 16px; height: 16px; fill: #f2a600; }
+.killi-rating-bars { display: flex; align-items: flex-end; gap: 3px; height: 34px; margin-top: 6px; }
+.killi-rating-bars .bar { flex: 1; background: #f2a600; border-radius: 2px 2px 0 0; min-height: 2px; }
+
+.killi-modal-footer { padding: 4px 18px 18px; font-size: 12.5px; color: var(--killi-muted, #5f6368); display: flex; justify-content: space-between; gap: 10px; }
+
+.killi-item-list { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 10px; }
+.killi-item-row { display: flex; gap: 10px; align-items: center; }
+.killi-item-row img { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: var(--killi-chat-bg, #f8f9fa); }
+.killi-item-row-title { font-size: 13.5px; font-weight: 600; }
+.killi-item-row-sub { font-size: 12px; color: var(--killi-muted, #5f6368); }
+
+.killi-tab-section { display: none; }
+.killi-tab-section.current { display: block; }
+
 .killi-chips {
   display: flex;
   gap: 6px;

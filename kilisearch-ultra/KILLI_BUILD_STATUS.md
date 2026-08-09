@@ -808,3 +808,72 @@ confirmed the files emptied, and hit the API directly with an out-of-range
 and a non-numeric rating to confirm both are rejected with 422. All
 test-created admin accounts and mutated `data/*.json` state were reverted
 to the clean shipped defaults afterward.
+
+## Result-detail layouts (View → expanded card)
+
+Raised in review, working from a real Google Business Profile screenshot:
+Killi's result cards are one fixed shape regardless of what the underlying
+data actually is — a coffee shop and a mechanic and a product listing all
+render the same title/rating/Call/WhatsApp/Website card. Discussed several
+shapes this could take (an admin-authored template language, a slot-picker,
+literal custom markup) before converging on the smallest version that's
+still real: **3 fixed layouts we build, admins pick one per data source and
+supply data — never markup, never new rendering code per install.**
+
+- **Simple** (default, unchanged) — today's compact card only.
+- **Business Profile** — photo strip, hours, an "Order online" CTA, a
+  Menu/Reviews info-tile pair with a 5-bar rating histogram, address/hours
+  footer, and 4 real tabs (Overview/Reviews/Photos/Menu) that actually
+  switch visible content, not just styling.
+- **Menu & Catalog** — photo strip, price, stock status, and a variant
+  list — aimed at product/inventory data rather than a business directory,
+  proving the same 3-layout mechanism generalizes past "business listing."
+
+Each layout's fields are entirely optional — a record missing `photos` or
+`menu_items` or `order_online_url` just skips that slot, nothing errors.
+`DataSourceEngine::layoutFor()` resolves which layout a source uses
+(default `"simple"`); `killi_resolve_sources()` stamps the resolved layout
+onto every record as `_layout` once per batch (search always queries a
+single active source per request, never a merge, so this is safe to do
+once rather than per record). A "View" button (real inline SVG icon, not
+emoji — matches earlier icon-audit feedback) only renders on cards whose
+layout isn't `"simple"`, opening a modal built from small reusable
+functions (`buildPhotoStrip()`, `buildActionRow()`, `buildRatingBars()`,
+`buildTabs()`) shared across both rich layouts — deliberately written as
+separate functions rather than one monolithic renderer per layout, so a
+future "compose your own from these slots" option (raised as a phase-2
+idea, not built here) recombines what already exists instead of a rewrite.
+Every action link is real: `tel:`, a Google Maps address link, the Web
+Share API (clipboard fallback), and the actual website URL — each hidden
+outright when its field is absent, not shown disabled.
+
+An owner picks the layout per data source from a new dropdown on
+`admin/records.php`, next to two downloadable starter files —
+`samples/business-profile.sample.json` and `samples/menu-catalog.sample.json`
+— so filling in a layout's fields means editing a known-good example, not
+guessing key names from scratch.
+
+Caught one real bug before shipping: `killi_set_source_layout()`'s first
+draft wrote `foreach ($config['sources'] ?? [] as &$source)` — the `??`
+produces a temporary value, so a by-reference foreach over it silently
+never mutates the real array. Every layout change would have looked
+successful (no error, a success notice) while writing nothing at all.
+Caught immediately by testing the actual persisted file after calling the
+function, not just checking for a thrown exception — fixed by guarding
+emptiness separately and iterating the real array directly.
+
+Verified against a real running `php -S` server and real headless
+Chromium (not mocked): set a live demo source to Business Profile,
+created an actual record through `CrudEngine` with photos/hours/menu/
+rating-breakdown fields, confirmed the View button appears, opened the
+modal, confirmed the header/subline/Call-href/CTA-href render the real
+data, clicked through all 4 tabs and confirmed each swaps visible content
+(Reviews shows the rating, Photos shows both images, Menu shows both
+items), closed via Escape. Repeated for Menu & Catalog with a product
+record (price/stock/variants, no tabs). Confirmed zero regression on the
+untouched default Simple layout — same inline rating, no View button.
+Verified the admin dropdown persists a real change via an actual HTTP POST
+with a real CSRF token, and that both sample files are reachable at their
+real URLs. All test records, the test admin account, and every mutated
+`data/*.json`/`config/*.json` file were reverted to the clean shipped
+defaults afterward.

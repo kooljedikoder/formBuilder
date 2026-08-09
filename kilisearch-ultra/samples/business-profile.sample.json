@@ -1,0 +1,28 @@
+{
+  "title": "Opo Coffee",
+  "description": "A neighbourhood coffee shop with an all-day breakfast menu.",
+  "category": "Coffee shop",
+  "phone": "+1 404 555 0134",
+  "website": "https://opocoffee.example",
+  "address": "314 E Howard Ave, Decatur, GA 30030",
+  "rating": 4.6,
+
+  "price_range": "$1–10",
+  "is_open_now": true,
+  "hours_today": "Closes 8 PM",
+  "review_count": 187,
+  "rating_breakdown": [4, 5, 8, 17, 153],
+
+  "photos": [
+    "https://example.com/photos/opo-interior-1.jpg",
+    "https://example.com/photos/opo-drink-1.jpg"
+  ],
+
+  "order_online_url": "https://opocoffee.example/order",
+
+  "menu_items": [
+    { "name": "Espresso", "photo": "https://example.com/photos/espresso.jpg" },
+    { "name": "Latte", "photo": "https://example.com/photos/latte.jpg" },
+    { "name": "Cappuccino", "photo": "https://example.com/photos/cappuccino.jpg" }
+  ]
+}

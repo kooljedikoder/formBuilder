@@ -681,6 +681,30 @@ function killi_set_active_data_source(string $id): void
     file_put_contents($path, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
 }
 
+/** Sets which of the 3 fixed result-detail layouts a source's records expand into. See DataSourceEngine::layoutFor(). */
+function killi_set_source_layout(string $sourceId, string $layout): void
+{
+    if (!in_array($layout, ['simple', 'business_profile', 'menu_catalog'], true)) {
+        throw new \InvalidArgumentException('Unknown layout.');
+    }
+
+    $path = __DIR__ . '/config/data_sources.json';
+    $config = killi_read_json($path);
+    // Note: iterating "$config['sources'] ?? [] as &$source" would silently
+    // fail to persist — ?? produces a temporary, so a by-reference foreach
+    // over it never mutates the real array. Guard emptiness separately instead.
+    if (!empty($config['sources'])) {
+        foreach ($config['sources'] as &$source) {
+            if ($source['id'] === $sourceId) {
+                $source['layout'] = $layout;
+                break;
+            }
+        }
+        unset($source);
+    }
+    file_put_contents($path, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
 /**
  * Publishes newly-imported rows as a brand-new, independently switchable
  * data source rather than merging them into whatever's currently active
@@ -873,12 +897,24 @@ function killi_extract_context(string $query): array
     ];
 }
 
+/**
+ * $records here always come from whichever ONE data source is currently
+ * active — search queries a single source per request (switching between
+ * them is what the "multi_source" feature controls, not merging them) —
+ * so the result-detail layout is resolved once for the whole batch from
+ * the active source, not per record. record['source_id'] is a different
+ * id space (SourceRegistry provenance, e.g. "src-xyz") and isn't the
+ * DataSourceEngine id DataSourceEngine::layoutFor() expects.
+ */
 function killi_resolve_sources(array $records): array
 {
     $registry = killi_source_registry();
+    $activeId = killi_data_source_engine()->activeId();
+    $layout = $activeId !== null ? killi_data_source_engine()->layoutFor($activeId) : 'simple';
 
-    return array_map(function ($record) use ($registry) {
+    return array_map(function ($record) use ($registry, $layout) {
         $record['source'] = $registry->resolve($record['source_id'] ?? null);
+        $record['_layout'] = $layout;
         return $record;
     }, $records);
 }

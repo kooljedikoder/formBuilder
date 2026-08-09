@@ -67,4 +67,18 @@ class DataSourceEngine
     {
         return $this->faq;
     }
+
+    /**
+     * Which of the 3 fixed result-detail layouts a source's records render
+     * through when expanded — "simple" (default, today's compact card
+     * only) or "business_profile"/"menu_catalog" for the richer views. A
+     * fixed set of admin-picked layouts, not admin-authored markup — see
+     * KILLI_BUILD_STATUS.md for why.
+     */
+    public function layoutFor(string $sourceId): string
+    {
+        $source = $this->find($sourceId);
+
+        return $source['layout'] ?? 'simple';
+    }
 }

@@ -1,0 +1,20 @@
+{
+  "title": "Trail Runner 2.0",
+  "description": "Lightweight trail running shoe with a grippy lugged sole.",
+  "category": "Footwear",
+  "rating": 4.4,
+
+  "price": "$89.00",
+  "stock_status": "In stock",
+
+  "photos": [
+    "https://example.com/photos/trail-runner-1.jpg",
+    "https://example.com/photos/trail-runner-2.jpg"
+  ],
+
+  "variants": [
+    { "label": "UK 8 / Grey", "extra_price": "" },
+    { "label": "UK 9 / Grey", "extra_price": "" },
+    { "label": "UK 9 / Orange", "extra_price": "+$5.00" }
+  ]
+}

@@ -95,6 +95,13 @@ if (killi_has_feature('crud')) {
         } elseif (!$notice) {
             $notice = ['type' => 'error', 'text' => 'Could not delete that record.'];
         }
+    } elseif ($do === 'set_layout' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        try {
+            killi_set_source_layout($sourceId, $_POST['layout'] ?? 'simple');
+            $notice = ['type' => 'success', 'text' => 'Result layout updated.'];
+        } catch (\InvalidArgumentException $e) {
+            $notice = ['type' => 'error', 'text' => $e->getMessage()];
+        }
     }
 
     if ($editing === null && isset($_GET['edit'])) {
@@ -180,6 +187,24 @@ $sectorNames = array_column($taxonomy, 'sector');
       <?php if (($selectedSource['type'] ?? 'json') === 'live_db'): ?>
         <p style="font-size:12px;color:#5f6368;margin-top:8px">This source queries "<?= htmlspecialchars($selectedSource['table']) ?>" live via "<?= htmlspecialchars($selectedSource['connection']) ?>"<?= empty($selectedSource['writable']) ? ' — read-only, so add/edit/delete are disabled below.' : ' — writable: edits/deletes below write straight back to this table.' ?></p>
       <?php endif; ?>
+    </form>
+
+    <form method="post" action="?do=set_layout" style="margin-top:14px">
+      <?= killi_csrf_field() ?>
+      <input type="hidden" name="source" value="<?= htmlspecialchars($sourceId) ?>">
+      <label>Result layout — how a record expands when a visitor taps "View"</label>
+      <select name="layout" onchange="this.form.submit()">
+        <?php $currentLayout = killi_data_source_engine()->layoutFor($sourceId); ?>
+        <option value="simple" <?= $currentLayout === 'simple' ? 'selected' : '' ?>>Simple — today's compact card only, nothing to expand</option>
+        <option value="business_profile" <?= $currentLayout === 'business_profile' ? 'selected' : '' ?>>Business Profile — photos, hours, map, reviews</option>
+        <option value="menu_catalog" <?= $currentLayout === 'menu_catalog' ? 'selected' : '' ?>>Menu &amp; Catalog — photo grid, price, stock, variants</option>
+      </select>
+      <p style="font-size:12px;color:#5f6368;margin-top:8px">
+        Fill in a layout's extra fields via "Additional fields" below, or import them in bulk — start from a sample:
+        <a class="link" href="../samples/business-profile.sample.json" download>business-profile.sample.json</a> ·
+        <a class="link" href="../samples/menu-catalog.sample.json" download>menu-catalog.sample.json</a>.
+        Any field a record doesn't have just doesn't render — nothing errors.
+      </p>
     </form>
   </div>
 
