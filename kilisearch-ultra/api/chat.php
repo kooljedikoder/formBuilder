@@ -174,8 +174,12 @@ if ($faqMatch !== null) {
 }
 
 // 5. Ordinary search — remembered so repeated questions become visible
-// and can later be promoted into data/faq.json by an admin.
-killi_memory_remember_query($message);
+// and can later be promoted into data/faq.json by an admin. Gated behind
+// "memory" so a Free install doesn't quietly accumulate a log it has no
+// admin screen to see (the FAQ page that shows it is itself memory-gated).
+if (killi_has_feature('memory')) {
+    killi_memory_remember_query($message);
+}
 
 $context = killi_extract_context($message);
 $result = killi_search_engine()->search($message, [], $context, 10, 0);

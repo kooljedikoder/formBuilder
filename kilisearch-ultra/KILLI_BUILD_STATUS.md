@@ -877,3 +877,96 @@ with a real CSRF token, and that both sample files are reachable at their
 real URLs. All test records, the test admin account, and every mutated
 `data/*.json`/`config/*.json` file were reverted to the clean shipped
 defaults afterward.
+
+## Free-tier query-log gating fix
+
+A real asymmetry, flagged in review: FAQ **recall** was already gated
+behind the Standard/Ultra `memory` feature, but query **logging**
+(`killi_memory_remember_query()`, called from `api/chat.php`) ran
+unconditionally — a Free install was quietly accumulating a query log it
+has no admin screen to see (the FAQ page that displays it is itself
+memory-gated). Fixed by wrapping that one call in the same
+`killi_has_feature('memory')` check recall already uses. One line, no
+behavior change for anyone already on Standard/Ultra.
+
+## Phase 2: a 4th "Custom" layout — a slot palette, not a template language
+
+Raised in review: the 3 fixed layouts cover a business directory and a
+product/inventory catalog, but not everything — and adding a 5th, 6th,
+7th fixed layout for every future vertical doesn't scale. Generalized the
+*method* instead: a 4th layout option, `"custom"`, built from the same 6
+components the 2 fixed rich layouts already render with — `photos`,
+`pricing` (price/price_range + stock_status), `rating` (+ breakdown bars),
+`hours`, `items` (menu_items or variants, whichever is present), and `cta`
+(order_online_url) — plus the always-on action row every layout gets.
+`KILLI_CUSTOM_SLOT_PALETTE` in `bootstrap.php` is the single source of
+truth for the 6 valid slot names, checked by both
+`killi_set_source_layout()`'s validation and `killi.js`'s
+`CUSTOM_SLOT_BUILDERS` map.
+
+Deliberately **not** drag-and-drop reorderable — an admin picks which of
+the 6 checkboxes apply on `admin/records.php`, and they always render in
+one fixed canonical order (the palette's own order), regardless of the
+order the form happened to submit them in. That's what "we don't do a lot
+on our side, strict rules" meant in practice: no new rendering code per
+admin, no ordering logic to validate, just recomposing the exact same
+`buildPhotoStrip()`/`buildRatingBars()`/`buildActionRow()`/etc. functions
+the fixed layouts already use — the reuse groundwork laid down when those
+were first built paid for itself immediately here, with zero rewrite.
+
+Verified against a real running server and real headless Chromium: set a
+source to `custom` with `photos`/`rating`/`items` selected (deliberately
+*not* `pricing`/`hours`/`cta`), created a real record via `CrudEngine`,
+confirmed the modal rendered exactly those 3 slots and nothing else — no
+pricing line, no hours line, no CTA button — while the always-on action
+row (a real `tel:` link) still appeared. Submitted a real admin POST with
+the checkboxes in `cta, hours, pricing` order and confirmed the persisted
+`custom_slots` array came back in the canonical `pricing, hours, cta`
+order regardless. All test records/admin/config state reverted afterward.
+
+## Deferred idea, not built: an opt-in AI rephraser
+
+Raised in review — should Killi support plugging in a real AI provider
+(model + API key), given the whole point of Killi is answering from a
+gated dataset, not the open world? Discussed and deliberately **not
+implemented**; recorded here as a scoped handoff for whoever (human or
+another AI) picks this up next, since the user may take development to a
+different AI IDE before coming back.
+
+**The core tension**: a general LLM's value is world knowledge; Killi's
+entire trust promise is the opposite — "I only answer from what you gave
+me." Wiring in an AI module to *generate* answers risks hallucinating
+specifics about the org's own business that were never in its data — the
+one thing Killi is explicitly built not to do.
+
+**The version that's actually worth building**: an AI layer that only
+**rephrases an answer SearchEngine/MemoryEngine already retrieved** —
+never given free rein to add facts, never shown anything beyond the
+matched record(s)/FAQ entry already decided on. Concretely, that means:
+
+- A new opt-in setting, **Ultra-gated**, off by default — matches the
+  existing tier pattern (`db_connections` is the closest precedent: an
+  Ultra-only capability with its own admin config card).
+- A settings screen (provider, model, API key) analogous to
+  `admin/connections.php`'s DB connection-profile card — credentials
+  belong in `.env`, never in `config/*.json`, same rule as every other
+  credential in this app.
+- The integration point is narrow and late: in `api/chat.php`, *after*
+  `killi_search_engine()->search()` or `killi_memory_engine()->recall()`
+  has already produced a reply and result set — never before. The AI call
+  receives only that already-decided reply text (and maybe the matched
+  record's fields) and returns a reworded version of the same reply; it
+  never sees the raw query against open-world knowledge and never gets to
+  introduce a fact that wasn't already in the retrieved data.
+- Falls back to the plain rule-based reply on any AI-call failure/timeout
+  — the feature being off (network error, bad key, timeout) must never
+  break the underlying answer, only skip the rewording.
+
+**Known tradeoffs to accept, not solve**: real per-message latency and
+cost, a new failure mode (the AI provider being down) the current
+zero-dependency rule-based engine doesn't have, and non-determinism (an
+LLM can still occasionally ignore a "don't add facts" instruction even
+when constrained — this reduces that risk, it doesn't eliminate it).
+
+**Not started**: no code, no settings screen, no provider abstraction.
+This section is the spec, not a stub — implement from here.

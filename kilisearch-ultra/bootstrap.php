@@ -681,12 +681,27 @@ function killi_set_active_data_source(string $id): void
     file_put_contents($path, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
 }
 
-/** Sets which of the 3 fixed result-detail layouts a source's records expand into. See DataSourceEngine::layoutFor(). */
-function killi_set_source_layout(string $sourceId, string $layout): void
+/**
+ * The fixed palette a "custom" layout composes from — the same 6 pieces
+ * the 2 fixed rich layouts already render with, just admin-selectable and
+ * reorderable instead of pre-arranged. Recognized by both
+ * killi_set_source_layout()'s validation and killi.js's buildCustomBody().
+ * Deliberately not open-ended: adding a 7th slot means adding one entry
+ * here plus one renderer function, never admin-authored markup.
+ */
+const KILLI_CUSTOM_SLOT_PALETTE = ['photos', 'pricing', 'rating', 'hours', 'items', 'cta'];
+
+/** Sets a source's result-detail layout — one of the 2 fixed rich layouts, "simple", or "custom" with an ordered slot selection. See DataSourceEngine::layoutFor(). */
+function killi_set_source_layout(string $sourceId, string $layout, array $customSlots = []): void
 {
-    if (!in_array($layout, ['simple', 'business_profile', 'menu_catalog'], true)) {
+    if (!in_array($layout, ['simple', 'business_profile', 'menu_catalog', 'custom'], true)) {
         throw new \InvalidArgumentException('Unknown layout.');
     }
+
+    // Iterate the palette (not $customSlots) so the render order is always
+    // the fixed canonical one, regardless of what order the form submitted
+    // the checked slots in.
+    $customSlots = array_values(array_intersect(KILLI_CUSTOM_SLOT_PALETTE, $customSlots));
 
     $path = __DIR__ . '/config/data_sources.json';
     $config = killi_read_json($path);
@@ -697,6 +712,9 @@ function killi_set_source_layout(string $sourceId, string $layout): void
         foreach ($config['sources'] as &$source) {
             if ($source['id'] === $sourceId) {
                 $source['layout'] = $layout;
+                if ($layout === 'custom') {
+                    $source['custom_slots'] = $customSlots;
+                }
                 break;
             }
         }
@@ -909,12 +927,17 @@ function killi_extract_context(string $query): array
 function killi_resolve_sources(array $records): array
 {
     $registry = killi_source_registry();
-    $activeId = killi_data_source_engine()->activeId();
-    $layout = $activeId !== null ? killi_data_source_engine()->layoutFor($activeId) : 'simple';
+    $engine = killi_data_source_engine();
+    $activeId = $engine->activeId();
+    $layout = $activeId !== null ? $engine->layoutFor($activeId) : 'simple';
+    $customSlots = ($layout === 'custom' && $activeId !== null) ? $engine->customSlotsFor($activeId) : [];
 
-    return array_map(function ($record) use ($registry, $layout) {
+    return array_map(function ($record) use ($registry, $layout, $customSlots) {
         $record['source'] = $registry->resolve($record['source_id'] ?? null);
         $record['_layout'] = $layout;
+        if ($layout === 'custom') {
+            $record['_customSlots'] = $customSlots;
+        }
         return $record;
     }, $records);
 }

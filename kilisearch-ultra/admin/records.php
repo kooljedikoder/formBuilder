@@ -97,7 +97,8 @@ if (killi_has_feature('crud')) {
         }
     } elseif ($do === 'set_layout' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
-            killi_set_source_layout($sourceId, $_POST['layout'] ?? 'simple');
+            $customSlots = is_array($_POST['custom_slots'] ?? null) ? $_POST['custom_slots'] : [];
+            killi_set_source_layout($sourceId, $_POST['layout'] ?? 'simple', $customSlots);
             $notice = ['type' => 'success', 'text' => 'Result layout updated.'];
         } catch (\InvalidArgumentException $e) {
             $notice = ['type' => 'error', 'text' => $e->getMessage()];
@@ -189,20 +190,42 @@ $sectorNames = array_column($taxonomy, 'sector');
       <?php endif; ?>
     </form>
 
-    <form method="post" action="?do=set_layout" style="margin-top:14px">
+    <form method="post" action="?do=set_layout" style="margin-top:14px" id="layout-form">
       <?= killi_csrf_field() ?>
       <input type="hidden" name="source" value="<?= htmlspecialchars($sourceId) ?>">
       <label>Result layout — how a record expands when a visitor taps "View"</label>
-      <select name="layout" onchange="this.form.submit()">
-        <?php $currentLayout = killi_data_source_engine()->layoutFor($sourceId); ?>
+      <?php
+        $currentLayout = killi_data_source_engine()->layoutFor($sourceId);
+        $currentSlots = killi_data_source_engine()->customSlotsFor($sourceId);
+        $slotLabels = [
+            'photos' => 'Photos — a photo strip',
+            'pricing' => 'Pricing — price/price range + stock status',
+            'rating' => 'Rating — star rating + review breakdown',
+            'hours' => 'Hours — today\'s hours / open status',
+            'items' => 'Items — menu items or variants, as a list',
+            'cta' => 'Call to action — an "order/book online" button',
+        ];
+      ?>
+      <select name="layout" id="layout-select" onchange="document.getElementById('layout-custom-slots').hidden = this.value !== 'custom'; if (this.value !== 'custom') this.form.submit();">
         <option value="simple" <?= $currentLayout === 'simple' ? 'selected' : '' ?>>Simple — today's compact card only, nothing to expand</option>
         <option value="business_profile" <?= $currentLayout === 'business_profile' ? 'selected' : '' ?>>Business Profile — photos, hours, map, reviews</option>
         <option value="menu_catalog" <?= $currentLayout === 'menu_catalog' ? 'selected' : '' ?>>Menu &amp; Catalog — photo grid, price, stock, variants</option>
+        <option value="custom" <?= $currentLayout === 'custom' ? 'selected' : '' ?>>Custom — build your own from these slots</option>
       </select>
+      <div id="layout-custom-slots" <?= $currentLayout === 'custom' ? '' : 'hidden' ?> style="margin-top:8px;padding:10px;background:#f5f6f8;border-radius:8px">
+        <?php foreach (KILLI_CUSTOM_SLOT_PALETTE as $slot): ?>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin-top:6px">
+            <input type="checkbox" name="custom_slots[]" value="<?= htmlspecialchars($slot) ?>" style="width:auto" <?= in_array($slot, $currentSlots, true) ? 'checked' : '' ?>>
+            <?= htmlspecialchars($slotLabels[$slot]) ?>
+          </label>
+        <?php endforeach; ?>
+        <button type="submit" style="margin-top:10px">Save custom layout</button>
+      </div>
       <p style="font-size:12px;color:#5f6368;margin-top:8px">
         Fill in a layout's extra fields via "Additional fields" below, or import them in bulk — start from a sample:
         <a class="link" href="../samples/business-profile.sample.json" download>business-profile.sample.json</a> ·
-        <a class="link" href="../samples/menu-catalog.sample.json" download>menu-catalog.sample.json</a>.
+        <a class="link" href="../samples/menu-catalog.sample.json" download>menu-catalog.sample.json</a>
+        (a custom layout's fields are the same ones — pricing/rating/hours/items/photos all draw from those two samples).
         Any field a record doesn't have just doesn't render — nothing errors.
       </p>
     </form>

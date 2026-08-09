@@ -562,6 +562,88 @@
     return body;
   }
 
+  // "Custom" layout: same 6 building blocks as the 2 fixed rich layouts,
+  // just admin-selected and always rendered in one fixed order (photos,
+  // pricing, rating, hours, items, cta) — recomposing existing renderer
+  // functions rather than any new per-admin rendering code. A slot with
+  // no matching field on the record is skipped, same as everywhere else.
+  var CUSTOM_SLOT_BUILDERS = {
+    photos: function (record) { return buildPhotoStrip(record.photos); },
+    pricing: function (record) {
+      var parts = [];
+      if (record.price) parts.push('<strong>' + escapeHtml(String(record.price)) + '</strong>');
+      else if (record.price_range) parts.push(escapeHtml(record.price_range));
+      if (record.stock_status) parts.push(escapeHtml(record.stock_status));
+      return parts.length ? el('p', 'killi-modal-subline', parts.join(' · ')) : null;
+    },
+    rating: function (record) {
+      if (!record.rating) return null;
+      var tile = el('div', 'killi-info-tile');
+      tile.appendChild(el('div', 'killi-rating-big', Number(record.rating).toFixed(1) + ' ' + ICONS.star + (record.review_count ? ' <span style="font-size:13px;font-weight:400">(' + record.review_count + ')</span>' : '')));
+      var bars = buildRatingBars(record.rating_breakdown);
+      if (bars) tile.appendChild(bars);
+      return tile;
+    },
+    hours: function (record) {
+      if (!record.hours_today) return null;
+      var p = el('p', 'killi-modal-footer', '<span class="' + (record.is_open_now ? 'killi-modal-status-open' : '') + '">' + escapeHtml(record.hours_today) + '</span>');
+      p.style.display = 'block';
+      return p;
+    },
+    items: function (record) {
+      var items = Array.isArray(record.menu_items) && record.menu_items.length ? record.menu_items
+        : (Array.isArray(record.variants) && record.variants.length ? record.variants : null);
+      if (!items) return null;
+      var list = el('div', 'killi-item-list');
+      items.forEach(function (item) {
+        var row = el('div', 'killi-item-row');
+        if (item.photo) {
+          var img = document.createElement('img');
+          img.src = item.photo;
+          img.alt = '';
+          row.appendChild(img);
+        }
+        row.appendChild(el('div', '', '<div class="killi-item-row-title">' + escapeHtml(item.name || item.label || '') + '</div>' + (item.extra_price ? '<div class="killi-item-row-sub">' + escapeHtml(item.extra_price) + '</div>' : '')));
+        list.appendChild(row);
+      });
+      return list;
+    },
+    cta: function (record) {
+      if (!record.order_online_url) return null;
+      var cta = document.createElement('a');
+      cta.className = 'killi-modal-cta';
+      cta.href = record.order_online_url;
+      cta.target = '_blank';
+      cta.rel = 'noopener';
+      cta.textContent = 'Order online';
+      return cta;
+    },
+  };
+
+  function buildCustomBody(record) {
+    var body = document.createDocumentFragment();
+
+    var header = el('div', 'killi-modal-header');
+    header.appendChild(el('p', 'killi-modal-title', escapeHtml(record.title)));
+    var headParts = [];
+    if (record.category) headParts.push(escapeHtml(record.category));
+    if (record.description) headParts.push(escapeHtml(record.description));
+    if (headParts.length) header.appendChild(el('p', 'killi-modal-subline', headParts.join(' · ')));
+    body.appendChild(header);
+
+    var slots = Array.isArray(record._customSlots) ? record._customSlots : [];
+    slots.forEach(function (slot) {
+      var builder = CUSTOM_SLOT_BUILDERS[slot];
+      if (!builder) return;
+      var node = builder(record);
+      if (node) body.appendChild(node);
+    });
+
+    body.appendChild(buildActionRow(record));
+
+    return body;
+  }
+
   function openRecordModal(record) {
     var overlay = el('div', 'killi-modal-overlay');
     var modal = el('div', 'killi-modal');
@@ -570,7 +652,9 @@
     closeBtn.setAttribute('aria-label', 'Close');
     modal.appendChild(closeBtn);
 
-    var bodyBuilder = record._layout === 'menu_catalog' ? buildMenuCatalogBody : buildBusinessProfileBody;
+    var bodyBuilder = record._layout === 'menu_catalog' ? buildMenuCatalogBody
+      : record._layout === 'custom' ? buildCustomBody
+      : buildBusinessProfileBody;
     modal.appendChild(bodyBuilder(record));
 
     overlay.appendChild(modal);

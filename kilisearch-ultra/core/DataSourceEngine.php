@@ -69,16 +69,31 @@ class DataSourceEngine
     }
 
     /**
-     * Which of the 3 fixed result-detail layouts a source's records render
-     * through when expanded — "simple" (default, today's compact card
-     * only) or "business_profile"/"menu_catalog" for the richer views. A
-     * fixed set of admin-picked layouts, not admin-authored markup — see
-     * KILLI_BUILD_STATUS.md for why.
+     * Which result-detail layout a source's records render through when
+     * expanded — "simple" (default, today's compact card only),
+     * "business_profile"/"menu_catalog" for the 2 fixed richer views, or
+     * "custom" for an admin-composed one built from customSlotsFor()'s
+     * palette. Always one of a fixed set of admin-picked options, never
+     * admin-authored markup — see KILLI_BUILD_STATUS.md for why.
      */
     public function layoutFor(string $sourceId): string
     {
         $source = $this->find($sourceId);
 
         return $source['layout'] ?? 'simple';
+    }
+
+    /**
+     * For layout "custom" only: which slots (from a fixed palette — see
+     * killi_set_source_layout()'s validation) an admin picked, and in
+     * what order to render them. Recomposes the same renderer functions
+     * the 2 fixed rich layouts already use — no new rendering code per
+     * admin, no markup, just picking which existing pieces show up.
+     */
+    public function customSlotsFor(string $sourceId): array
+    {
+        $source = $this->find($sourceId);
+
+        return $source['custom_slots'] ?? [];
     }
 }
