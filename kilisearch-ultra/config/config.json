@@ -1,5 +1,5 @@
 {
-  "app_name": "KiliSearch Ultra",
+  "app_name": "KilliSearch Ultra",
   "version": "0.1.0-poc",
   "storage_driver": "json",
   "data_file": "data/data.json",

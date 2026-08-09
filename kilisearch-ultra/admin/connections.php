@@ -314,7 +314,7 @@ foreach ($profiles as $profile) {
     <p style="font-size:13px">Currently activated: <?= $activeKey ? '<code>' . htmlspecialchars($activeKey) . '</code>' : '<em>none</em>' ?></p>
     <form method="post" action="?do=activate_license">
       <?= killi_csrf_field() ?>
-      <input name="license_key" placeholder="e.g. KILI-ULTRA-XXXX-XXXX" value="<?= htmlspecialchars($activeKey ?? '') ?>" required>
+      <input name="license_key" placeholder="e.g. KILLI-ULTRA-XXXX-XXXX" value="<?= htmlspecialchars($activeKey ?? '') ?>" required>
       <button type="submit">Activate</button>
     </form>
     <?php else: ?>
