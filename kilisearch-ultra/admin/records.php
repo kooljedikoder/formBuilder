@@ -155,6 +155,7 @@ $sectorNames = array_column($taxonomy, 'sector');
       <a href="connections.php">Connections</a>
       <a href="backup.php">Backups</a>
       <a href="faq.php">FAQ</a>
+      <a href="feedback.php">Feedback</a>
     </span>
   </div>
   <p>Full create/read/update/delete over whichever data source you pick — the fourth pillar alongside Search, Conversation and Memory.</p>

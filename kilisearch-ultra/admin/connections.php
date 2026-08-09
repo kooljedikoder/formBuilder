@@ -308,6 +308,7 @@ foreach ($profiles as $profile) {
       <a href="records.php" style="color:#5f6368;margin-right:14px">Records</a>
       <a href="backup.php" style="color:#5f6368;margin-right:14px">Backups</a>
       <a href="faq.php" style="color:#5f6368;margin-right:14px">FAQ</a>
+      <a href="feedback.php" style="color:#5f6368;margin-right:14px">Feedback</a>
       <a href="setup.php" style="color:#5f6368;margin-right:14px">Re-run setup wizard</a>
       <a href="?do=admin_logout" style="color:#5f6368">Log out</a>
     </span>

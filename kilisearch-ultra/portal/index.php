@@ -97,11 +97,26 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
       <?php if (!$isEmbedded): ?>
       <button id="killi-install" class="killi-theme-toggle" type="button" aria-label="Install app" hidden>&#8615;</button>
       <?php endif; ?>
+      <button id="killi-rate" class="killi-theme-toggle" type="button" aria-label="Rate this conversation" hidden>&#11088;</button>
       <button id="killi-theme-toggle" class="killi-theme-toggle" type="button" aria-label="Toggle dark mode">&#127769;</button>
     </div>
   </header>
 
   <div class="killi-chat" id="killi-chat"></div>
+  <div class="killi-rate-panel" id="killi-rate-panel" hidden>
+    <div class="killi-rate-stars" id="killi-rate-stars">
+      <button type="button" class="killi-star" data-value="1" aria-label="1 star">&#9733;</button>
+      <button type="button" class="killi-star" data-value="2" aria-label="2 stars">&#9733;</button>
+      <button type="button" class="killi-star" data-value="3" aria-label="3 stars">&#9733;</button>
+      <button type="button" class="killi-star" data-value="4" aria-label="4 stars">&#9733;</button>
+      <button type="button" class="killi-star" data-value="5" aria-label="5 stars">&#9733;</button>
+    </div>
+    <textarea id="killi-rate-comment" class="killi-rate-comment" placeholder="Anything we should know? (optional)" rows="2"></textarea>
+    <div class="killi-rate-actions">
+      <button type="button" class="killi-rate-cancel" id="killi-rate-cancel">Cancel</button>
+      <button type="button" class="killi-rate-submit" id="killi-rate-submit" disabled>Submit</button>
+    </div>
+  </div>
 
   <div class="killi-chips" id="killi-chips">
     <?php foreach ($sectors as $sector): ?>

@@ -767,3 +767,44 @@ tied) were all exercised through actual HTTP requests against a running
 zero console errors. Postgres and all `.env`/`config/data_sources.json`/
 `data/*.json` test state were torn down/reverted to the clean shipped
 defaults afterward.
+
+## End-of-conversation ratings + a feedback review screen
+
+Raised in review: visitors could already react to an individual reply
+(the existing 😍/👍/😐/👎 emoji row), but nothing let them rate the
+conversation as a whole, and — checked while investigating — nothing let
+an *admin* review either kind of feedback at all. `data/feedback.json` was
+being written to by `api/feedback.php` but had no admin screen reading it
+back; it was a write-only sink.
+
+- **Rate this conversation** — a star icon appears in the chat header once
+  a visitor has had at least one finished exchange (there's no reliable way
+  to detect "the user is done" in a stateless page, so this is a persistent
+  affordance rather than an auto-triggered end-of-session popup). Opens a
+  small panel: 1-5 stars, an optional comment, Submit. Posts to the new
+  `api/session_feedback.php`, which validates the rating (1-5) and stores it
+  via `killi_record_session_rating()` in `data/session_feedback.json`,
+  alongside the actual transcript being rated (capped to the last 20
+  exchanges, 500 characters each, since this comes straight from an
+  unauthenticated browser).
+- **`admin/feedback.php`** — new admin screen, linked from every other admin
+  page's nav row. Two cards: conversation ratings (worst-first, so the
+  conversations actually worth reviewing surface on their own, each with an
+  expandable transcript) and reply reactions (most recent first, with an
+  "😐/👎 only" filter to skip straight to the negative ones). Either kind can
+  be dismissed once reviewed.
+- Neither collection point nor the review screen is tier-gated — feedback is
+  treated as a core operational signal, not a premium feature, matching how
+  the existing emoji-reaction endpoint was already ungated.
+
+Verified against a real running `php -S` server with a real headless
+Chromium session (not mocked): confirmed the star icon stays hidden until
+an exchange completes, submitted an actual 👍 reaction and a real 4-star
+rating with a comment through the live chat UI, confirmed both landed in
+their JSON files with the exact transcript text, logged into the admin
+screen and confirmed the rating/reaction rendered correctly (stars,
+comment, transcript, filter), exercised the dismiss action on both and
+confirmed the files emptied, and hit the API directly with an out-of-range
+and a non-numeric rating to confirm both are rejected with 422. All
+test-created admin accounts and mutated `data/*.json` state were reverted
+to the clean shipped defaults afterward.

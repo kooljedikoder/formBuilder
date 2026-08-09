@@ -1018,6 +1018,38 @@ function killi_record_feedback(string $emoji, string $reply, array $context = []
     file_put_contents($path, json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
 }
 
+/**
+ * Records an end-of-conversation rating (1-5 stars + optional comment) with
+ * the transcript it's rated against — one entry per submitted rating,
+ * append-only, same shape family as killi_record_feedback() but at the
+ * conversation level rather than a single reply. $turns is capped to the
+ * last 20 exchanges and each string to 500 characters, since this comes
+ * straight from an unauthenticated visitor's browser.
+ */
+function killi_record_session_rating(int $rating, string $comment, array $turns): void
+{
+    $path = __DIR__ . '/data/session_feedback.json';
+    $log = killi_read_json($path);
+
+    $cleanTurns = [];
+    foreach (array_slice($turns, -20) as $turn) {
+        $cleanTurns[] = [
+            'query' => mb_substr((string) ($turn['query'] ?? ''), 0, 500),
+            'reply' => mb_substr((string) ($turn['reply'] ?? ''), 0, 500),
+        ];
+    }
+
+    $log[] = [
+        'id' => 'sf-' . (count($log) + 1),
+        'rating' => max(1, min(5, $rating)),
+        'comment' => mb_substr($comment, 0, 1000),
+        'turns' => $cleanTurns,
+        'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
+    ];
+
+    file_put_contents($path, json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
 function killi_branding(): array
 {
     return killi_read_json(__DIR__ . '/config/branding.json');

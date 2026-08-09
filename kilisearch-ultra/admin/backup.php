@@ -197,6 +197,7 @@ function killi_format_bytes(int $bytes): string
       <a href="connections.php">Connections</a>
       <a href="records.php">Records</a>
       <a href="faq.php">FAQ</a>
+      <a href="feedback.php">Feedback</a>
     </span>
   </div>
   <p>Zips <code>data/</code> and <code>config/</code> — your listings, taxonomy, branding and package settings. Never includes <code>.env</code> (credentials).</p>

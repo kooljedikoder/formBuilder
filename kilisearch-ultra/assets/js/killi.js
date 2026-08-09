@@ -15,6 +15,9 @@
   var lastResults = [];
   var suggestTimer = null;
   var lastUserTick = null;
+  var rateBtn = document.getElementById('killi-rate');
+  var lastUserMessage = '';
+  var sessionTurns = [];
 
   function el(tag, className, html) {
     var node = document.createElement(tag);
@@ -51,17 +54,20 @@
     return wrap;
   }
 
-  /** withReaction adds an emoji-reaction row under this bubble — used for "final answer" AI replies, not breadcrumbs or mid-form questions. */
+  /** withReaction adds an emoji-reaction row under this bubble — used for "final answer" AI replies, not breadcrumbs or mid-form questions. Those same "final answer" turns are what get paired up for the end-of-conversation rating panel below. */
   function addBubble(role, text, withReaction) {
     var bubble = el('div', 'killi-bubble ' + role, escapeHtml(text));
     if (role === 'user') {
       var tick = el('span', 'killi-tick', '&#10003;');
       bubble.appendChild(tick);
       lastUserTick = tick;
+      lastUserMessage = text;
     }
     chat.appendChild(bubble);
     if (role === 'ai' && withReaction) {
       chat.appendChild(buildReactionRow(text));
+      sessionTurns.push({ query: lastUserMessage, reply: text });
+      if (rateBtn && rateBtn.hidden) rateBtn.hidden = false;
     }
     scrollToBottom();
     return bubble;
@@ -640,6 +646,61 @@
       applyTheme(next);
     });
   }
+
+  // Rate this conversation: a persistent affordance rather than trying to
+  // auto-detect "the user is done" (there's no reliable signal for that in
+  // a stateless page) — it only becomes visible once there's at least one
+  // finished exchange (sessionTurns, tracked in addBubble above) worth rating.
+  (function () {
+    var panel = document.getElementById('killi-rate-panel');
+    if (!rateBtn || !panel) return;
+    var stars = panel.querySelectorAll('.killi-star');
+    var comment = document.getElementById('killi-rate-comment');
+    var submitBtn = document.getElementById('killi-rate-submit');
+    var cancelBtn = document.getElementById('killi-rate-cancel');
+    var selected = 0;
+
+    function paintStars() {
+      stars.forEach(function (star) {
+        star.classList.toggle('filled', Number(star.getAttribute('data-value')) <= selected);
+      });
+      submitBtn.disabled = selected === 0;
+    }
+
+    stars.forEach(function (star) {
+      star.addEventListener('click', function () {
+        selected = Number(star.getAttribute('data-value'));
+        paintStars();
+      });
+    });
+
+    function closePanel() {
+      panel.hidden = true;
+      selected = 0;
+      comment.value = '';
+      paintStars();
+    }
+
+    rateBtn.addEventListener('click', function () {
+      panel.hidden = !panel.hidden;
+    });
+    cancelBtn.addEventListener('click', closePanel);
+
+    submitBtn.addEventListener('click', function () {
+      if (selected === 0) return;
+      submitBtn.disabled = true;
+      fetch(API_BASE + 'session_feedback.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating: selected, comment: comment.value, turns: sessionTurns }),
+      }).then(function () {
+        panel.innerHTML = '<div class="killi-rate-thanks">Thanks for the feedback!</div>';
+        setTimeout(function () { panel.hidden = true; }, 1600);
+      }).catch(function () {
+        submitBtn.disabled = false;
+      });
+    });
+  })();
 
   addBubble('ai', branding.welcome_message || 'Hi, what are you looking for today?');
 

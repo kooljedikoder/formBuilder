@@ -112,6 +112,7 @@ $prefillQuestion = $_GET['question'] ?? ($editing['question'] ?? '');
       <a href="connections.php">Connections</a>
       <a href="records.php">Records</a>
       <a href="backup.php">Backups</a>
+      <a href="feedback.php">Feedback</a>
     </span>
   </div>
   <p>What visitors have asked (logged automatically), and the curated answers the Memory engine recalls instantly next time.</p>
