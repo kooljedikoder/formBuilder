@@ -654,6 +654,16 @@
       : buildBusinessProfileBody;
     modal.appendChild(bodyBuilder(record));
 
+    // Keep the header/tabs fixed and move everything else into a
+    // scrolling wrapper — otherwise the modal's own height would follow
+    // whichever tab's content is tallest, resizing on every tab switch.
+    var scrollBody = el('div', 'killi-modal-body');
+    Array.prototype.slice.call(modal.children).forEach(function (child) {
+      if (child === closeBtn || child.classList.contains('killi-modal-header') || child.classList.contains('killi-modal-tabs')) return;
+      scrollBody.appendChild(child);
+    });
+    modal.appendChild(scrollBody);
+
     overlay.appendChild(modal);
     function close() { overlay.remove(); document.removeEventListener('keydown', onKey); }
     function onKey(e) { if (e.key === 'Escape') close(); }

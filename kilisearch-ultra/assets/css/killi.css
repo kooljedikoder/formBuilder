@@ -378,22 +378,31 @@ body {
   color: var(--killi-text, #202124);
   width: 100%;
   max-width: 480px;
-  max-height: 88vh;
-  overflow-y: auto;
+  /* Fixed, not content-driven — switching tabs must never resize the
+     modal itself. Only .killi-modal-body (below) scrolls. */
+  height: min(600px, 88vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
   border-radius: 16px 16px 0 0;
   animation: killi-modal-up 0.2s ease;
 }
+.killi-modal-body { flex: 1; overflow-y: auto; }
 @media (min-width: 560px) {
   .killi-modal-overlay { align-items: center; }
-  .killi-modal { border-radius: 16px; max-height: 80vh; }
+  .killi-modal { border-radius: 16px; height: min(600px, 80vh); }
 }
 @keyframes killi-modal-up { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 .killi-modal-close {
-  position: sticky;
-  top: 0;
-  float: right;
-  margin: 10px 10px 0 0;
+  /* Absolute against .killi-modal (now a fixed-height flex column) rather
+     than sticky/float, which don't apply the way they used to when this
+     sat inline in a single scrolling block — this keeps it pinned
+     top-right regardless of which tab's content is scrolled. */
+  position: absolute;
+  top: 10px;
+  right: 10px;
   width: 30px;
   height: 30px;
   border-radius: 50%;
@@ -402,17 +411,17 @@ body {
   color: var(--killi-text, #202124);
   font-size: 16px;
   cursor: pointer;
-  z-index: 1;
+  z-index: 2;
 }
 
-.killi-modal-header { padding: 16px 18px 10px; }
+.killi-modal-header { padding: 16px 46px 10px 18px; flex-shrink: 0; }
 .killi-modal-title { font-size: 19px; font-weight: 700; margin: 0; }
 .killi-modal-subline { font-size: 13px; color: var(--killi-muted, #5f6368); margin-top: 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .killi-modal-subline .killi-star { color: #f2a600; display: inline-flex; }
 .killi-modal-subline .killi-star svg { width: 13px; height: 13px; fill: currentColor; }
 .killi-modal-status-open { color: var(--killi-secondary, #0f9d58); font-weight: 600; }
 
-.killi-modal-tabs { display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; }
+.killi-modal-tabs { display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; flex-shrink: 0; }
 .killi-modal-tab {
   flex-shrink: 0;
   font-size: 12.5px;

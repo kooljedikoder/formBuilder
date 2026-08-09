@@ -1160,3 +1160,37 @@ no free-text generation for it to steer. The data already collected (a
 1-2★ end-session rating, a repeated zero-result query) is a cheaper,
 zero-dependency signal for the same goal, if a "detect frustration and
 soften the fallback reply" feature is wanted later.
+
+## Bug fix: modal height followed whichever tab was tallest
+
+Reported: switching between Overview/Reviews/Photos/Menu resized the
+modal itself instead of just the content — jarring since a short tab
+(Menu with no items) collapsed the modal small, then Photos popped it
+back open tall.
+
+Cause: `.killi-modal` used `max-height: 88vh; overflow-y: auto` as a
+single scroll container around header + tabs + all four tab-sections —
+so the modal's own box height always matched its currently-*visible*
+content, and toggling `.killi-tab-section.current` changed what content
+that was.
+
+Fix: `.killi-modal` is now a fixed-height (`min(600px, 88vh)`) flex
+column that never resizes. `openRecordModal()` moves everything except
+the close button, header, and tabs bar into a new `.killi-modal-body`
+wrapper (`flex:1; overflow-y:auto`) — so header/tabs stay pinned and only
+the current tab's content scrolls, inside a box that's always the same
+size regardless of which tab is showing. `.killi-modal-close` moved from
+`position:sticky;float:right` (which doesn't apply the same way inside a
+flex column) to `position:absolute` pinned to the modal's top-right
+corner; `.killi-modal-header` got right-padding so a long title doesn't
+run underneath it. Mirrored the identical fix into the standalone
+chat-demo artifact.
+
+Verified against a real running server: seeded a business-profile-layout
+record with photos/hours/reviews/menu fields, opened its modal, and
+measured `getBoundingClientRect().height` while clicking through all 4
+tabs — constant across every one, where it previously varied with each
+tab's content. Re-verified for `menu_catalog` layout (single flat body,
+no tabs) to confirm the same wrapping logic doesn't break records that
+have no `.killi-modal-tabs` at all. Close button still closes the modal
+in both cases. All seeded test data reverted afterward.
