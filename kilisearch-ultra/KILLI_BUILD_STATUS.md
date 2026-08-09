@@ -970,3 +970,39 @@ when constrained — this reduces that risk, it doesn't eliminate it).
 
 **Not started**: no code, no settings screen, no provider abstraction.
 This section is the spec, not a stub — implement from here.
+
+## Try-it-as-guest demo page
+
+Requested: a way to let evaluators/prospective buyers try each tier
+without a real setup. Scoped deliberately as its own page rather than
+buttons on the real customer-facing portal — a live deployment's actual
+visitors have no reason to see "Try Free/Standard/Ultra," they're there
+to search a specific business's data, not shop for Killi itself.
+
+- **`portal/demo.php`** — a standalone, unauthenticated page listing the 3
+  tiers with their real feature sets (read live from
+  `config/packages.json`, not hand-copied text, so it can't drift out of
+  sync). "Try as guest" reuses the *existing* host-app identity hook —
+  sets `$_SESSION['killi_host_user'] = ['user_id' => 'demo-guest',
+  'package' => $tier]` and redirects into the real `portal/index.php` — so
+  a demo run exercises the actual feature gates a real host-app
+  integration would, not a separately mocked-up experience. An
+  unrecognized `?tier=` value is checked against
+  `EntitlementManager::packageIds()` and silently falls through to the
+  picker instead of setting anything.
+- **`portal/index.php`** — shows a small "Demo mode — browsing as X ·
+  Exit demo" banner whenever that session flag is present, so it's never
+  ambiguous whether you're looking at a real customer session or a demo
+  one. "Exit demo" clears the flag and returns to `demo.php`. Nothing
+  about this touches real admin accounts, licensing, or the app-password
+  gate — a password-protected deployment still gates a demo guest exactly
+  like a real visitor.
+
+Verified against a real running server: fetched `demo.php` and confirmed
+all 3 tiers list the right feature counts; clicked "Try Standard" and
+confirmed the attachment button appears (Standard+ only) while it's
+absent under "Try Free"; confirmed the banner shows the correct tier
+name; clicked "Exit demo" and confirmed the banner disappears and the
+session flag is actually cleared; confirmed `?tier=admin` (not a real
+package id) is rejected and just re-shows the picker rather than setting
+anything.

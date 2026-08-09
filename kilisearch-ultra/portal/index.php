@@ -2,6 +2,14 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
+killi_ensure_session();
+if (($_GET['exit_demo'] ?? '') === '1') {
+    unset($_SESSION['killi_host_user']);
+    header('Location: demo.php');
+    exit;
+}
+$isDemoGuest = ($_SESSION['killi_host_user']['user_id'] ?? '') === 'demo-guest';
+
 $branding = killi_branding();
 $colors = $branding['colors'] ?? [];
 $authError = null;
@@ -90,6 +98,12 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
 </style>
 </head>
 <body>
+<?php if ($isDemoGuest): ?>
+<div style="background:#202124;color:#fff;font-size:12.5px;padding:6px 12px;text-align:center">
+  Demo mode — browsing as <strong><?= htmlspecialchars(ucfirst(killi_current_package())) ?></strong>
+  <a href="?exit_demo=1" style="color:#8ab4f8;margin-left:8px">Exit demo</a>
+</div>
+<?php endif; ?>
 <div id="killi-app" class="killi-app">
   <header class="killi-header">
     <div class="killi-header-title"><?= htmlspecialchars($branding['product_name'] ?? 'KilliGoogle.ai') ?></div>
