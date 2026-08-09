@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../bootstrap.php';
+require_once __DIR__ . '/_chrome.php';
 
 // This wizard is part of the admin surface, so it needs the same admin
 // gate as connections.php — but it must never become a second setup path.
@@ -76,36 +77,23 @@ foreach ($packagesConfig['packages'] ?? [] as $pkg) {
 }
 $activeSource = killi_data_source_engine()->active();
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Set up <?= htmlspecialchars($productName) ?></title>
+<?php
+killi_admin_head('Setup');
+killi_admin_body_open('setup');
+?>
 <style>
-  body { font-family: -apple-system, Arial, sans-serif; background: #f5f6f8; color: #202124; margin: 0; padding: 24px; }
-  .wrap { max-width: 560px; margin: 40px auto; }
+  .wrap { max-width: 560px; margin: 20px auto; }
   .steps { display: flex; gap: 8px; margin-bottom: 20px; }
-  .steps span { flex: 1; height: 4px; border-radius: 2px; background: #e0e0e0; }
-  .steps span.done, .steps span.active { background: #1a73e8; }
-  .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 28px; }
+  .steps span { flex: 1; height: 4px; border-radius: 2px; background: var(--admin-border); }
+  .steps span.done, .steps span.active { background: var(--admin-primary); }
+  .card { padding: 28px; }
   h1 { font-size: 20px; margin-top: 0; }
-  p.lead { color: #5f6368; font-size: 14px; }
-  .notice { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
-  .notice.error { background: #fce8e6; color: #c5221f; }
-  .notice.success { background: #e6f4ea; color: #137333; }
-  label { display: block; font-size: 12px; color: #5f6368; margin-top: 10px; }
-  input { width: 100%; padding: 10px; border: 1px solid #d0d0d0; border-radius: 6px; font-size: 14px; box-sizing: border-box; margin-top: 4px; }
-  button { margin-top: 16px; padding: 10px 16px; border: none; border-radius: 6px; background: #1a73e8; color: #fff; font-size: 14px; cursor: pointer; }
-  button.secondary { background: none; color: #5f6368; }
+  button.secondary { background: none; color: var(--admin-muted); border: none; }
   .actions { display: flex; justify-content: space-between; align-items: center; }
-  .summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+  .summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--admin-border); font-size: 14px; }
   .summary-row:last-child { border-bottom: none; }
-  .summary-row strong { color: #137333; }
-  a.link { color: #1a73e8; text-decoration: none; font-size: 13px; }
+  .summary-row strong { color: var(--admin-success-ink); }
 </style>
-</head>
-<body>
-<div class="wrap">
   <div class="steps">
     <span class="<?= $step >= 1 ? ($step > 1 ? 'done' : 'active') : '' ?>"></span>
     <span class="<?= $step >= 2 ? ($step > 2 ? 'done' : 'active') : '' ?>"></span>
@@ -159,6 +147,4 @@ $activeSource = killi_data_source_engine()->active();
     </p>
   <?php endif; ?>
   </div>
-</div>
-</body>
-</html>
+<?php killi_admin_body_close(); ?>

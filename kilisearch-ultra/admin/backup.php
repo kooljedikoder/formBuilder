@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../bootstrap.php';
+require_once __DIR__ . '/_chrome.php';
 
 if (!killi_admin_password_configured() || !killi_is_admin_authenticated()) {
     header('Location: connections.php');
@@ -165,42 +166,12 @@ function killi_format_bytes(int $bytes): string
     return round($value, 1) . ' TB';
 }
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>KilliSearch Ultra — Backups</title>
-<style>
-  body { font-family: -apple-system, Arial, sans-serif; background: #f5f6f8; color: #202124; margin: 0; padding: 24px; }
-  .wrap { max-width: 780px; margin: 0 auto; }
-  h1 { font-size: 20px; }
-  .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-  .notice { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
-  .notice.success { background: #e6f4ea; color: #137333; }
-  .notice.error { background: #fce8e6; color: #c5221f; }
-  .upsell { background: #fef8e8; border: 1px solid #e0b23d; border-radius: 10px; padding: 16px; font-size: 14px; }
-  button { padding: 8px 14px; border: none; border-radius: 6px; background: #1a73e8; color: #fff; font-size: 14px; cursor: pointer; }
-  button.secondary { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; }
-  button.danger { background: #fff; color: #c5221f; border: 1px solid #c5221f; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-  table th, table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
-  a.link { color: #1a73e8; text-decoration: none; }
-  form.inline { display: inline; }
-  .nav a { font-size: 13px; color: #5f6368; margin-right: 14px; text-decoration: none; }
-</style>
-</head>
-<body>
-<div class="wrap">
-  <div style="display:flex;justify-content:space-between;align-items:baseline">
-    <h1>Backups</h1>
-    <span class="nav">
-      <a href="connections.php">Connections</a>
-      <a href="records.php">Records</a>
-      <a href="faq.php">FAQ</a>
-      <a href="feedback.php">Feedback</a>
-    </span>
-  </div>
-  <p>Zips <code>data/</code> and <code>config/</code> — your listings, taxonomy, branding and package settings. Never includes <code>.env</code> (credentials).</p>
+<?php
+killi_admin_head('Backups');
+killi_admin_body_open('backup');
+?>
+  <h1>Backups</h1>
+  <p class="lead">Zips <code>data/</code> and <code>config/</code> — your listings, taxonomy, branding and package settings. Never includes <code>.env</code> (credentials).</p>
 
   <?php if ($notice): ?>
     <div class="notice <?= $notice['type'] ?>"><?= htmlspecialchars($notice['text']) ?></div>
@@ -263,6 +234,4 @@ function killi_format_bytes(int $bytes): string
     </div>
     <?php endif; ?>
   <?php endif; ?>
-</div>
-</body>
-</html>
+<?php killi_admin_body_close(); ?>

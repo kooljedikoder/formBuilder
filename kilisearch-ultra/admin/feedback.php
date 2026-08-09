@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../bootstrap.php';
+require_once __DIR__ . '/_chrome.php';
 
 if (!killi_admin_password_configured() || !killi_is_admin_authenticated()) {
     header('Location: connections.php');
@@ -45,53 +46,31 @@ if ($negativeOnly) {
     $reactions = array_filter($reactions, fn($r) => in_array($r['emoji'] ?? '', ['😐', '👎'], true));
 }
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>KilliSearch Ultra — Feedback</title>
+<?php
+killi_admin_head('Feedback');
+killi_admin_body_open('feedback');
+?>
 <style>
-  body { font-family: -apple-system, Arial, sans-serif; background: #f5f6f8; color: #202124; margin: 0; padding: 24px; }
-  .wrap { max-width: 780px; margin: 0 auto; }
-  h1 { font-size: 20px; }
-  h2 { font-size: 15px; }
-  .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-  .notice { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
-  .notice.success { background: #e6f4ea; color: #137333; }
-  .notice.error { background: #fce8e6; color: #c5221f; }
-  .nav a { font-size: 13px; color: #5f6368; margin-right: 14px; text-decoration: none; }
-  .rating-row { border-bottom: 1px solid #f0f0f0; padding: 10px 0; }
+  .rating-row { border-bottom: 1px solid var(--admin-border); padding: 10px 0; }
   .rating-row:last-child { border-bottom: none; }
   .stars { color: #f5b400; font-size: 14px; letter-spacing: 1px; }
-  .rating-comment { font-size: 13px; color: #3c4043; margin: 4px 0; }
-  .rating-meta { font-size: 12px; color: #5f6368; }
+  .rating-comment { font-size: 13px; color: var(--admin-text); margin: 4px 0; }
+  .rating-meta { font-size: 12px; color: var(--admin-muted); }
   details.transcript { margin-top: 6px; }
-  details.transcript summary { font-size: 12px; color: #1a73e8; cursor: pointer; }
-  .turn { font-size: 12.5px; margin: 6px 0; padding-left: 10px; border-left: 2px solid #eee; }
-  .turn .q { color: #202124; font-weight: 600; }
-  .turn .a { color: #5f6368; }
-  form.inline { display: inline; }
-  button.danger { background: #fff; color: #c5221f; border: 1px solid #c5221f; border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
-  .reaction-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; border-bottom: 1px solid #f0f0f0; padding: 8px 0; font-size: 13px; }
+  details.transcript summary { font-size: 12px; color: var(--admin-primary); cursor: pointer; }
+  .turn { font-size: 12.5px; margin: 6px 0; padding-left: 10px; border-left: 2px solid var(--admin-border); }
+  .turn .q { color: var(--admin-text); font-weight: 600; }
+  .turn .a { color: var(--admin-muted); }
+  button.danger { border-radius: 999px; padding: 4px 10px; font-size: 12px; }
+  .reaction-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; border-bottom: 1px solid var(--admin-border); padding: 8px 0; font-size: 13px; }
   .reaction-row:last-child { border-bottom: none; }
   .reaction-emoji { font-size: 16px; }
-  .filter-tabs a { font-size: 12.5px; margin-right: 12px; text-decoration: none; color: #5f6368; }
-  .filter-tabs a.active { color: #1a73e8; font-weight: 600; }
-  .empty { font-size: 13px; color: #5f6368; }
+  .filter-tabs a { font-size: 12.5px; margin-right: 12px; text-decoration: none; color: var(--admin-muted); }
+  .filter-tabs a.active { color: var(--admin-primary); font-weight: 600; }
+  .empty { font-size: 13px; color: var(--admin-muted); }
 </style>
-</head>
-<body>
-<div class="wrap">
-  <div style="display:flex;justify-content:space-between;align-items:baseline">
-    <h1>Feedback</h1>
-    <span class="nav">
-      <a href="connections.php">Connections</a>
-      <a href="records.php">Records</a>
-      <a href="faq.php">FAQ</a>
-      <a href="backup.php">Backups</a>
-    </span>
-  </div>
-  <p>What visitors told you directly — end-of-conversation ratings and per-reply reactions — worst first, so the conversations worth reviewing surface on their own.</p>
+  <h1>Feedback</h1>
+  <p class="lead">What visitors told you directly — end-of-conversation ratings and per-reply reactions — worst first, so the conversations worth reviewing surface on their own.</p>
 
   <?php if ($notice): ?>
     <div class="notice <?= $notice['type'] ?>"><?= htmlspecialchars($notice['text']) ?></div>
@@ -147,6 +126,4 @@ if ($negativeOnly) {
       <?php endforeach; ?>
     <?php endif; ?>
   </div>
-</div>
-</body>
-</html>
+<?php killi_admin_body_close(); ?>

@@ -1029,3 +1029,67 @@ Verified against a real running server: confirmed the panel is
 appears, clicked it, confirmed the panel opens correctly, submitted a
 rating, confirmed it still saves to `data/session_feedback.json` as
 before.
+
+## Admin interface overhaul: dashboard, pills, mobile bottom nav, dark mode
+
+Requested: a real dashboard, pill-style buttons, and a mobile-responsive
+admin — specifically a bottom icon tab bar on small screens, matching the
+dark/light polish already in the customer-facing chat and the Interactive
+Help Guide.
+
+Every existing `admin/*.php` screen had grown its own copy-pasted
+`<style>` block, but they'd all converged on the *same* class vocabulary
+(`.card`, `.notice`, `.upsell`, `button`/`button.secondary`/
+`button.danger`, `table`, `a.link`, `form.inline`, `label`, `.nav a`) —
+so instead of a rewrite, this defines that vocabulary once and swaps only
+the outer chrome per page:
+
+- **`assets/css/admin.css`** — one design system for every admin screen.
+  Light/dark tokens follow the exact pattern `killi.css` already uses
+  (`:root` → `@media (prefers-color-scheme: dark)` guarded
+  `:not([data-theme="light"])` → `[data-theme="dark"]` override), so admin
+  and the customer chat now share one visual language. Buttons became
+  pill-shaped (`border-radius: 999px`). New pieces: a desktop top pill-nav,
+  a fixed bottom icon tab bar for ≤860px screens, a slide-up "More" sheet
+  for the screens that don't fit the bottom bar, and dashboard-only
+  widgets (stat cards, tier pill, source-count rows, quick-action pills).
+- **`assets/js/admin.js`** — theme toggle (localStorage `killi-admin-theme`,
+  same on/off-system-preference logic as the customer app's toggle) and
+  the mobile "More" sheet open/close.
+- **`admin/_chrome.php`** (new) — `killi_admin_head()` /
+  `killi_admin_body_open($active)` / `killi_admin_body_close()` plus a
+  small inline-SVG icon set. One place owns the nav item list
+  (`KILLI_ADMIN_NAV_ITEMS`) instead of every page hand-rolling its own
+  `<span class="nav">`. The 4 most-used screens (Dashboard, Records, FAQ,
+  Feedback) get bottom-bar icons directly; Connections/Backups/Setup live
+  under "More" so the bar stays at 5 items on a phone. Also adds a global
+  logout icon button, since every page now shares one header.
+- **`admin/dashboard.php`** (new) — the tier + feature count, per-source
+  record counts (each wrapped in try/catch so an unreachable live-DB
+  source shows "—" instead of a fatal), FAQ count, average end-of-chat
+  rating, a "negative reactions to review" counter, quick-action pills
+  (add a record, import, review feedback, try as guest), and a "latest
+  feedback" preview. Every widget has a zero-state string for a fresh
+  install instead of a blank card.
+- **records/connections/faq/feedback/backup/setup.php** — swapped each
+  page's `<html>/<style>/<body>` boilerplate and old `<span class="nav">`
+  for the shared chrome; kept every form, CSRF field, and business-logic
+  branch byte-for-byte. Page-specific styles that don't belong in the
+  shared vocabulary (feedback's rating/reaction/transcript styles, setup's
+  step-progress bar) stayed local, just re-pointed at the shared color
+  tokens. `connections.php`'s two *pre-authentication* mini-pages (first-run
+  admin creation, login form) were deliberately left as their own
+  standalone inline-styled pages — they render before any nav would make
+  sense, and touching them was outside what was asked.
+
+Verified against a real running server, logged in as a real owner
+account: every one of the 7 admin pages renders inside the shared chrome
+with the correct active nav pill; the desktop top-nav and mobile bottom-nav
+are mutually exclusive at the 860px breakpoint on every page; the mobile
+"More" sheet opens/closes and its links navigate correctly; dark mode
+toggles and persists across a full page navigation; a real FAQ add, a
+real backup creation, and a real login → logout round-trip all still work
+through the new chrome; the two pre-auth connections.php gates (admin
+creation, login) render exactly as before. All test-created admin
+accounts, license overrides, FAQ entries, and backup files were reverted
+after testing.

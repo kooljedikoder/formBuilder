@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../bootstrap.php';
+require_once __DIR__ . '/_chrome.php';
 
 if (!killi_admin_password_configured() || !killi_is_admin_authenticated()) {
     header('Location: connections.php');
@@ -77,45 +78,12 @@ if (isset($_GET['edit'])) {
 }
 $prefillQuestion = $_GET['question'] ?? ($editing['question'] ?? '');
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>KilliSearch Ultra — FAQ / Memory</title>
-<style>
-  body { font-family: -apple-system, Arial, sans-serif; background: #f5f6f8; color: #202124; margin: 0; padding: 24px; }
-  .wrap { max-width: 780px; margin: 0 auto; }
-  h1 { font-size: 20px; }
-  h2 { font-size: 15px; }
-  .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-  .notice { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
-  .notice.success { background: #e6f4ea; color: #137333; }
-  .notice.error { background: #fce8e6; color: #c5221f; }
-  .upsell { background: #fef8e8; border: 1px solid #e0b23d; border-radius: 10px; padding: 16px; font-size: 14px; }
-  label { display: block; font-size: 12px; color: #5f6368; margin-top: 10px; }
-  input, textarea { width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 6px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
-  button { padding: 8px 14px; border: none; border-radius: 6px; background: #1a73e8; color: #fff; font-size: 14px; cursor: pointer; margin-top: 12px; }
-  button.secondary { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; }
-  button.danger { background: #fff; color: #c5221f; border: 1px solid #c5221f; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-  table th, table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
-  a.link { color: #1a73e8; text-decoration: none; }
-  form.inline { display: inline; }
-  .nav a { font-size: 13px; color: #5f6368; margin-right: 14px; text-decoration: none; }
-</style>
-</head>
-<body>
-<div class="wrap">
-  <div style="display:flex;justify-content:space-between;align-items:baseline">
-    <h1>FAQ / Memory</h1>
-    <span class="nav">
-      <a href="connections.php">Connections</a>
-      <a href="records.php">Records</a>
-      <a href="backup.php">Backups</a>
-      <a href="feedback.php">Feedback</a>
-    </span>
-  </div>
-  <p>What visitors have asked (logged automatically), and the curated answers the Memory engine recalls instantly next time.</p>
+<?php
+killi_admin_head('FAQ / Memory');
+killi_admin_body_open('faq');
+?>
+  <h1>FAQ / Memory</h1>
+  <p class="lead">What visitors have asked (logged automatically), and the curated answers the Memory engine recalls instantly next time.</p>
 
   <?php if ($notice): ?>
     <div class="notice <?= $notice['type'] ?>"><?= htmlspecialchars($notice['text']) ?></div>
@@ -125,7 +93,7 @@ $prefillQuestion = $_GET['question'] ?? ($editing['question'] ?? '');
     <div class="upsell">The Memory engine is a Standard/Ultra feature. Activate a license key on the <a class="link" href="connections.php">Connections</a> page to unlock it.</div>
   <?php else: ?>
 
-  <p style="font-size:13px;color:#5f6368">
+  <p style="font-size:13px;color:var(--admin-muted)">
     FAQ source: <strong><?= $faqTied ? 'Tied' : 'Untied' ?></strong>
     <?= $faqTied
         ? ' — reading/writing the "' . htmlspecialchars($faqConfig['table'] ?? '') . '" table via the "' . htmlspecialchars($faqConfig['connection'] ?? '') . '" connection, the same one backing your active data source.'
@@ -135,9 +103,9 @@ $prefillQuestion = $_GET['question'] ?? ($editing['question'] ?? '');
 
   <div class="card">
     <h2 style="margin-top:0">Unanswered / frequently asked</h2>
-    <p style="font-size:13px;color:#5f6368">Every question the Memory engine couldn't confidently match gets logged here — most-asked first. Promote the useful ones into a curated FAQ answer.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Every question the Memory engine couldn't confidently match gets logged here — most-asked first. Promote the useful ones into a curated FAQ answer.</p>
     <?php if (!$log): ?>
-      <p style="font-size:13px;color:#5f6368">Nothing logged yet.</p>
+      <p style="font-size:13px;color:var(--admin-muted)">Nothing logged yet.</p>
     <?php else: ?>
     <table>
       <tr><th>Question</th><th>Asked</th><th>Last asked</th><th></th></tr>
@@ -180,7 +148,7 @@ $prefillQuestion = $_GET['question'] ?? ($editing['question'] ?? '');
   <div class="card">
     <h2 style="margin-top:0">Curated FAQs (<?= count($faqs) ?>)</h2>
     <?php if (!$faqs): ?>
-      <p style="font-size:13px;color:#5f6368">No FAQs yet.</p>
+      <p style="font-size:13px;color:var(--admin-muted)">No FAQs yet.</p>
     <?php else: ?>
     <table>
       <tr><th>Question</th><th>Answer</th><th>Recalled</th><th></th></tr>
@@ -205,6 +173,4 @@ $prefillQuestion = $_GET['question'] ?? ($editing['question'] ?? '');
   </div>
 
   <?php endif; ?>
-</div>
-</body>
-</html>
+<?php killi_admin_body_close(); ?>

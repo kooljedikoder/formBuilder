@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 require_once __DIR__ . '/../core/SchemaDetector.php';
+require_once __DIR__ . '/_chrome.php';
 
 use Killi\Core\SchemaDetector;
 
@@ -274,46 +275,16 @@ foreach ($profiles as $profile) {
     }
 }
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>KilliSearch Ultra — Connections</title>
+<?php
+killi_admin_head('Connections');
+killi_admin_body_open('connections');
+?>
 <style>
-  body { font-family: -apple-system, Arial, sans-serif; background: #f5f6f8; color: #202124; margin: 0; padding: 24px; }
-  .wrap { max-width: 780px; margin: 0 auto; }
-  h1 { font-size: 20px; }
-  h2 { font-size: 15px; margin-top: 32px; }
-  .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-  .notice { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
-  .notice.success { background: #e6f4ea; color: #137333; }
-  .notice.error { background: #fce8e6; color: #c5221f; }
-  label { display: block; font-size: 12px; color: #5f6368; margin-top: 10px; }
-  input, select { width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
-  button { margin-top: 12px; padding: 8px 14px; border: none; border-radius: 6px; background: #1a73e8; color: #fff; font-size: 14px; cursor: pointer; }
-  button.secondary { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; }
-  .profile-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+  .profile-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--admin-border); }
   .profile-row:last-child { border-bottom: none; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-  table th, table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #f0f0f0; }
-  code { background: #f0f0f0; padding: 2px 5px; border-radius: 4px; }
-  form.inline { display: inline; }
 </style>
-</head>
-<body>
-<div class="wrap">
-  <div style="display:flex;justify-content:space-between;align-items:baseline">
-    <h1>Data Source Connections</h1>
-    <span style="font-size:13px">
-      <a href="records.php" style="color:#5f6368;margin-right:14px">Records</a>
-      <a href="backup.php" style="color:#5f6368;margin-right:14px">Backups</a>
-      <a href="faq.php" style="color:#5f6368;margin-right:14px">FAQ</a>
-      <a href="feedback.php" style="color:#5f6368;margin-right:14px">Feedback</a>
-      <a href="setup.php" style="color:#5f6368;margin-right:14px">Re-run setup wizard</a>
-      <a href="?do=admin_logout" style="color:#5f6368">Log out</a>
-    </span>
-  </div>
-  <p>Credentials live in <code>.env</code> only — never in <code>config/data_sources.json</code>, never sent back to this page after saving.</p>
+  <h1>Data Source Connections</h1>
+  <p class="lead">Credentials live in <code>.env</code> only — never in <code>config/data_sources.json</code>, never sent back to this page after saving. <a class="link" href="setup.php">Re-run the setup wizard</a></p>
 
   <?php if ($notice): ?>
     <div class="notice <?= $notice['type'] ?>"><?= htmlspecialchars($notice['text']) ?></div>
@@ -322,7 +293,7 @@ foreach ($profiles as $profile) {
   <?php $packagesConfig = killi_read_json(__DIR__ . '/../config/packages.json'); ?>
   <div class="card">
     <h2 style="margin-top:0">Licensing / packages</h2>
-    <p style="font-size:13px;color:#5f6368">Used when Killi can't see a host application's identity (no <code>$_SESSION['killi_host_user']</code>) — e.g. running fully standalone, or before a real host-app integration exists. See <code>examples/host-app-demo.php</code> for how a host app assigns a package per-user instead.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Used when Killi can't see a host application's identity (no <code>$_SESSION['killi_host_user']</code>) — e.g. running fully standalone, or before a real host-app integration exists. See <code>examples/host-app-demo.php</code> for how a host app assigns a package per-user instead.</p>
     <table>
       <tr><th>Package</th><th>Features</th></tr>
       <?php foreach ($packagesConfig['packages'] ?? [] as $pkg): ?>
@@ -345,7 +316,7 @@ foreach ($profiles as $profile) {
     </form>
 
     <h2>Activate a license key</h2>
-    <p style="font-size:13px;color:#5f6368">Enter the license key for this installation to unlock the package it's licensed for — simplest way to move off the free/Basic tier, no dropdown-picking required.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Enter the license key for this installation to unlock the package it's licensed for — simplest way to move off the free/Basic tier, no dropdown-picking required.</p>
     <?php $activeKey = killi_active_license_key(); ?>
     <p style="font-size:13px">Currently activated: <?= $activeKey ? '<code>' . htmlspecialchars($activeKey) . '</code>' : '<em>none</em>' ?></p>
     <form method="post" action="?do=activate_license">
@@ -354,13 +325,13 @@ foreach ($profiles as $profile) {
       <button type="submit">Activate</button>
     </form>
     <?php else: ?>
-    <p style="font-size:13px;color:#5f6368">Owner-only — ask an owner-level admin to change licensing.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Owner-only — ask an owner-level admin to change licensing.</p>
     <?php endif; ?>
   </div>
 
   <div class="card">
     <h2 style="margin-top:0">App access</h2>
-    <p style="font-size:13px;color:#5f6368">Optional — off by default so the customer-facing app stays zero-friction. Turn this on to require a shared password before anyone can use it.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Optional — off by default so the customer-facing app stays zero-friction. Turn this on to require a shared password before anyone can use it.</p>
     <p style="font-size:13px">Status: <?= killi_app_password_configured() ? '<strong style="color:#137333">password required</strong>' : '<strong>open, no password</strong>' ?></p>
     <?php if (killi_is_admin_owner()): ?>
     <form method="post" action="?do=set_app_password">
@@ -370,13 +341,13 @@ foreach ($profiles as $profile) {
       <button type="submit">Save</button>
     </form>
     <?php else: ?>
-    <p style="font-size:13px;color:#5f6368">Owner-only — ask an owner-level admin to change this.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Owner-only — ask an owner-level admin to change this.</p>
     <?php endif; ?>
   </div>
 
   <div class="card">
     <h2 style="margin-top:0">Admin accounts</h2>
-    <p style="font-size:13px;color:#5f6368">Logged in as <strong><?= htmlspecialchars((string) killi_current_admin_username()) ?></strong> (<?= htmlspecialchars((string) killi_current_admin_role()) ?>). <strong>Owners</strong> can manage admins, licensing, app access and database connections; <strong>editors</strong> get Records/FAQ/backup-create only. Every create/edit/delete on the <a href="records.php">Records</a> page is attributed to whichever account made it.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Logged in as <strong><?= htmlspecialchars((string) killi_current_admin_username()) ?></strong> (<?= htmlspecialchars((string) killi_current_admin_role()) ?>). <strong>Owners</strong> can manage admins, licensing, app access and database connections; <strong>editors</strong> get Records/FAQ/backup-create only. Every create/edit/delete on the <a href="records.php">Records</a> page is attributed to whichever account made it.</p>
     <table>
       <tr><th>Username</th><th>Role</th><th>Created</th><?php if (killi_is_admin_owner()): ?><th></th><?php endif; ?></tr>
       <?php foreach (killi_admins() as $a): ?>
@@ -428,12 +399,12 @@ foreach ($profiles as $profile) {
   <?php if (!killi_has_feature('db_connections')): ?>
   <div class="card">
     <h2 style="margin-top:0">Database connections</h2>
-    <p style="font-size:13px;color:#5f6368">Connecting a MySQL/PostgreSQL database (cached snapshot or live query) is an Ultra feature. Activate an Ultra license key above to unlock it.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Connecting a MySQL/PostgreSQL database (cached snapshot or live query) is an Ultra feature. Activate an Ultra license key above to unlock it.</p>
   </div>
   <?php elseif (!killi_is_admin_owner()): ?>
   <div class="card">
     <h2 style="margin-top:0">Database connections</h2>
-    <p style="font-size:13px;color:#5f6368">Owner-only — ask an owner-level admin to manage database connections.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Owner-only — ask an owner-level admin to manage database connections.</p>
   </div>
   <?php else: ?>
   <div class="card">
@@ -498,7 +469,7 @@ foreach ($profiles as $profile) {
         <button type="submit" class="secondary">Untie — go back to the local FAQ store</button>
       </form>
     <?php else: ?>
-      <p style="font-size:13px;color:#5f6368">
+      <p style="font-size:13px;color:var(--admin-muted)">
         <strong>Untied</strong> — FAQ has its own dedicated local store, independent of whatever powers Search/CRUD.
         Pick a table above with "Use for FAQ" to tie it to the same connection your active data source uses instead — one database serving every pillar, no separate FAQ credential to maintain.
       </p>
@@ -587,6 +558,4 @@ foreach ($profiles as $profile) {
   </div>
   <?php endif; ?>
   <?php endif; ?>
-</div>
-</body>
-</html>
+<?php killi_admin_body_close(); ?>
