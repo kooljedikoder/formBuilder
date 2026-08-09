@@ -758,6 +758,61 @@ function killi_publish_live_source(string $name, string $connectionName, string 
     return $newSource;
 }
 
+/**
+ * Ties the FAQ table to the same connection as the active data source —
+ * a single database backing Search/CRUD/Memory, no separate FAQ
+ * credential to maintain. $mapping needs at minimum "id" and "question"/
+ * "answer" columns; see DbAdapter for how canonical fields reverse-map.
+ */
+function killi_set_faq_source(string $connectionName, string $table, array $mapping, bool $writable = false): void
+{
+    $path = __DIR__ . '/config/data_sources.json';
+    $config = killi_read_json($path);
+    $config['faq'] = [
+        'mode' => 'tied',
+        'connection' => $connectionName,
+        'table' => $table,
+        'mapping' => $mapping,
+        'writable' => $writable,
+    ];
+    file_put_contents($path, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/** Switches the FAQ table back to its own dedicated local store. The last tied connection/table/mapping are kept (not cleared) so re-tying later doesn't require re-entering them. */
+function killi_untie_faq_source(): void
+{
+    $path = __DIR__ . '/config/data_sources.json';
+    $config = killi_read_json($path);
+    $config['faq']['mode'] = 'untied';
+    file_put_contents($path, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/**
+ * Storage for the Memory pillar's FAQ table — local JSON ("untied", the
+ * default) or a table under whichever connection the active data source
+ * uses ("tied") — its own table, reached via the same named connection
+ * profile, resolved independently of which source Search/CRUD currently
+ * has active. Falls back to the local store if "tied" is selected but no
+ * connection/table has been chosen yet (nothing to tie to).
+ */
+function killi_faq_storage(): StorageInterface
+{
+    $faqConfig = killi_data_source_engine()->faqConfig();
+
+    if (($faqConfig['mode'] ?? 'untied') === 'tied' && !empty($faqConfig['connection']) && !empty($faqConfig['table'])) {
+        return new DbAdapter(
+            killi_connection_manager(),
+            $faqConfig['connection'],
+            $faqConfig['table'],
+            $faqConfig['mapping'] ?? [],
+            null,
+            !empty($faqConfig['writable'])
+        );
+    }
+
+    return new JsonAdapter(__DIR__ . '/data/faq.json');
+}
+
 function killi_search_engine(): SearchEngine
 {
     static $engine = null;
@@ -878,27 +933,35 @@ function killi_memory_engine(): MemoryEngine
 {
     static $engine = null;
     if ($engine === null) {
-        $engine = new MemoryEngine(killi_read_json(__DIR__ . '/data/faq.json'));
+        $engine = new MemoryEngine(killi_faq_storage()->all());
     }
 
     return $engine;
 }
 
-/** Bumps a recalled memory entry's hit_count — lets an admin see which stored answers get reused most. */
+/**
+ * Bumps a recalled memory entry's hit_count — lets an admin see which
+ * stored answers get reused most. For a tied source, the count only
+ * actually persists if "hit_count" itself is one of the mapped columns
+ * (unmapped fields are silently dropped by DbAdapter, same as any other
+ * write) — recall still works either way, this is purely a nice-to-have.
+ * A read-only tied source drops the write entirely via the caught exception.
+ */
 function killi_memory_record_hit(string $faqId): void
 {
-    $path = __DIR__ . '/data/faq.json';
-    $entries = killi_read_json($path);
-
-    foreach ($entries as &$entry) {
-        if ($entry['id'] === $faqId) {
-            $entry['hit_count'] = ($entry['hit_count'] ?? 0) + 1;
-            break;
-        }
+    $storage = killi_faq_storage();
+    $entry = $storage->find($faqId);
+    if ($entry === null) {
+        return;
     }
-    unset($entry);
 
-    file_put_contents($path, json_encode($entries, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    $entry['hit_count'] = ($entry['hit_count'] ?? 0) + 1;
+
+    try {
+        $storage->save($entry);
+    } catch (\RuntimeException $e) {
+        // Tied to a read-only live source — recall still works, the hit count just can't persist.
+    }
 }
 
 /**

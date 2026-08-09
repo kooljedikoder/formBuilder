@@ -15,57 +15,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !killi_verify_csrf($_POST['csrf'] ?
     $do = '';
 }
 
-$faqPath = __DIR__ . '/../data/faq.json';
 $logPath = __DIR__ . '/../data/query_log.json';
+$faqConfig = killi_data_source_engine()->faqConfig();
+$faqTied = ($faqConfig['mode'] ?? 'untied') === 'tied';
 
 if (killi_has_feature('memory')) {
+    $faqStorage = killi_faq_storage();
+
     if ($do === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $question = trim($_POST['question'] ?? '');
         $answer = trim($_POST['answer'] ?? '');
         if ($question === '' || $answer === '') {
             $notice = ['type' => 'error', 'text' => 'Question and answer are both required.'];
         } else {
-            $faqs = killi_read_json($faqPath);
-            $tags = array_values(array_filter(array_map('trim', explode(',', $_POST['tags'] ?? ''))));
-            $id = trim($_POST['id'] ?? '');
-
-            if ($id !== '') {
-                foreach ($faqs as &$faq) {
-                    if ($faq['id'] === $id) {
-                        $faq['question'] = mb_strtolower($question);
-                        $faq['answer'] = $answer;
-                        $faq['tags'] = $tags;
-                        break;
-                    }
-                }
-                unset($faq);
-                $notice = ['type' => 'success', 'text' => 'FAQ updated.'];
-            } else {
-                $maxNum = 0;
-                foreach ($faqs as $faq) {
-                    if (preg_match('/^faq-(\d+)$/', $faq['id'], $m)) {
-                        $maxNum = max($maxNum, (int) $m[1]);
-                    }
-                }
-                $faqs[] = [
-                    'id' => 'faq-' . ($maxNum + 1),
+            try {
+                $tags = array_values(array_filter(array_map('trim', explode(',', $_POST['tags'] ?? ''))));
+                $id = trim($_POST['id'] ?? '');
+                $record = [
+                    'id' => $id !== '' ? $id : null,
                     'question' => mb_strtolower($question),
                     'answer' => $answer,
                     'tags' => $tags,
-                    'hit_count' => 0,
+                    'hit_count' => $id !== '' ? ($faqStorage->find($id)['hit_count'] ?? 0) : 0,
                     'linked_record_ids' => [],
                     'image' => null,
                 ];
-                $notice = ['type' => 'success', 'text' => 'FAQ added — it will now be matched against incoming questions.'];
+                $faqStorage->save($record);
+                $notice = ['type' => 'success', 'text' => $id !== '' ? 'FAQ updated.' : 'FAQ added — it will now be matched against incoming questions.'];
+            } catch (\RuntimeException $e) {
+                $notice = ['type' => 'error', 'text' => $e->getMessage()];
             }
-            file_put_contents($faqPath, json_encode($faqs, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
         }
     } elseif ($do === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-        $id = $_POST['id'] ?? '';
-        $faqs = killi_read_json($faqPath);
-        $remaining = array_values(array_filter($faqs, fn($f) => $f['id'] !== $id));
-        file_put_contents($faqPath, json_encode($remaining, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
-        $notice = ['type' => 'success', 'text' => count($remaining) < count($faqs) ? 'FAQ deleted.' : 'Unknown FAQ.'];
+        try {
+            $deleted = $faqStorage->delete($_POST['id'] ?? '');
+            $notice = ['type' => 'success', 'text' => $deleted ? 'FAQ deleted.' : 'Unknown FAQ.'];
+        } catch (\RuntimeException $e) {
+            $notice = ['type' => 'error', 'text' => $e->getMessage()];
+        }
     } elseif ($do === 'dismiss_query' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $normalized = $_POST['normalized'] ?? '';
         $log = killi_read_json($logPath);
@@ -75,7 +62,7 @@ if (killi_has_feature('memory')) {
     }
 }
 
-$faqs = killi_read_json($faqPath);
+$faqs = killi_has_feature('memory') ? killi_faq_storage()->all() : [];
 $log = killi_read_json($logPath);
 usort($log, fn($a, $b) => ($b['count'] ?? 0) <=> ($a['count'] ?? 0));
 
@@ -136,6 +123,14 @@ $prefillQuestion = $_GET['question'] ?? ($editing['question'] ?? '');
   <?php if (!killi_has_feature('memory')): ?>
     <div class="upsell">The Memory engine is a Standard/Ultra feature. Activate a license key on the <a class="link" href="connections.php">Connections</a> page to unlock it.</div>
   <?php else: ?>
+
+  <p style="font-size:13px;color:#5f6368">
+    FAQ source: <strong><?= $faqTied ? 'Tied' : 'Untied' ?></strong>
+    <?= $faqTied
+        ? ' — reading/writing the "' . htmlspecialchars($faqConfig['table'] ?? '') . '" table via the "' . htmlspecialchars($faqConfig['connection'] ?? '') . '" connection, the same one backing your active data source.'
+        : ' — a dedicated local store, independent of whatever backs Search/CRUD.' ?>
+    <a class="link" href="connections.php#faq-source">Change</a>
+  </p>
 
   <div class="card">
     <h2 style="margin-top:0">Unanswered / frequently asked</h2>

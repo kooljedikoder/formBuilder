@@ -19,11 +19,13 @@ class DataSourceEngine
     /** @var array<int, array<string, mixed>> */
     private array $sources;
     private ?string $activeId;
+    private array $faq;
 
     public function __construct(array $config)
     {
         $this->sources = $config['sources'] ?? [];
         $this->activeId = $config['active'] ?? ($this->sources[0]['id'] ?? null);
+        $this->faq = $config['faq'] ?? ['mode' => 'untied'];
     }
 
     public function all(): array
@@ -52,5 +54,17 @@ class DataSourceEngine
         }
 
         return null;
+    }
+
+    /**
+     * Where the Memory pillar's FAQ table lives: "untied" (default) is a
+     * dedicated local store independent of whatever backs Search/CRUD;
+     * "tied" reads/writes a table of its own via the *same* connection as
+     * the active source, so a single database serves every pillar without
+     * a separate FAQ credential to maintain. See killi_faq_storage().
+     */
+    public function faqConfig(): array
+    {
+        return $this->faq;
     }
 }

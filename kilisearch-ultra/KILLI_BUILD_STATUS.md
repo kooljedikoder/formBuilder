@@ -714,3 +714,56 @@ Playwright pass (default pane, click-to-switch, hash updates, scroll-spy
 highlighting, and the mobile chip-nav breakpoint) — zero console errors.
 Also published as a standalone Claude Artifact for quick sharing outside
 the repo.
+
+## FAQ: tied vs. untied source
+
+Raised in review: if a live database backs Search/CRUD anyway, is there any
+real reason for the Memory pillar's FAQ table to be its own separate,
+hardcoded local store? The answer landed on "the matching logic and the
+promotion feedback loop are the differentiators, not the storage" — so FAQ
+storage itself should collapse into the same `StorageInterface` abstraction
+Search/CRUD already use, without losing the ability to run fully standalone
+on JSON-only installs. Implemented as an explicit toggle rather than forcing
+one model:
+
+- **Untied** (default, unchanged behavior) — FAQ reads/writes its own
+  dedicated `data/faq.json`, independent of whatever backs Search/CRUD.
+- **Tied** — FAQ reads/writes its own table via the *same named connection*
+  as an existing configured profile — one set of DB credentials serving
+  every pillar, no separate FAQ connection to maintain. Configured from a
+  new "FAQ source" card on the connections page: pick a table from an
+  already-configured profile ("Use for FAQ"), map which detected column is
+  the id/question/answer, optionally mark it writable so promoting a
+  question writes a real row. Untying is one click and keeps the last tied
+  connection/table/mapping remembered for re-tying later without re-entering
+  them.
+
+`core/MemoryEngine.php` needed zero changes — it already only ever wanted a
+plain array of entries, storage-agnostic from the start. The actual gap was
+one line in `bootstrap.php`'s `killi_memory_engine()`, hardcoded to
+`killi_read_json('data/faq.json')` instead of resolving storage the way
+`killi_crud_engine()` already did. Added `killi_faq_storage()` (mirrors
+`killi_build_storage()`'s JSON-vs-`DbAdapter` branch, but reads its
+connection/table/mapping from a new `faq` block in `data_sources.json`
+rather than from whichever source happens to be "active") and rewired
+`killi_memory_engine()`/`killi_memory_record_hit()` and every read/write in
+`admin/faq.php` (previously raw `file_put_contents` calls) through it.
+
+Caught one real bug before shipping: the first pass built the FAQ mapping as
+canonical-field → column, but `DbAdapter`/`SchemaDetector::applyMapping()`
+actually expect column → canonical-field — the exact opposite direction.
+Untested, this would have silently rendered every tied FAQ's question/answer
+as blank. Found immediately by testing tied mode against a **real** local
+Postgres 16 database (a throwaway `killi_faq_test` DB with a deliberately
+oddly-named `knowledge_base` table — columns `kb_id`/`kb_question`/
+`kb_answer`, not the obvious `id`/`question`/`answer` — specifically to
+prove the column-mapping direction end to end), not just PHP's own linter:
+tying, chat recall against the live DB, promoting a new question (a real
+`INSERT`), deleting one (a real `DELETE`), and untying back to the local
+store (confirmed the original local `faq.json` was never touched while
+tied) were all exercised through actual HTTP requests against a running
+`php -S` server, plus a real headless Playwright pass over the admin UI
+(login → preview → column-pick → tie → verify status card → untie) with
+zero console errors. Postgres and all `.env`/`config/data_sources.json`/
+`data/*.json` test state were torn down/reverted to the clean shipped
+defaults afterward.

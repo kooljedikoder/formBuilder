@@ -103,6 +103,7 @@ if (!killi_is_admin_authenticated()) {
 
 $manager = killi_connection_manager();
 $preview = null;
+$faqPreview = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !killi_verify_csrf($_POST['csrf'] ?? '')) {
     $notice = ['type' => 'error', 'text' => 'Form expired — please reload and try again.'];
@@ -112,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !killi_verify_csrf($_POST['csrf'] ?
 // Install-level controls — managing other admins, licensing, app access, and
 // database connections — are owner-only. Editors get records/FAQ/backup-create
 // (gated separately, below/elsewhere) but not these.
-$ownerOnlyActions = ['set_app_password', 'add_admin', 'delete_admin', 'set_default_package', 'activate_license', 'save', 'test', 'preview', 'publish'];
+$ownerOnlyActions = ['set_app_password', 'add_admin', 'delete_admin', 'set_default_package', 'activate_license', 'save', 'test', 'preview', 'publish', 'faq_preview', 'faq_save', 'faq_untie'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($do, $ownerOnlyActions, true) && !killi_is_admin_owner()) {
     $notice = ['type' => 'error', 'text' => 'Only an owner-level admin can do that.'];
     $do = '';
@@ -171,7 +172,7 @@ if ($do === 'set_app_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 } elseif ($do === 'activate_license' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = killi_activate_license(trim($_POST['license_key'] ?? ''));
     $notice = ['type' => $result['success'] ? 'success' : 'error', 'text' => $result['success'] ? 'License activated — unlocked the "' . $result['package'] . '" package.' : $result['message']];
-} elseif (in_array($do, ['save', 'test', 'preview', 'publish'], true) && !killi_has_feature('db_connections')) {
+} elseif (in_array($do, ['save', 'test', 'preview', 'publish', 'faq_preview', 'faq_save'], true) && !killi_has_feature('db_connections')) {
     $notice = ['type' => 'error', 'text' => 'Database connections are an Ultra feature. Activate an Ultra license key above to unlock them.'];
 } elseif ($do === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
@@ -227,7 +228,41 @@ if ($do === 'set_app_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (\Throwable $e) {
         $notice = ['type' => 'error', 'text' => $e->getMessage()];
     }
+} elseif ($do === 'faq_preview' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $connName = $_POST['connection'] ?? '';
+    $table = $_POST['table'] ?? '';
+    try {
+        $rows = $manager->fetchRows($connName, $table, 5);
+        $faqPreview = [
+            'connection' => $connName,
+            'table' => $table,
+            'columns' => empty($rows) ? [] : array_keys($rows[0]),
+        ];
+    } catch (\Throwable $e) {
+        $notice = ['type' => 'error', 'text' => $e->getMessage()];
+    }
+} elseif ($do === 'faq_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $connName = $_POST['connection'] ?? '';
+    $table = $_POST['table'] ?? '';
+    $idCol = trim($_POST['id_column'] ?? '');
+    $qCol = trim($_POST['question_column'] ?? '');
+    $aCol = trim($_POST['answer_column'] ?? '');
+    if ($connName === '' || $table === '' || $idCol === '' || $qCol === '' || $aCol === '') {
+        $notice = ['type' => 'error', 'text' => 'Connection, table, and all three column choices are required.'];
+    } elseif (count(array_unique([$idCol, $qCol, $aCol])) < 3) {
+        $notice = ['type' => 'error', 'text' => 'ID, question, and answer must each be a different column.'];
+    } else {
+        // Mapping convention is column => canonical field, matching SchemaDetector::applyMapping().
+        killi_set_faq_source($connName, $table, [$idCol => 'id', $qCol => 'question', $aCol => 'answer'], !empty($_POST['writable']));
+        $notice = ['type' => 'success', 'text' => 'FAQ is now tied to "' . $table . '" via the "' . $connName . '" connection.'];
+    }
+} elseif ($do === 'faq_untie' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    killi_untie_faq_source();
+    $notice = ['type' => 'success', 'text' => 'FAQ untied — back to its own dedicated local store.'];
 }
+
+$faqConfig = killi_data_source_engine()->faqConfig();
+$faqTied = ($faqConfig['mode'] ?? 'untied') === 'tied';
 
 $profiles = array_map(fn($name) => $manager->profile($name), $manager->profileNames());
 $tablesByProfile = [];
@@ -432,6 +467,14 @@ foreach ($profiles as $profile) {
                   <input type="hidden" name="table" value="<?= htmlspecialchars($table) ?>">
                   <button type="submit" class="secondary">Detect &amp; preview</button>
                 </form>
+                <?php if (killi_has_feature('memory')): ?>
+                <form class="inline" method="post" action="?do=faq_preview">
+                  <?= killi_csrf_field() ?>
+                  <input type="hidden" name="connection" value="<?= htmlspecialchars($profile['name']) ?>">
+                  <input type="hidden" name="table" value="<?= htmlspecialchars($table) ?>">
+                  <button type="submit" class="secondary">Use for FAQ</button>
+                </form>
+                <?php endif; ?>
               </td>
             </tr>
           <?php endforeach; ?>
@@ -439,6 +482,55 @@ foreach ($profiles as $profile) {
       <?php endif; ?>
     <?php endforeach; ?>
   </div>
+
+  <?php if (killi_has_feature('memory')): ?>
+  <div class="card" id="faq-source">
+    <h2 style="margin-top:0">FAQ source</h2>
+    <?php if ($faqTied): ?>
+      <p style="font-size:13px">
+        <strong>Tied</strong> — reading/writing the "<?= htmlspecialchars($faqConfig['table'] ?? '') ?>" table
+        via the "<?= htmlspecialchars($faqConfig['connection'] ?? '') ?>" connection.
+        <?= !empty($faqConfig['writable']) ? 'Promoting a question writes a real row into that table.' : 'Read-only — promoting a question needs a writable tie.' ?>
+      </p>
+      <form method="post" action="?do=faq_untie">
+        <?= killi_csrf_field() ?>
+        <button type="submit" class="secondary">Untie — go back to the local FAQ store</button>
+      </form>
+    <?php else: ?>
+      <p style="font-size:13px;color:#5f6368">
+        <strong>Untied</strong> — FAQ has its own dedicated local store, independent of whatever powers Search/CRUD.
+        Pick a table above with "Use for FAQ" to tie it to the same connection your active data source uses instead — one database serving every pillar, no separate FAQ credential to maintain.
+      </p>
+    <?php endif; ?>
+
+    <?php if ($faqPreview): ?>
+      <?php if (empty($faqPreview['columns'])): ?>
+        <p style="font-size:13px;color:#c5221f">That table returned no rows to detect columns from — add at least one row first.</p>
+      <?php else: ?>
+      <form method="post" action="?do=faq_save">
+        <?= killi_csrf_field() ?>
+        <input type="hidden" name="connection" value="<?= htmlspecialchars($faqPreview['connection']) ?>">
+        <input type="hidden" name="table" value="<?= htmlspecialchars($faqPreview['table']) ?>">
+        <p style="font-size:13px">Columns detected on "<?= htmlspecialchars($faqPreview['table']) ?>" — pick which one is which:</p>
+        <label>ID column</label>
+        <select name="id_column" required>
+          <?php foreach ($faqPreview['columns'] as $col): ?><option value="<?= htmlspecialchars($col) ?>"><?= htmlspecialchars($col) ?></option><?php endforeach; ?>
+        </select>
+        <label>Question column</label>
+        <select name="question_column" required>
+          <?php foreach ($faqPreview['columns'] as $col): ?><option value="<?= htmlspecialchars($col) ?>"><?= htmlspecialchars($col) ?></option><?php endforeach; ?>
+        </select>
+        <label>Answer column</label>
+        <select name="answer_column" required>
+          <?php foreach ($faqPreview['columns'] as $col): ?><option value="<?= htmlspecialchars($col) ?>"><?= htmlspecialchars($col) ?></option><?php endforeach; ?>
+        </select>
+        <label><input type="checkbox" name="writable" value="1" style="width:auto;display:inline"> Also let promoting a question write a real row into this table</label>
+        <button type="submit">Tie FAQ to this table</button>
+      </form>
+      <?php endif; ?>
+    <?php endif; ?>
+  </div>
+  <?php endif; ?>
 
   <div class="card">
     <h2 style="margin-top:0">Add a connection</h2>
