@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Killi Help — Users, Admins &amp; Developers</title>
+<style>
+:root {
+  --blue: #1a73e8;
+  --blue-ink: #0b4bb8;
+  --green: #0f9d58;
+  --amber: #8a6400;
+  --paper: #ffffff;
+  --surface: #f5f7fa;
+  --surface-raised: #ffffff;
+  --line: #dde1e7;
+  --ink: #14161a;
+  --ink-soft: #4a5160;
+  --ink-faint: #7b8290;
+  --code-bg: #eef1f5;
+  --shadow: 0 1px 2px rgba(20,22,26,0.06), 0 4px 16px rgba(20,22,26,0.05);
+  --focus: #1a73e8;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --blue: #6ea8ff;
+    --blue-ink: #a9c6ff;
+    --green: #4fce8f;
+    --amber: #e0b84a;
+    --paper: #14161a;
+    --surface: #1b1e24;
+    --surface-raised: #20232a;
+    --line: #30343d;
+    --ink: #edeff2;
+    --ink-soft: #b7bcc6;
+    --ink-faint: #82899a;
+    --code-bg: #1024304d;
+    --code-bg: #0e1116;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --blue: #6ea8ff;
+  --blue-ink: #a9c6ff;
+  --green: #4fce8f;
+  --amber: #e0b84a;
+  --paper: #14161a;
+  --surface: #1b1e24;
+  --surface-raised: #20232a;
+  --line: #30343d;
+  --ink: #edeff2;
+  --ink-soft: #b7bcc6;
+  --ink-faint: #82899a;
+  --code-bg: #0e1116;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+code, .mono, .eyebrow, .badge, .kbd {
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+a { color: var(--blue); }
+a:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------- Top bar ---------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+.topbar-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 17px;
+  white-space: nowrap;
+}
+.brand .eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.switcher {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+.switcher button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 16px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.switcher button.active {
+  background: var(--blue);
+  color: #fff;
+}
+.switcher button:not(.active):hover {
+  background: var(--code-bg);
+  color: var(--ink);
+}
+
+.topbar-meta {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+/* ---------- Shell ---------- */
+.shell {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 40px;
+  padding: 32px 20px 96px;
+  align-items: start;
+}
+
+.rail {
+  position: sticky;
+  top: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.rail a {
+  text-decoration: none;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border-left: 2px solid transparent;
+}
+.rail a:hover { background: var(--code-bg); color: var(--ink); }
+.rail a.current {
+  color: var(--blue);
+  border-left-color: var(--blue);
+  background: var(--code-bg);
+  font-weight: 600;
+}
+.rail-chips {
+  display: none;
+}
+
+main.pane { display: none; min-width: 0; }
+main.pane.active { display: block; }
+
+.lede {
+  max-width: 66ch;
+  font-size: 17px;
+  color: var(--ink-soft);
+  margin: 0 0 8px;
+}
+h1 {
+  font-size: 30px;
+  letter-spacing: -0.01em;
+  margin: 0 0 6px;
+  text-wrap: balance;
+}
+section.block {
+  padding-top: 40px;
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+}
+section.block:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+h2 {
+  font-size: 21px;
+  margin: 0 0 6px;
+  letter-spacing: -0.005em;
+}
+h2 .num {
+  color: var(--ink-faint);
+  font-weight: 600;
+  margin-right: 8px;
+}
+h3 {
+  font-size: 16px;
+  margin: 24px 0 8px;
+}
+p { max-width: 65ch; margin: 0 0 14px; color: var(--ink-soft); }
+p.tight { max-width: none; }
+ul, ol { max-width: 65ch; padding-left: 22px; margin: 0 0 16px; color: var(--ink-soft); }
+li { margin-bottom: 6px; }
+strong { color: var(--ink); font-weight: 600; }
+
+.card {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin: 16px 0;
+  box-shadow: var(--shadow);
+}
+.card h3 { margin-top: 0; }
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+.card-grid .card { margin: 0; }
+
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.badge.free { background: var(--code-bg); color: var(--ink-soft); }
+.badge.standard { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
+.badge.ultra { background: color-mix(in srgb, var(--amber) 18%, transparent); color: var(--amber); }
+.badge.owner { background: color-mix(in srgb, var(--blue) 16%, transparent); color: var(--blue); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin: 16px 0;
+}
+.table-scroll { overflow-x: auto; margin: 16px 0; }
+.table-scroll table { margin: 0; min-width: 480px; }
+th, td {
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+th:first-child, td:first-child { white-space: normal; }
+th {
+  color: var(--ink-faint);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+td.yes { color: var(--green); font-weight: 700; }
+td.no { color: var(--ink-faint); }
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 14px 0;
+}
+code.inline {
+  background: var(--code-bg);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.9em;
+}
+.file-tree {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 18px;
+  font-size: 13px;
+  overflow-x: auto;
+  margin: 14px 0;
+}
+.file-tree div { white-space: pre; }
+.file-tree .comment { color: var(--ink-faint); }
+
+.kbd {
+  display: inline-block;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 1px 7px;
+  font-size: 12px;
+  background: var(--surface-raised);
+}
+
+.callout {
+  border-left: 3px solid var(--blue);
+  background: color-mix(in srgb, var(--blue) 7%, var(--surface-raised));
+  border-radius: 0 10px 10px 0;
+  padding: 12px 16px;
+  margin: 16px 0;
+  max-width: 65ch;
+}
+.callout.warn { border-left-color: var(--amber); background: color-mix(in srgb, var(--amber) 9%, var(--surface-raised)); }
+.callout p { margin: 0; color: var(--ink); }
+.callout p + p { margin-top: 6px; }
+
+.stepnum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  flex: none;
+}
+.steps { list-style: none; padding: 0; max-width: 65ch; }
+.steps li {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+  align-items: flex-start;
+}
+.steps li > div { padding-top: 1px; }
+.steps li > div p:last-child { margin-bottom: 0; }
+
+footer.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px 20px 60px;
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; gap: 20px; }
+  .rail { display: none; }
+  .rail-chips {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 2px 10px;
+    margin-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .rail-chips a {
+    flex: none;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    background: var(--surface-raised);
+    border: 1px solid var(--line);
+    padding: 7px 13px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .rail-chips a.current { color: #fff; background: var(--blue); border-color: var(--blue); }
+  .topbar-meta { display: none; }
+  h1 { font-size: 25px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">Killi <span class="eyebrow">Help</span></div>
+    <nav class="switcher" role="tablist" aria-label="Audience">
+      <button type="button" data-pane="users" class="active" role="tab" aria-selected="true">Users</button>
+      <button type="button" data-pane="admins" role="tab" aria-selected="false">Admins</button>
+      <button type="button" data-pane="developers" role="tab" aria-selected="false">Developers</button>
+    </nav>
+    <div class="topbar-meta">Search · Chat · Memory · CRUD</div>
+  </div>
+</div>
+
+<div class="shell">
+
+  <!-- ============ USERS RAIL ============ -->
+  <nav class="rail" id="rail-users" aria-label="Users sections">
+    <a href="#u-overview" class="current">Overview</a>
+    <a href="#u-searching">Searching &amp; chatting</a>
+    <a href="#u-sectors">Sectors &amp; chips</a>
+    <a href="#u-voice-attach">Voice &amp; attachments</a>
+    <a href="#u-install">Installing the app</a>
+    <a href="#u-offline">Working offline</a>
+    <a href="#u-appearance">Dark mode</a>
+    <a href="#u-locked">Locked apps</a>
+    <a href="#u-faq">Common questions</a>
+  </nav>
+
+  <!-- ============ ADMINS RAIL ============ -->
+  <nav class="rail" id="rail-admins" aria-label="Admins sections" style="display:none">
+    <a href="#a-overview">Overview</a>
+    <a href="#a-setup">Guided setup</a>
+    <a href="#a-accounts">Admin accounts &amp; roles</a>
+    <a href="#a-security">Login security</a>
+    <a href="#a-licensing">Licensing &amp; packages</a>
+    <a href="#a-access">App access</a>
+    <a href="#a-sources">Data sources</a>
+    <a href="#a-records">Records (CRUD)</a>
+    <a href="#a-faq">FAQ promotion</a>
+    <a href="#a-backup">Backup &amp; restore</a>
+    <a href="#a-branding">Branding</a>
+  </nav>
+
+  <!-- ============ DEVELOPERS RAIL ============ -->
+  <nav class="rail" id="rail-developers" aria-label="Developers sections" style="display:none">
+    <a href="#d-overview">Overview</a>
+    <a href="#d-structure">Project structure</a>
+    <a href="#d-storage">Storage &amp; data sources</a>
+    <a href="#d-pillars">The four pillars</a>
+    <a href="#d-bootstrap">bootstrap.php helpers</a>
+    <a href="#d-api">API endpoints</a>
+    <a href="#d-host">Host-app integration</a>
+    <a href="#d-security">Security model</a>
+    <a href="#d-pwa">PWA internals</a>
+  </nav>
+
+  <!-- ============================================================ -->
+  <!-- USERS                                                          -->
+  <!-- ============================================================ -->
+  <main class="pane active" id="pane-users">
+    <div class="rail-chips">
+      <a href="#u-overview" class="current">Overview</a>
+      <a href="#u-searching">Searching</a>
+      <a href="#u-sectors">Sectors</a>
+      <a href="#u-voice-attach">Voice &amp; files</a>
+      <a href="#u-install">Install</a>
+      <a href="#u-offline">Offline</a>
+      <a href="#u-appearance">Dark mode</a>
+      <a href="#u-locked">Locked apps</a>
+      <a href="#u-faq">FAQs</a>
+    </div>
+
+    <h1>Using Killi</h1>
+    <p class="lede">Killi is a search box that talks back. Type or say what you're looking for, and it searches, answers, and remembers — no separate "search" and "chat" screens to switch between.</p>
+
+    <section class="block" id="u-overview">
+      <h2>Overview</h2>
+      <p>Everything happens in one screen: a search bar at the bottom, a conversation above it, and a row of quick-start topics. Type a question the way you'd ask a person, or tap a topic chip to jump straight in.</p>
+      <div class="callout">
+        <p>Killi doesn't need an internet connection to feel fast, but it does need one to answer — it's not a general AI chatbot. It searches the exact information the people running this app gave it, and follows up conversationally on top of that.</p>
+      </div>
+    </section>
+
+    <section class="block" id="u-searching">
+      <h2>Searching &amp; chatting</h2>
+      <p>Type into the search bar and press the arrow, or hit <span class="kbd">Enter</span>. Killi looks for the closest match — including matches for words you've slightly misspelled or typed differently (it understands "colour" and "color," or "recieve" and "receive," as the same word).</p>
+      <p>If your question is broad, Killi asks a short follow-up instead of guessing. Answer that, and it narrows down to the right result — the same way you'd clarify with a person behind a counter.</p>
+      <p>Once you get an answer, you can keep going in the same thread: "what about the weekend hours?" or "is that the same for the downtown branch?" both refer back to what you just asked, without you having to repeat yourself.</p>
+    </section>
+
+    <section class="block" id="u-sectors">
+      <h2>Sectors &amp; chips</h2>
+      <p>The row of rounded buttons above the search bar are shortcuts into the most common topics. Tapping one fills the search bar with that topic — it doesn't submit automatically, so you can adjust the wording first if you want.</p>
+    </section>
+
+    <section class="block" id="u-voice-attach">
+      <h2>Voice &amp; attachments</h2>
+      <p>Where the microphone button is present, tap it and speak your question instead of typing it — useful one-handed or on the move.</p>
+      <p>Some Killi apps also let you attach a photo or PDF alongside your question (for example, a picture of a product or a receipt). Look for the paperclip icon next to the search bar — it only appears where the app you're using has turned attachments on.</p>
+    </section>
+
+    <section class="block" id="u-install">
+      <h2>Installing the app</h2>
+      <p>Killi can be installed like a native app on your phone, tablet, or computer — no app store required.</p>
+      <ol class="steps">
+        <li><span class="stepnum">1</span><div><p><strong>Look for the install icon</strong> (a downward arrow) near the top-right of the screen. It only appears once your browser decides the page is installable — this can take a moment on first visit.</p></div></li>
+        <li><span class="stepnum">2</span><div><p><strong>Tap it, then confirm.</strong> Your browser shows a native "Add to Home Screen" / "Install app" prompt — accept it.</p></div></li>
+        <li><span class="stepnum">3</span><div><p><strong>Open it from your home screen or app list</strong> from then on. It launches in its own window, full-screen, with no browser address bar.</p></div></li>
+      </ol>
+      <p>Long-press (or right-click) the installed icon to jump straight into one of the top topics, the same way the topic chips work inside the app.</p>
+      <div class="callout">
+        <p>Not every deployment offers installation — some sites embed Killi inside a larger page, where the surrounding site handles its own "app" experience instead.</p>
+      </div>
+    </section>
+
+    <section class="block" id="u-offline">
+      <h2>Working offline</h2>
+      <p>Once installed, Killi keeps its own look and feel available even with no signal — the interface itself still opens. Answers still require a connection, though: if you're fully offline when you open the app, you'll see a simple, unbranded "you're offline" page instead of a stale answer that might be wrong.</p>
+    </section>
+
+    <section class="block" id="u-appearance">
+      <h2>Dark mode</h2>
+      <p>Tap the moon icon in the header to switch between light and dark. Your choice is remembered the next time you open the app.</p>
+    </section>
+
+    <section class="block" id="u-locked">
+      <h2>Locked apps</h2>
+      <p>Some Killi apps are password-protected — you'll see a simple unlock screen before anything else loads. If you're already mid-conversation when a session expires, Killi won't lose your place: it shows an inline prompt right in the chat, and picks the conversation back up exactly where you left off once you re-enter the password.</p>
+    </section>
+
+    <section class="block" id="u-faq">
+      <h2>Common questions</h2>
+      <h3>Killi gave me an answer that seems out of date.</h3>
+      <p>Killi only knows what the organization running it has told it. If something's changed recently, let them know — there's usually a way to reach them referenced in the answer itself.</p>
+      <h3>Can I use Killi in another language?</h3>
+      <p>That depends on the content the organization has provided — Killi searches in whatever language its information was written in.</p>
+      <h3>Is my conversation private?</h3>
+      <p>Killi remembers your current conversation so follow-up questions make sense, and anonymized questions may be logged to help the organization improve their answers over time. It doesn't ask for personal information unless a specific form on the site requests it.</p>
+    </section>
+  </main>
+
+  <!-- ============================================================ -->
+  <!-- ADMINS                                                         -->
+  <!-- ============================================================ -->
+  <main class="pane" id="pane-admins">
+    <div class="rail-chips">
+      <a href="#a-overview" class="current">Overview</a>
+      <a href="#a-setup">Setup</a>
+      <a href="#a-accounts">Accounts &amp; roles</a>
+      <a href="#a-security">Login security</a>
+      <a href="#a-licensing">Licensing</a>
+      <a href="#a-access">App access</a>
+      <a href="#a-sources">Data sources</a>
+      <a href="#a-records">Records</a>
+      <a href="#a-faq">FAQ promotion</a>
+      <a href="#a-backup">Backup</a>
+      <a href="#a-branding">Branding</a>
+    </div>
+
+    <h1>Running Killi</h1>
+    <p class="lede">The admin area is where you connect your information, control who can manage it, and shape what the people using your Killi app can see and do.</p>
+
+    <section class="block" id="a-overview">
+      <h2>Overview</h2>
+      <p>Everything an admin needs lives under <code class="inline">/admin</code>: a guided setup wizard for first-time configuration, and a single connections page for ongoing management of data sources, admin accounts, licensing, and app access. Records, FAQ promotion, and backups each have their own dedicated screen linked from there.</p>
+    </section>
+
+    <section class="block" id="a-setup">
+      <h2>Guided setup</h2>
+      <p>The first admin to visit is walked through a three-step wizard:</p>
+      <ol class="steps">
+        <li><span class="stepnum">1</span><div><p><strong>License activation.</strong> Enter a license key to unlock Standard or Ultra features, or skip to continue on Free.</p></div></li>
+        <li><span class="stepnum">2</span><div><p><strong>App password.</strong> Optionally set a password that visitors must enter before they can use the search/chat app at all. Skippable.</p></div></li>
+        <li><span class="stepnum">3</span><div><p><strong>Summary.</strong> Confirms what's configured and marks setup complete.</p></div></li>
+      </ol>
+      <p>Once setup is marked complete, editors (see below) are redirected straight past the wizard to the main connections page — only an owner can re-enter it.</p>
+    </section>
+
+    <section class="block" id="a-accounts">
+      <h2>Admin accounts &amp; roles</h2>
+      <p>Killi supports multiple admin logins, each assigned one of two roles:</p>
+      <div class="card-grid">
+        <div class="card">
+          <h3><span class="badge owner">Owner</span></h3>
+          <p>Full control: manage other admin accounts, licensing, database connections, backups and restores, and every editor capability below.</p>
+        </div>
+        <div class="card">
+          <h3><span class="badge">Editor</span></h3>
+          <p>Day-to-day content work: manage records, promote FAQs, adjust branding. Cannot create/remove admins, change licensing, manage database connections, or restore a backup.</p>
+        </div>
+      </div>
+      <p>Manage accounts from the <strong>Admin accounts</strong> card on the connections page — owners can add a new admin, assign a role, or remove an account.</p>
+    </section>
+
+    <section class="block" id="a-security">
+      <h2>Login security</h2>
+      <p>Every admin form submission (login, setup, connections, records, FAQ, backup) is protected by a per-session CSRF token, checked before any action runs.</p>
+      <p>Repeated failed logins from the same address are rate-limited: five failed attempts locks that address out of the login form for 15 minutes, protecting against password guessing.</p>
+    </section>
+
+    <section class="block" id="a-licensing">
+      <h2>Licensing &amp; packages</h2>
+      <p>Killi ships in three tiers. Activate a license key from the <strong>Licensing</strong> card to move from Free up to Standard or Ultra — the app immediately reflects the new tier without any other configuration.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Feature</th><th>Free</th><th>Standard</th><th>Ultra</th></tr></thead>
+          <tbody>
+            <tr><td>Search &amp; chat</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+            <tr><td>Forms</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+            <tr><td>Conversation memory</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+            <tr><td>File attachments</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+            <tr><td>Records (CRUD)</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+            <tr><td>CSV / JSON import</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+            <tr><td>Live database connections</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+            <tr><td>Multiple data sources</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+            <tr><td>Remove "Powered by Killi"</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A feature outside your current tier is hidden from the interface entirely rather than shown disabled — nothing to trip over by accident.</p>
+    </section>
+
+    <section class="block" id="a-access">
+      <h2>App access</h2>
+      <p>The <strong>App access</strong> card lets an owner turn the visitor-facing password lock on or off, and change the password, independent of the setup wizard.</p>
+    </section>
+
+    <section class="block" id="a-sources">
+      <h2>Data sources <span class="badge standard">Standard+</span></h2>
+      <p>Killi can search and answer from several kinds of data, configured from the <strong>Database connections</strong> card:</p>
+      <div class="card-grid">
+        <div class="card">
+          <h3>Local content</h3>
+          <p>The built-in JSON content you write directly — always available, no license required beyond Free's baseline search.</p>
+        </div>
+        <div class="card">
+          <h3>Imported files <span class="badge ultra">Ultra</span></h3>
+          <p>Upload a CSV or JSON export from another system; Killi detects its structure automatically and folds it into search.</p>
+        </div>
+        <div class="card">
+          <h3>Cached database snapshot <span class="badge ultra">Ultra</span></h3>
+          <p>Connect to a real MySQL/PostgreSQL database and pull a one-time copy in. Fast, but won't reflect later changes until refreshed.</p>
+        </div>
+        <div class="card">
+          <h3>Live database query <span class="badge ultra">Ultra</span></h3>
+          <p>Connect live — every search reads the database fresh. Optionally mark the connection <strong>writable</strong> so the Records screen can create, edit, and delete real rows, not just read them.</p>
+        </div>
+      </div>
+      <p>Use <strong>Test connection</strong> to verify credentials, <strong>Preview</strong> to see a sample of what will be searchable before committing, then <strong>Publish</strong> to make it live.</p>
+    </section>
+
+    <section class="block" id="a-records">
+      <h2>Records (CRUD) <span class="badge standard">Standard+</span></h2>
+      <p>The <strong>Records</strong> screen is a straightforward create/edit/delete table over whichever data source you select — local content, an import, or a writable live database. Search and pagination work the same way regardless of where the data actually lives. Read-only sources (a non-writable live connection) hide the create/edit/delete controls automatically rather than letting you attempt a change that can't be saved.</p>
+    </section>
+
+    <section class="block" id="a-faq">
+      <h2>FAQ promotion</h2>
+      <p>Killi quietly logs the questions people actually ask. The <strong>FAQ</strong> screen surfaces the most frequent ones so you can turn a common question into an official, curated answer with one click — turning real usage into better answers over time.</p>
+    </section>
+
+    <section class="block" id="a-backup">
+      <h2>Backup &amp; restore <span class="badge owner">Owner only</span></h2>
+      <p>Create a backup at any time to download a zip of your content and configuration (credentials and secrets are never included). Restoring validates every file inside the zip before touching anything live — unrecognized paths or malformed content are silently skipped rather than applied.</p>
+    </section>
+
+    <section class="block" id="a-branding">
+      <h2>Branding</h2>
+      <p>Product name, tagline, color palette, and search placeholder text are all configurable, and apply immediately across the chat app, its installed-app icon, and its splash colors. Ultra removes the "Powered by Killi" attribution line for a fully white-labeled look.</p>
+    </section>
+  </main>
+
+  <!-- ============================================================ -->
+  <!-- DEVELOPERS                                                     -->
+  <!-- ============================================================ -->
+  <main class="pane" id="pane-developers">
+    <div class="rail-chips">
+      <a href="#d-overview" class="current">Overview</a>
+      <a href="#d-structure">Structure</a>
+      <a href="#d-storage">Storage</a>
+      <a href="#d-pillars">Four pillars</a>
+      <a href="#d-bootstrap">bootstrap.php</a>
+      <a href="#d-api">API</a>
+      <a href="#d-host">Host integration</a>
+      <a href="#d-security">Security</a>
+      <a href="#d-pwa">PWA</a>
+    </div>
+
+    <h1>Building on Killi</h1>
+    <p class="lede">Killi is plain PHP 8 and vanilla JavaScript — no framework, no build step, no required database. It runs on any PHP host and scales up to real MySQL/PostgreSQL only when you choose to.</p>
+
+    <section class="block" id="d-overview">
+      <h2>Overview</h2>
+      <p>The codebase is organized around four pillars — <strong>Search</strong>, <strong>Conversation</strong>, <strong>Memory</strong>, and <strong>CRUD</strong> — sitting on top of a swappable storage layer. Everything is namespaced under <code class="inline">Killi\Core</code> and <code class="inline">Killi\Adapters</code>, and wired together through a single <code class="inline">bootstrap.php</code> that every entry point requires.</p>
+    </section>
+
+    <section class="block" id="d-structure">
+      <h2>Project structure</h2>
+      <div class="file-tree"><div>kilisearch-ultra/
+  bootstrap.php          <span class="comment"># global killi_* helpers, feature gating, wiring</span>
+  core/                  <span class="comment"># SearchEngine, ConversationEngine, MemoryEngine,</span>
+                          <span class="comment"># CrudEngine, ConnectionManager, DbAdapter, ...</span>
+  adapters/               <span class="comment"># StorageInterface + JsonAdapter</span>
+  admin/                  <span class="comment"># connections.php, setup.php, records.php, faq.php, backup.php</span>
+  api/                    <span class="comment"># records.php, export.php, app_auth.php (JSON endpoints)</span>
+  portal/                 <span class="comment"># index.php (chat UI), manifest.php, icon.php, sw.js, offline.html</span>
+  assets/                 <span class="comment"># css/killi.css, js/killi.js</span>
+  config/                 <span class="comment"># packages.json, branding, data_sources.json</span>
+  data/                   <span class="comment"># content JSON, admins.json, query_log.json, audit_log.json</span>
+  examples/               <span class="comment"># host-app-demo.php</span></div></div>
+    </section>
+
+    <section class="block" id="d-storage">
+      <h2>Storage &amp; data sources</h2>
+      <p>All four pillars talk to data through <code class="inline">StorageInterface</code>, never a concrete class — this is what lets the same <code class="inline">CrudEngine</code> operate identically over local JSON or a live production database.</p>
+      <div class="card-grid">
+        <div class="card">
+          <h3><code class="inline">JsonAdapter</code></h3>
+          <p>Reads/writes a local JSON file. Backs local content and both imported and cached-snapshot sources.</p>
+        </div>
+        <div class="card">
+          <h3><code class="inline">DbAdapter</code></h3>
+          <p><code class="inline">all()</code> queries the live database fresh on every call. <code class="inline">save()</code>/<code class="inline">delete()</code> only perform real writes when the source is marked writable, via <code class="inline">ConnectionManager</code>.</p>
+        </div>
+      </div>
+      <p><code class="inline">ConnectionManager</code> holds PDO connection handling plus <code class="inline">insertRow()</code>, <code class="inline">updateRow()</code>, and <code class="inline">deleteRow()</code> for live writes, and <code class="inline">DataSourceEngine</code>/<code class="inline">SchemaDetector</code> handle picking the active source and inferring structure from an imported CSV/JSON file.</p>
+    </section>
+
+    <section class="block" id="d-pillars">
+      <h2>The four pillars</h2>
+      <div class="card-grid">
+        <div class="card">
+          <h3>Search</h3>
+          <p><code class="inline">SearchEngine</code> — fuzzy matching (Levenshtein distance) and phonetic matching (Soundex), a relevance gate to avoid forcing a bad match, and ranked results.</p>
+        </div>
+        <div class="card">
+          <h3>Conversation</h3>
+          <p><code class="inline">ConversationEngine</code> — rule-based dialogue and clarifying follow-ups. No LLM or external AI call is involved anywhere in Killi.</p>
+        </div>
+        <div class="card">
+          <h3>Memory</h3>
+          <p><code class="inline">MemoryEngine</code> — Jaccard token-overlap for recalling relevant past Q&amp;A, plus query logging that feeds the admin FAQ-promotion screen.</p>
+        </div>
+        <div class="card">
+          <h3>CRUD</h3>
+          <p><code class="inline">CrudEngine</code> — validated create/update/delete over any <code class="inline">StorageInterface</code> (required title, email-format checks, status enums), with search and pagination built in.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="d-bootstrap">
+      <h2>bootstrap.php helpers</h2>
+      <p>Every entry point requires <code class="inline">bootstrap.php</code>, which exposes ~30 global <code class="inline">killi_*</code> functions. The ones you'll touch most:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Function</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">killi_has_feature()</code></td><td>Check whether the active package includes a feature</td></tr>
+            <tr><td><code class="inline">killi_require_feature_json()</code></td><td>Gate a JSON endpoint, 403 with a JSON body if absent</td></tr>
+            <tr><td><code class="inline">killi_current_package()</code></td><td>Get the active license tier</td></tr>
+            <tr><td><code class="inline">killi_csrf_field()</code> / <code class="inline">killi_verify_csrf()</code></td><td>Render/verify the per-session CSRF token</td></tr>
+            <tr><td><code class="inline">killi_create_admin()</code> / <code class="inline">killi_delete_admin()</code></td><td>Manage admin accounts</td></tr>
+            <tr><td><code class="inline">killi_is_admin_owner()</code> / <code class="inline">killi_current_admin_role()</code></td><td>Role checks for gating owner-only actions</td></tr>
+            <tr><td><code class="inline">killi_build_storage()</code></td><td>Resolve the correct adapter for the active data source</td></tr>
+            <tr><td><code class="inline">killi_crud_engine()</code></td><td>Get a wired-up <code class="inline">CrudEngine</code> for the active source</td></tr>
+            <tr><td><code class="inline">killi_publish_live_source()</code></td><td>Commit a tested connection as the live data source</td></tr>
+            <tr><td><code class="inline">killi_record_audit()</code></td><td>Append an entry to the admin audit log</td></tr>
+            <tr><td><code class="inline">killi_backup_restore()</code></td><td>Validate and apply an uploaded backup zip</td></tr>
+            <tr><td><code class="inline">killi_setup_complete()</code> / <code class="inline">killi_mark_setup_complete()</code></td><td>Gate/advance the guided setup wizard</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="block" id="d-api">
+      <h2>API endpoints</h2>
+      <p>The chat frontend and admin screens both talk to a small set of JSON endpoints under <code class="inline">/api</code>:</p>
+      <ul>
+        <li><code class="inline">api/records.php</code> — search/create/update/delete against the active CRUD source, feature-gated the same way as the admin UI</li>
+        <li><code class="inline">api/export.php</code> — export the active source's records</li>
+        <li><code class="inline">api/app_auth.php</code> — backs the inline mid-chat unlock prompt, so a session expiring mid-conversation doesn't drop the visitor back to a blank login screen</li>
+      </ul>
+    </section>
+
+    <section class="block" id="d-host">
+      <h2>Host-app integration</h2>
+      <p>Killi can run standalone or be embedded inside a larger application. A host app authenticates the visitor itself and hands identity to Killi by setting <code class="inline">$_SESSION['killi_host_user']</code> before Killi's bootstrap runs — see <code class="inline">examples/host-app-demo.php</code> for the reference pattern.</p>
+      <p>Pass <code class="inline">?embed=1</code> when linking or iframing <code class="inline">portal/index.php</code> from a host app: it suppresses the PWA manifest, install prompt, and service worker registration, since the host app owns its own "installable app" story.</p>
+    </section>
+
+    <section class="block" id="d-security">
+      <h2>Security model</h2>
+      <ul>
+        <li><strong>CSRF</strong> — every state-changing admin form is protected by a per-session token, checked server-side before the action runs.</li>
+        <li><strong>Login rate-limiting</strong> — 5 failed attempts locks an IP out of the admin login form for 15 minutes.</li>
+        <li><strong>Identifier validation</strong> — live-query writes reverse-map canonical fields to real column/table names through <code class="inline">ConnectionManager::assertIdentifier()</code> (<code class="inline">/^[A-Za-z_][A-Za-z0-9_]*$/</code>), rejecting anything that isn't a plain identifier before it ever reaches SQL — defense-in-depth against injection via a malicious configured column name.</li>
+        <li><strong>Backup restore allowlist</strong> — a restored zip is only ever applied entry-by-entry after validating each path is a flat <code class="inline">data/*.json</code> or <code class="inline">config/*.json</code> file with genuinely parseable JSON content; anything else (path traversal, wrong extension, malformed JSON) is silently skipped.</li>
+        <li><strong>Role gating</strong> — owner-only actions (admin management, licensing, database connections, backup/restore) are checked both in the UI (hidden controls) and again server-side on the handling endpoint.</li>
+      </ul>
+    </section>
+
+    <section class="block" id="d-pwa">
+      <h2>PWA internals</h2>
+      <p><code class="inline">portal/manifest.php</code> generates the web app manifest dynamically from the active branding config (name, colors, icon) and includes shortcuts into the top sectors. <code class="inline">portal/icon.php</code> renders the app icon on the fly with GD — no bundled font or image asset required. <code class="inline">portal/sw.js</code> is a minimal service worker: it caches only the static shell (CSS, JS, the offline fallback page) and deliberately never caches <code class="inline">index.php</code> or any <code class="inline">/api/*</code> response, since those carry live session, branding, and search state that a stale cached copy would get wrong. Navigation requests use a network-first strategy with <code class="inline">cache: 'no-store'</code>, falling back to <code class="inline">offline.html</code> only when the network is genuinely unreachable.</p>
+    </section>
+  </main>
+
+</div>
+
+<footer class="page">Killi — search, chat, memory, and records in one lightweight PHP app.</footer>
+
+<script>
+(function () {
+  var panes = { users: 'pane-users', admins: 'pane-admins', developers: 'pane-developers' };
+  var rails = { users: 'rail-users', admins: 'rail-admins', developers: 'rail-developers' };
+  var buttons = Array.prototype.slice.call(document.querySelectorAll('.switcher button'));
+
+  function activate(key, pushHash) {
+    buttons.forEach(function (b) {
+      var isActive = b.getAttribute('data-pane') === key;
+      b.classList.toggle('active', isActive);
+      b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    Object.keys(panes).forEach(function (k) {
+      document.getElementById(panes[k]).classList.toggle('active', k === key);
+    });
+    Object.keys(rails).forEach(function (k) {
+      document.getElementById(rails[k]).style.display = (k === key) ? '' : 'none';
+    });
+    if (pushHash) {
+      history.replaceState(null, '', '#' + key);
+    }
+  }
+
+  buttons.forEach(function (b) {
+    b.addEventListener('click', function () {
+      activate(b.getAttribute('data-pane'), true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  var initial = (location.hash || '').replace('#', '');
+  if (panes[initial]) {
+    activate(initial, false);
+  }
+
+  var observers = [];
+  function setupScrollSpy(paneId, railId) {
+    var pane = document.getElementById(paneId);
+    var rail = document.getElementById(railId);
+    var links = Array.prototype.slice.call(rail.querySelectorAll('a'));
+    var sections = Array.prototype.slice.call(pane.querySelectorAll('section[id]'));
+    if (!sections.length) return;
+
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        var id = entry.target.id;
+        links.forEach(function (l) {
+          l.classList.toggle('current', l.getAttribute('href') === '#' + id);
+        });
+        document.querySelectorAll('.rail-chips a').forEach(function (l) {
+          l.classList.toggle('current', l.getAttribute('href') === '#' + id);
+        });
+      });
+    }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+
+    sections.forEach(function (s) { io.observe(s); });
+    observers.push(io);
+  }
+
+  setupScrollSpy('pane-users', 'rail-users');
+  setupScrollSpy('pane-admins', 'rail-admins');
+  setupScrollSpy('pane-developers', 'rail-developers');
+})();
+</script>
+
+</body>
+</html>
