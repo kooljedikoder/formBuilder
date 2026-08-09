@@ -123,6 +123,7 @@ body {
   gap: 8px;
   animation: killi-rise 0.2s ease;
 }
+.killi-rate-panel[hidden] { display: none; }
 .killi-rate-stars { display: flex; gap: 4px; justify-content: center; }
 .killi-star {
   border: none;

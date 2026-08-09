@@ -1006,3 +1006,26 @@ name; clicked "Exit demo" and confirmed the banner disappears and the
 session flag is actually cleared; confirmed `?tier=admin` (not a real
 package id) is rejected and just re-shows the picker rather than setting
 anything.
+
+## Bug fix: rating panel visible on every page load
+
+Found while building a standalone chat-preview mockup for the user (not
+shipped — a one-off HTML file, not part of this repo) and ported the real
+`killi.css` into it for accuracy. Doing that surfaced a real bug in the
+shipped CSS: `.killi-rate-panel` sets `display: flex` unconditionally,
+which — per how the CSS cascade weighs origins — overrides the browser's
+own `[hidden] { display: none }` rule even though `portal/index.php`
+renders the panel with the `hidden` attribute. Every fresh page load
+showed the 5-star panel floating over the welcome message, before any
+conversation happened and before the star button that's supposed to
+reveal it.
+
+Fix: added `.killi-rate-panel[hidden] { display: none; }` (the same
+pattern already used for `.killi-unlock-error[hidden]`) so the attribute
+wins again.
+
+Verified against a real running server: confirmed the panel is
+`isVisible() === false` on a fresh load, ran a search so the star button
+appears, clicked it, confirmed the panel opens correctly, submitted a
+rating, confirmed it still saves to `data/session_feedback.json` as
+before.
