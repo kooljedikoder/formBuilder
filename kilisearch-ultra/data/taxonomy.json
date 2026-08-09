@@ -1,0 +1,83 @@
+[
+  {
+    "sector": "Automotive",
+    "categories": [
+      { "category": "Vehicle Repair", "subcategories": ["Mechanic", "Auto Electrical", "Air Conditioning", "Body Work"] },
+      { "category": "Vehicle Sales", "subcategories": ["New Cars", "Used Cars"] },
+      { "category": "Vehicle Parts", "subcategories": ["Spare Parts", "Tyres"] }
+    ]
+  },
+  {
+    "sector": "Hospitality",
+    "categories": [
+      { "category": "Restaurants", "subcategories": ["Seafood", "Fast Food", "Fine Dining"] },
+      { "category": "Hotels", "subcategories": ["Budget", "Luxury"] },
+      { "category": "Bars", "subcategories": ["Lounge", "Pub"] }
+    ]
+  },
+  {
+    "sector": "Healthcare",
+    "categories": [
+      { "category": "Pharmacies", "subcategories": ["24-Hour Pharmacy", "Retail Pharmacy"] },
+      { "category": "Clinics", "subcategories": ["General", "Dental"] },
+      { "category": "Hospitals", "subcategories": ["Private", "Public"] }
+    ]
+  },
+  {
+    "sector": "Beauty & Wellness",
+    "categories": [
+      { "category": "Salons", "subcategories": ["Hair", "Nails", "Spa"] }
+    ]
+  },
+  {
+    "sector": "Professional Services",
+    "categories": [
+      { "category": "Legal", "subcategories": ["Consultation", "Litigation"] }
+    ]
+  },
+  {
+    "sector": "Education",
+    "categories": [
+      { "category": "Schools", "subcategories": ["Nursery & Primary", "Secondary"] }
+    ]
+  },
+  {
+    "sector": "Real Estate",
+    "categories": [
+      { "category": "Agencies", "subcategories": ["Sales & Rentals", "Property Management"] }
+    ]
+  },
+  {
+    "sector": "Fitness",
+    "categories": [
+      { "category": "Gyms", "subcategories": ["24-Hour Gym", "Personal Training"] }
+    ]
+  },
+  {
+    "sector": "Retail",
+    "categories": [
+      { "category": "Bookstores", "subcategories": ["Bookstore & Cafe"] }
+    ]
+  },
+  {
+    "sector": "Events",
+    "categories": [
+      { "category": "Catering", "subcategories": ["Weddings & Corporate"] }
+    ]
+  },
+  {
+    "sector": "Technology",
+    "categories": [
+      { "category": "Gadget Repair", "subcategories": ["Phone Repair", "Laptop Repair"] },
+      { "category": "IT Services", "subcategories": ["Networking", "Software"] }
+    ]
+  },
+  {
+    "sector": "Home Services",
+    "categories": [
+      { "category": "Cleaning", "subcategories": ["Residential", "Office"] },
+      { "category": "Plumbing", "subcategories": ["Emergency Repair", "Installation"] },
+      { "category": "Electrical", "subcategories": ["Wiring", "Appliance Repair"] }
+    ]
+  }
+]

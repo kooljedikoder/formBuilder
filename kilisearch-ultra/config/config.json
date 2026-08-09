@@ -1,0 +1,12 @@
+{
+  "app_name": "KiliSearch Ultra",
+  "version": "0.1.0-poc",
+  "storage_driver": "json",
+  "data_file": "data/data.json",
+  "taxonomy_file": "data/taxonomy.json",
+  "locations_file": "data/locations.json",
+  "sources_file": "data/sources.json",
+  "search_config_file": "config/search.json",
+  "default_language": "en",
+  "results_per_page": 10
+}

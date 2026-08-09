@@ -1,0 +1,20 @@
+{
+  "default_package": "free",
+  "packages": [
+    {
+      "id": "free",
+      "name": "Free",
+      "features": ["search"]
+    },
+    {
+      "id": "standard",
+      "name": "Standard",
+      "features": ["search", "forms", "memory", "attachments", "crud"]
+    },
+    {
+      "id": "ultra",
+      "name": "Ultra",
+      "features": ["search", "forms", "memory", "attachments", "crud", "import", "db_connections", "multi_source", "white_label"]
+    }
+  ]
+}

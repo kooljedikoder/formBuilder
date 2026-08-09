@@ -1,0 +1,9 @@
+# Real credentials — never committed. See .env.example for the template.
+.env
+
+# User-uploaded attachments — keep the directory (via .htaccess) but not its contents.
+storage/uploads/*
+!storage/uploads/.htaccess
+
+# Generated backup archives — reproducible from data/ + config/, not source.
+storage/backups/*.zip
