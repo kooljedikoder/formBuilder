@@ -1194,3 +1194,36 @@ tab's content. Re-verified for `menu_catalog` layout (single flat body,
 no tabs) to confirm the same wrapping logic doesn't break records that
 have no `.killi-modal-tabs` at all. Close button still closes the modal
 in both cases. All seeded test data reverted afterward.
+
+## Follow-up fix: the fixed height above created a new problem
+
+Reported (with a screenshot) right after the fix above shipped: opening a
+sparse record — one with barely any fields, like "Femi's Garage" with
+only a phone number and rating — left a huge dead void under the little
+content it had. Looked like something was missing; it wasn't, the modal
+was just always 600px regardless of how little there was to show.
+
+The literal "fixed height" fix traded one problem for another: no resize
+*while switching tabs*, but the same tall box for every record regardless
+of how much content it actually has. The right fix locks the height once,
+per record, to whatever its tallest tab actually needs — not a global
+constant:
+
+- On open, each `.killi-tab-section` is briefly marked `.current` (one at
+  a time) purely to read its real `scrollHeight`, then restored — this
+  needs the overlay already attached to the document, since a detached
+  node reports 0 for any layout measurement.
+- The modal's height is set once, inline, to
+  `header height + tabs-bar height + tallest tab's content + a few px`,
+  capped at `min(600px, 88vh)` (real app) / `min(560px, phone-height × 0.85)`
+  (demo) and floored so it's never absurdly short.
+- Because this happens once at open — not on every tab click — switching
+  tabs still never resizes the modal. A rich record gets a tall box that
+  fits its tallest tab; a sparse one gets a short box that fits what it
+  actually has.
+
+Verified against a real running server and the demo artifact alike:
+measured modal height for a sparse record (324px real app / 280px demo,
+down from a flat 600px) and a rich one (unchanged tall height, confirmed
+constant across all 4 tabs again). Screenshotted both in dark mode to
+match how the bug was originally reported.

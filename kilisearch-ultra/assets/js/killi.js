@@ -672,6 +672,32 @@
     document.addEventListener('keydown', onKey);
 
     document.body.appendChild(overlay);
+
+    // Lock the modal to a height that fits its content, measured once
+    // here (so it never resizes mid-switch) rather than a flat constant —
+    // a "Simple" record with almost nothing to show would otherwise sit
+    // inside the same tall box as a fully-populated one, all empty space
+    // below a few lines of content.
+    var tabSections = scrollBody.querySelectorAll('.killi-tab-section');
+    var contentHeight = 0;
+    if (tabSections.length) {
+      Array.prototype.forEach.call(tabSections, function (sec) {
+        var wasCurrent = sec.classList.contains('current');
+        sec.classList.add('current');
+        contentHeight = Math.max(contentHeight, sec.scrollHeight);
+        if (!wasCurrent) sec.classList.remove('current');
+      });
+    } else {
+      contentHeight = scrollBody.scrollHeight;
+    }
+    var header = modal.querySelector('.killi-modal-header');
+    var tabsBar = modal.querySelector('.killi-modal-tabs');
+    var chromeHeight = (header ? header.offsetHeight : 0) + (tabsBar ? tabsBar.offsetHeight : 0);
+    var desired = chromeHeight + contentHeight + 4;
+    var ceiling = Math.min(600, window.innerHeight * 0.88);
+    modal.style.height = Math.max(Math.min(desired, ceiling), 180) + 'px';
+
+    document.body.appendChild(overlay);
   }
 
   function renderResults(records) {
