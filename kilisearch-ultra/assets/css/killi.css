@@ -421,6 +421,15 @@ body {
 .killi-modal-subline .killi-star svg { width: 13px; height: 13px; fill: currentColor; }
 .killi-modal-status-open { color: var(--killi-secondary, #0f9d58); font-weight: 600; }
 
+.killi-star-row { display: inline-flex; gap: 1px; }
+.killi-star-row-icon { display: inline-flex; }
+.killi-star-row-icon svg { width: 13px; height: 13px; fill: var(--killi-border, #d6d8db); }
+.killi-star-row-icon.filled svg { fill: #f2a600; }
+.killi-rating-big .killi-star-row-icon svg { width: 15px; height: 15px; }
+
+.killi-modal-tagline { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; margin: 0 18px 4px; border-top: 1px solid var(--killi-border, #e0e0e0); border-bottom: 1px solid var(--killi-border, #e0e0e0); font-size: 13.5px; }
+.killi-modal-tagline svg { width: 16px; height: 16px; stroke: var(--killi-muted, #5f6368); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
 .killi-modal-tabs { display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; flex-shrink: 0; }
 .killi-modal-tab {
   flex-shrink: 0;
@@ -482,11 +491,12 @@ body {
   gap: 12px;
   padding: 10px 18px 18px;
 }
-.killi-modal-location-text { flex: 1; font-size: 13px; color: var(--killi-text, #202124); line-height: 1.4; }
+.killi-modal-location-text { flex: 1; font-size: 13px; color: var(--killi-text, #202124); line-height: 1.5; }
+.killi-modal-location-text strong { font-size: 13.5px; }
 .killi-map-thumb {
   flex-shrink: 0;
-  width: 56px;
-  height: 56px;
+  width: 68px;
+  height: 68px;
   border-radius: 10px;
   overflow: hidden;
   display: block;

@@ -314,7 +314,18 @@
     share: '<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
     globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></svg>',
     star: '<svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2Z"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>',
   };
+
+  /** A real 5-star row (filled up to the rounded rating), not one icon + a number — matches how every real business-profile card shows a rating. Returns markup, not a node, since callers build subline/tile HTML as strings. */
+  function starRowHtml(rating) {
+    var filled = Math.round(Number(rating) || 0);
+    var html = '';
+    for (var i = 1; i <= 5; i++) {
+      html += '<span class="killi-star-row-icon' + (i <= filled ? ' filled' : '') + '">' + ICONS.star + '</span>';
+    }
+    return '<span class="killi-star-row">' + html + '</span>';
+  }
 
   function buildViewButton(record) {
     var btn = el('button', 'killi-view-btn', ICONS.eye + ' View');
@@ -361,11 +372,15 @@
     a.rel = 'noopener';
     a.className = 'killi-map-thumb';
     a.setAttribute('aria-label', 'Open directions to ' + record.title);
-    a.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true">'
-      + '<rect width="64" height="64" fill="#e8eaed"/>'
-      + '<path d="M0 21h64M0 43h64M18 0v64M46 0v64" stroke="#c7cad1" stroke-width="1.5"/>'
-      + '<path d="M32 16c-6.6 0-11 4.9-11 11 0 8 11 19 11 19s11-11 11-19c0-6.1-4.4-11-11-11Z" fill="#ea4335"/>'
-      + '<circle cx="32" cy="27" r="4" fill="#fff"/>'
+    a.innerHTML = '<svg viewBox="0 0 72 72" aria-hidden="true">'
+      + '<rect width="72" height="72" fill="#e8eaed"/>'
+      + '<path d="M0 16h72M0 38h72M0 58h72" stroke="#d2d5da" stroke-width="2"/>'
+      + '<path d="M14 0v72M46 0v72M60 0v72" stroke="#d2d5da" stroke-width="2"/>'
+      + '<path d="M0 38h72" stroke="#c9dcf7" stroke-width="4"/>'
+      + '<rect x="20" y="20" width="12" height="12" fill="#dbe0e6"/>'
+      + '<rect x="50" y="44" width="10" height="10" fill="#dbe0e6"/>'
+      + '<path d="M36 22c-7.2 0-12 5.4-12 12 0 8 12 20 12 20s12-12 12-20c0-6.6-4.8-12-12-12Z" fill="#ea4335"/>'
+      + '<circle cx="36" cy="34" r="4.5" fill="#fff"/>'
       + '</svg>';
     return a;
   }
@@ -440,13 +455,23 @@
 
     var header = el('div', 'killi-modal-header');
     header.appendChild(el('p', 'killi-modal-title', escapeHtml(record.title)));
-    var sublineParts = [];
-    if (record.rating) sublineParts.push('<span class="killi-star">' + ICONS.star + '</span> ' + Number(record.rating).toFixed(1));
-    if (record.review_count) sublineParts.push('(' + record.review_count + ')');
-    if (record.price_range) sublineParts.push(escapeHtml(record.price_range));
-    if (record.category) sublineParts.push(escapeHtml(record.category));
-    if (record.hours_today) sublineParts.push('<span class="' + (record.is_open_now ? 'killi-modal-status-open' : '') + '">' + escapeHtml(record.hours_today) + '</span>');
-    header.appendChild(el('p', 'killi-modal-subline', sublineParts.join(' · ')));
+    if (record.rating) {
+      var ratingParts = [Number(record.rating).toFixed(1), starRowHtml(record.rating)];
+      if (record.review_count) ratingParts.push('(' + record.review_count + ')');
+      header.appendChild(el('p', 'killi-modal-subline', ratingParts.join(' ')));
+    }
+    // "<category> business in <location>" reads as one natural sentence,
+    // the way a real business-profile card describes itself — falls back
+    // gracefully to whichever half is actually available.
+    var categoryLocation = record.category && record.location ? record.category + ' business in ' + record.location
+      : (record.category || record.location || null);
+    var subline2Parts = [];
+    if (record.price_range) subline2Parts.push(escapeHtml(record.price_range));
+    if (categoryLocation) subline2Parts.push(escapeHtml(categoryLocation));
+    if (subline2Parts.length) header.appendChild(el('p', 'killi-modal-subline', subline2Parts.join(' · ')));
+    if (record.hours_today) {
+      header.appendChild(el('p', 'killi-modal-subline', '<span class="' + (record.is_open_now ? 'killi-modal-status-open' : '') + '">' + escapeHtml(record.hours_today) + '</span>'));
+    }
     body.appendChild(header);
 
     var itemsTabLabel = itemsLabel(record);
@@ -459,6 +484,11 @@
     var photoStrip = buildPhotoStrip(record.photos);
     if (photoStrip) overviewSection.appendChild(photoStrip);
     overviewSection.appendChild(buildActionRow(record));
+    if (record.description) {
+      var tagline = el('div', 'killi-modal-tagline');
+      tagline.innerHTML = '<span>' + escapeHtml(record.description) + '</span>' + ICONS.chevron;
+      overviewSection.appendChild(tagline);
+    }
     if (record.order_online_url) {
       var cta = document.createElement('a');
       cta.className = 'killi-modal-cta';
@@ -486,7 +516,7 @@
     if (record.rating) {
       var reviewTile = el('div', 'killi-info-tile');
       reviewTile.appendChild(el('div', 'killi-info-tile-label', 'Reviews'));
-      var ratingBig = el('div', 'killi-rating-big', Number(record.rating).toFixed(1) + ' ' + ICONS.star);
+      var ratingBig = el('div', 'killi-rating-big', Number(record.rating).toFixed(1) + ' ' + starRowHtml(record.rating));
       reviewTile.appendChild(ratingBig);
       var bars = buildRatingBars(record.rating_breakdown);
       if (bars) reviewTile.appendChild(bars);
@@ -498,7 +528,9 @@
     }
     if (record.address) {
       var locationCard = el('div', 'killi-modal-location');
-      locationCard.appendChild(el('div', 'killi-modal-location-text', escapeHtml(record.address)));
+      var locationText = el('div', 'killi-modal-location-text');
+      locationText.innerHTML = '<strong>' + escapeHtml(record.title) + '</strong><br>' + escapeHtml(record.address);
+      locationCard.appendChild(locationText);
       var mapThumb = buildMapThumb(record);
       if (mapThumb) locationCard.appendChild(mapThumb);
       overviewSection.appendChild(locationCard);
@@ -509,7 +541,7 @@
     reviewsSection.appendChild(el('p', 'killi-modal-title', 'Reviews'));
     if (record.rating) {
       var reviewsHead = el('div', 'killi-info-tile');
-      reviewsHead.appendChild(el('div', 'killi-rating-big', Number(record.rating).toFixed(1) + ' ' + ICONS.star + (record.review_count ? ' <span style="font-size:13px;font-weight:400">(' + record.review_count + ')</span>' : '')));
+      reviewsHead.appendChild(el('div', 'killi-rating-big', Number(record.rating).toFixed(1) + ' ' + starRowHtml(record.rating) + (record.review_count ? ' <span style="font-size:13px;font-weight:400">(' + record.review_count + ')</span>' : '')));
       var reviewsBars = buildRatingBars(record.rating_breakdown);
       if (reviewsBars) reviewsHead.appendChild(reviewsBars);
       reviewsSection.appendChild(reviewsHead);

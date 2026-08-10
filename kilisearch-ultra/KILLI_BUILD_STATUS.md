@@ -1272,3 +1272,50 @@ result — cost real time chasing a phantom bug (a second search appeared
 to inherit the first search's label) that was actually just clicking the
 wrong card. Scope Playwright locators to `.killi-card` with the record's
 title text, always.
+
+## Closing the remaining design gap against the reference
+
+Follow-up on the same reference screenshot: even after the tab-label and
+map-thumbnail fixes, a sparse demo listing (VI Motor Works) still looked
+noticeably thinner than the reference (Jack's HVAC) — not a bug this
+time, a real design gap. Four concrete pieces, all in
+`buildBusinessProfileBody()`:
+
+- **A real 5-star row.** Every rating used to render as one star icon +
+  a number ("★ 4.6"); real business-profile cards show 5 stars, filled
+  up to the rounded rating. New `starRowHtml(rating)` builds that markup
+  once and is used everywhere a rating renders — the header, both
+  Reviews surfaces (the Overview info-tile and the Reviews tab).
+- **Category + location as a sentence.** "Vehicle Repair" alone became
+  "Vehicle Repair business in Victoria Island" — reads the way a real
+  profile describes itself, built from fields that already existed
+  (`category` + `location`), falling back to whichever one is present
+  if only one is.
+- **A description/tagline row.** If `record.description` exists, it now
+  renders as its own row (with a chevron, matching the reference's
+  "see more" affordance) between the action icons and the info tiles —
+  previously the field was collected but never actually shown in this
+  layout.
+- **A richer map thumbnail.** More grid detail (extra "street" lines, two
+  small building blocks, a bigger pin) at a bigger size (68px vs 56px),
+  and the location card now also shows the business name above the
+  address, matching the reference's combined name+address+map block.
+
+All four mirrored into the standalone chat-demo artifact identically.
+The demo's mock listings were also the real reason VI Motor Works looked
+sparse — 5 of its 6 listings had only a title/category/rating/phone, no
+`description` or `address` at all (only "Lekki Auto Clinic" was ever
+fully populated). All 15 real demo records in `data/data.json` already
+had descriptions and addresses, so no data changes were needed there —
+gave all 6 mock listings a one-line description and a street address to
+match, so the improved design is visible on whichever listing gets
+clicked, not just the one already-rich one.
+
+Verified against a real running server and the demo artifact alike:
+confirmed 5 filled stars render for a 4.6-4.9 rated record; confirmed
+the category+location sentence, tagline row, and name+address+map card
+all render for both a sparse-turned-enriched demo listing and a real
+`data.json` record; re-confirmed the modal height-lock from the previous
+fix still holds with this additional content (measured height constant
+across all 4 tabs both before and after this change, since header height
+is measured dynamically rather than assumed).
