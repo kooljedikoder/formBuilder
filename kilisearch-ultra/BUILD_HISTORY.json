@@ -1,0 +1,292 @@
+{
+  "project": "Killi (formerly KiliSearch Ultra)",
+  "description": "Zero-required-database search + chat + memory + CRUD platform, plain PHP/JS, no LLM.",
+  "repo": "kooljedikoder/formBuilder",
+  "path": "kilisearch-ultra/",
+  "branch": "claude/kilisearch-ultra-build-qsuo20",
+  "pull_requests": [
+    {
+      "number": 1,
+      "title": "Add KiliSearch Ultra: search/chat/memory/CRUD engine, licensing, admin, PWA",
+      "state": "merged",
+      "url": "https://github.com/kooljedikoder/formBuilder/pull/1"
+    },
+    {
+      "number": 2,
+      "title": "KilliSearch Ultra: help docs, rename cleanup, deployment guide",
+      "state": "merged",
+      "url": "https://github.com/kooljedikoder/formBuilder/pull/2"
+    },
+    {
+      "number": 3,
+      "title": "KilliSearch Ultra: FAQ tied/untied source, feedback ratings, result-detail layouts",
+      "state": "open",
+      "url": "https://github.com/kooljedikoder/formBuilder/pull/3"
+    }
+  ],
+  "bugs_found_and_fixed": [
+    {
+      "commit": "c7e63a9",
+      "title": "Rating panel visible on every page load",
+      "cause": ".killi-rate-panel set display:flex unconditionally, beating the browser's [hidden] rule.",
+      "fix": "Added .killi-rate-panel[hidden] { display: none; } guard."
+    },
+    {
+      "commit": "b607c2a",
+      "title": "Mobile swipe-to-reveal record cards didn't actually swipe",
+      "cause": ".admin-swipe-actions used inset:0, stretching it to the full card width, so the JS-measured reveal distance was ~4x too large.",
+      "fix": "Changed to top/bottom/right only (no left), so it sizes to its own button content."
+    },
+    {
+      "commit": "5e7326a",
+      "title": "Result-detail modal resized on every tab switch",
+      "cause": ".killi-modal was one scroll container around header+tabs+all tab-sections, so its box height matched whichever tab was visible.",
+      "fix": "Fixed-height flex column; only a new .killi-modal-body wrapper scrolls, header/tabs stay pinned."
+    }
+  ],
+  "deferred_or_rejected": [
+    {
+      "idea": "Opt-in AI rephraser",
+      "status": "deferred",
+      "note": "Full handoff spec written in KILLI_BUILD_STATUS.md; scoped rephrase-only, Ultra-gated, never free generation."
+    },
+    {
+      "idea": "Sentiment analysis library",
+      "status": "rejected_for_now",
+      "note": "Killi's replies are template-driven, not generated — no free text for a sentiment model to steer. Existing rating/zero-result data is a cheaper signal."
+    }
+  ],
+  "commits": [
+    {
+      "commit": "92c00a5",
+      "date": "2026-08-08",
+      "title": "Add KiliSearch Ultra proof-of-concept (KiliGoogle.ai)",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "09c00f1",
+      "date": "2026-08-08",
+      "title": "Add Location, Source and Taxonomy engines to KiliSearch Ultra V1",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "5f194f5",
+      "date": "2026-08-08",
+      "title": "Add schema detector and rule-based conversation engine; fix chip regression",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "5ed52ad",
+      "date": "2026-08-08",
+      "title": "Finish import pipeline: add commit step (detect -> preview -> import)",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "bb0cfaa",
+      "date": "2026-08-08",
+      "title": "Add minimal Enquiry form and FAQ/memory engine",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "983e0fe",
+      "date": "2026-08-08",
+      "title": "Consolidate FaqEngine + query logging into one MemoryEngine",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "7cc4817",
+      "date": "2026-08-08",
+      "title": "Add Data Source Engine: swappable datasets + schema-detected publishing",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "3d746cf",
+      "date": "2026-08-08",
+      "title": "Add dark/light toggle, chip-fills-input, typing indicator, ticks, animation",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "73972a0",
+      "date": "2026-08-08",
+      "title": "Add emoji reactions, file attachment, voice input, media responses, DB connections",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "12682d3",
+      "date": "2026-08-08",
+      "title": "Add two-tier auth: mandatory admin login, optional app-wide password",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "b742771",
+      "date": "2026-08-08",
+      "title": "Add license/package entitlement system with a pluggable host-auth hook",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "aec3d3e",
+      "date": "2026-08-08",
+      "title": "Add reference host-app integration demo + admin default-package control",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "e95683d",
+      "date": "2026-08-08",
+      "title": "Add license key activation to unlock Ultra features",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "47e6c96",
+      "date": "2026-08-08",
+      "title": "Fix product name to Killi, rename tiers to Free/Standard/Ultra, add PACKAGES.md",
+      "pr": 1,
+      "type": "rename"
+    },
+    {
+      "commit": "edff74e",
+      "date": "2026-08-08",
+      "title": "Add guided standalone setup wizard",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "5b6fe35",
+      "date": "2026-08-08",
+      "title": "Audit chat/branding features against tiers, add white-label + fix attachment gating gap",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "4bf2928",
+      "date": "2026-08-08",
+      "title": "Add CRUD engine — the fourth pillar (Search / Conversational / Memory / CRUD)",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "268e7c5",
+      "date": "2026-08-08",
+      "title": "Harden admin security, add multi-admin, FAQ curation, chat auth-survival, live-query DB mode",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "ac72b49",
+      "date": "2026-08-08",
+      "title": "Add admin permission levels, live-query CRUD writes, and standalone PWA",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "60347a0",
+      "date": "2026-08-08",
+      "title": "Add PWA offline fallback page and manifest shortcuts",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "0f14a15",
+      "date": "2026-08-09",
+      "title": "Rename internal Kili identifiers to Killi throughout",
+      "pr": 2,
+      "type": "rename"
+    },
+    {
+      "commit": "44ee65d",
+      "date": "2026-08-09",
+      "title": "Add full help.html covering Users, Admins, and Developers",
+      "pr": 2,
+      "type": "feature"
+    },
+    {
+      "commit": "8f90611",
+      "date": "2026-08-09",
+      "title": "Fix two leftover Kili->Killi rename stragglers",
+      "pr": 2,
+      "type": "rename"
+    },
+    {
+      "commit": "172984f",
+      "date": "2026-08-09",
+      "title": "Add DEPLOYMENT.md",
+      "pr": 2,
+      "type": "feature"
+    },
+    {
+      "commit": "008944e",
+      "date": "2026-08-09",
+      "title": "Add tied/untied toggle for the FAQ source",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "ed95225",
+      "date": "2026-08-09",
+      "title": "Add end-of-conversation ratings and a feedback review screen",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "a36826b",
+      "date": "2026-08-09",
+      "title": "Add 3 fixed result-detail layouts (Simple / Business Profile / Menu & Catalog)",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "4a258b0",
+      "date": "2026-08-09",
+      "title": "Gate Free-tier query logging, add Custom layout, document AI-rephraser idea",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "9d8fb1e",
+      "date": "2026-08-09",
+      "title": "Add a standalone try-it-as-guest demo page for Free/Standard/Ultra",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "c7e63a9",
+      "date": "2026-08-09",
+      "title": "Fix rate panel showing on every page load instead of staying hidden",
+      "pr": 3,
+      "type": "bug_fix"
+    },
+    {
+      "commit": "b607c2a",
+      "date": "2026-08-09",
+      "title": "Add admin dashboard, pill-nav, mobile bottom bar, and dark mode",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "53507c9",
+      "date": "2026-08-09",
+      "title": "Simplify chat feedback prompting, always show View, add camera/video attach and timestamps",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "5e7326a",
+      "date": "2026-08-09",
+      "title": "Fix result-detail modal resizing when switching tabs",
+      "pr": 3,
+      "type": "bug_fix"
+    }
+  ]
+}
