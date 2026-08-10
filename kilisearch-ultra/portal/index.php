@@ -111,7 +111,7 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
       <?php if (!$isEmbedded): ?>
       <button id="killi-install" class="killi-theme-toggle" type="button" aria-label="Install app" hidden>&#8615;</button>
       <?php endif; ?>
-      <button id="killi-rate" class="killi-theme-toggle" type="button" aria-label="Rate this conversation" hidden>&#11088;</button>
+      <button id="killi-rate" class="killi-theme-toggle" type="button" aria-label="Rate this conversation" hidden><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2Z"/></svg></button>
       <button id="killi-theme-toggle" class="killi-theme-toggle" type="button" aria-label="Toggle dark mode">&#127769;</button>
     </div>
   </header>
@@ -159,6 +159,24 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
   <?php if (!$hasWhiteLabel): ?>
   <div class="killi-attribution">Powered by Killi</div>
   <?php endif; ?>
+  <nav class="killi-bottom-nav" id="killi-bottom-nav">
+    <button type="button" class="killi-nav-item active" data-nav="home">
+      <span class="killi-nav-icon"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg></span>
+      <span class="killi-nav-label">Home</span>
+    </button>
+    <button type="button" class="killi-nav-item" data-nav="search">
+      <span class="killi-nav-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+      <span class="killi-nav-label">Search</span>
+    </button>
+    <button type="button" class="killi-nav-item" data-nav="saved">
+      <span class="killi-nav-icon"><svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6Z"/></svg></span>
+      <span class="killi-nav-label">Saved</span>
+    </button>
+    <button type="button" class="killi-nav-item" data-nav="profile">
+      <span class="killi-nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg></span>
+      <span class="killi-nav-label">Profile</span>
+    </button>
+  </nav>
   <?php if ($hasAttachments): ?>
   <div class="killi-attach-sheet" id="killi-attach-sheet" hidden>
     <div class="killi-attach-sheet-card">

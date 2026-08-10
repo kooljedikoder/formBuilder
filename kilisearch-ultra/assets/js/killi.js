@@ -315,6 +315,11 @@
     globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></svg>',
     star: '<svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2Z"/></svg>',
     chevron: '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>',
+    cart: '<svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1.4"/><circle cx="18" cy="21" r="1.4"/><path d="M2.5 3h2l2.6 12.6a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 8H6"/></svg>',
+    home: '<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>',
+    search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    heart: '<svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6Z"/></svg>',
+    user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>',
   };
 
   /** A real 5-star row (filled up to the rounded rating), not one icon + a number — matches how every real business-profile card shows a rating. Returns markup, not a node, since callers build subline/tile HTML as strings. */
@@ -521,19 +526,18 @@
       overviewSection.appendChild(cta);
     }
     var infoGrid = el('div', 'killi-info-grid');
-    if (Array.isArray(record.menu_items) && record.menu_items.length) {
-      var menuTile = el('div', 'killi-info-tile');
-      menuTile.appendChild(el('div', 'killi-info-tile-label', itemsTabLabel));
-      var thumbs = el('div', 'killi-menu-thumbs');
-      record.menu_items.slice(0, 3).forEach(function (item) {
-        if (!item.photo) return;
+    if (Array.isArray(record.photos) && record.photos.length) {
+      var galleryTile = el('div', 'killi-info-tile');
+      galleryTile.appendChild(el('div', 'killi-info-tile-label', 'Gallery'));
+      var galleryThumbs = el('div', 'killi-menu-thumbs');
+      record.photos.slice(0, 3).forEach(function (src) {
         var img = document.createElement('img');
-        img.src = item.photo;
-        img.alt = item.name || '';
-        thumbs.appendChild(img);
+        img.src = src;
+        img.alt = '';
+        galleryThumbs.appendChild(img);
       });
-      menuTile.appendChild(thumbs);
-      infoGrid.appendChild(menuTile);
+      galleryTile.appendChild(galleryThumbs);
+      infoGrid.appendChild(galleryTile);
     }
     if (record.rating) {
       var reviewTile = el('div', 'killi-info-tile');
@@ -560,7 +564,6 @@
     body.appendChild(overviewSection);
 
     var reviewsSection = el('div', 'killi-tab-section');
-    reviewsSection.appendChild(el('p', 'killi-modal-title', 'Reviews'));
     if (record.rating) {
       var reviewsHead = el('div', 'killi-info-tile');
       reviewsHead.appendChild(el('div', 'killi-rating-big', Number(record.rating).toFixed(1) + ' ' + starRowHtml(record.rating) + (record.review_count ? ' <span style="font-size:13px;font-weight:400">(' + record.review_count + ')</span>' : '')));
@@ -599,6 +602,8 @@
           mi.src = item.photo;
           mi.alt = '';
           row.appendChild(mi);
+        } else {
+          row.appendChild(el('div', 'killi-item-row-fallback', ICONS.cart));
         }
         row.appendChild(el('div', '', '<div class="killi-item-row-title">' + escapeHtml(item.name || '') + '</div>'));
         menuList.appendChild(row);
@@ -1227,6 +1232,28 @@
       }).catch(function () {
         submitBtn.disabled = false;
       });
+    });
+  })();
+
+  // Bottom icon nav — Home/Search are real actions; Saved/Profile are
+  // placeholders for now (no such feature yet), so they still switch the
+  // active state but say so rather than silently doing nothing.
+  (function () {
+    var nav = document.getElementById('killi-bottom-nav');
+    if (!nav) return;
+    var navItems = nav.querySelectorAll('.killi-nav-item');
+    nav.addEventListener('click', function (e) {
+      var btn = e.target.closest('.killi-nav-item');
+      if (!btn) return;
+      Array.prototype.forEach.call(navItems, function (item) { item.classList.toggle('active', item === btn); });
+      var target = btn.getAttribute('data-nav');
+      if (target === 'home') {
+        chat.scrollTop = 0;
+      } else if (target === 'search') {
+        input.focus();
+      } else {
+        addBubble('ai', (target === 'saved' ? 'Saved listings' : 'Profile') + " isn't available in this preview yet.");
+      }
     });
   })();
 

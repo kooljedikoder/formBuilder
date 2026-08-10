@@ -69,8 +69,12 @@ body {
   font-size: 16px;
   cursor: pointer;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .killi-theme-toggle:active { background: rgba(255, 255, 255, 0.3); }
+.killi-theme-toggle svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 .killi-chat {
   flex: 1;
@@ -473,11 +477,11 @@ body {
   text-decoration: none;
 }
 
-.killi-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 18px 16px; }
+.killi-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 18px 16px; align-items: start; }
 .killi-info-tile { background: var(--killi-chat-bg, #f8f9fa); border-radius: 10px; padding: 10px 12px; }
 .killi-info-tile-label { font-size: 12.5px; font-weight: 700; margin-bottom: 6px; }
 .killi-menu-thumbs { display: flex; gap: 5px; }
-.killi-menu-thumbs img { flex: 1; aspect-ratio: 1; border-radius: 6px; object-fit: cover; min-width: 0; }
+.killi-menu-thumbs img { width: 44px; height: 44px; flex: 0 0 auto; border-radius: 6px; object-fit: cover; }
 .killi-rating-big { font-size: 21px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
 .killi-rating-big svg { width: 16px; height: 16px; fill: #f2a600; }
 .killi-rating-bars { display: flex; align-items: flex-end; gap: 3px; height: 34px; margin-top: 6px; }
@@ -520,6 +524,12 @@ body {
 .killi-item-list { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 10px; }
 .killi-item-row { display: flex; gap: 10px; align-items: center; }
 .killi-item-row img { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: var(--killi-chat-bg, #f8f9fa); }
+.killi-item-row-fallback {
+  width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0;
+  background: var(--killi-chat-bg, #f8f9fa);
+  display: flex; align-items: center; justify-content: center;
+}
+.killi-item-row-fallback svg { width: 22px; height: 22px; stroke: var(--killi-muted, #5f6368); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .killi-item-row-title { font-size: 13.5px; font-weight: 600; }
 .killi-item-row-sub { font-size: 12px; color: var(--killi-muted, #5f6368); }
 
@@ -695,11 +705,36 @@ body {
   font-size: 11px;
   letter-spacing: 0.02em;
   color: var(--killi-muted, #5f6368);
-  padding: 6px 12px max(6px, env(safe-area-inset-bottom));
+  padding: 6px 12px;
   flex-shrink: 0;
   background: var(--killi-bg, #fff);
 }
 .killi-suggestion-item:active { background: rgba(127, 127, 127, 0.15); }
+
+.killi-bottom-nav {
+  display: flex;
+  flex-shrink: 0;
+  background: var(--killi-surface, #fff);
+  border-top: 1px solid var(--killi-border, #e0e0e0);
+  padding: 6px 4px max(6px, env(safe-area-inset-bottom));
+}
+.killi-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--killi-muted, #5f6368);
+  padding: 5px 4px;
+  border-radius: 10px;
+}
+.killi-nav-icon svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.killi-nav-label { font-size: 10.5px; font-weight: 600; }
+.killi-nav-item.active { color: var(--killi-primary, #1a73e8); }
 
 .killi-empty {
   font-size: 14px;

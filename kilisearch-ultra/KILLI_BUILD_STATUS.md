@@ -1372,3 +1372,57 @@ config mutations (`config/data_sources.json`, `config/packages.json`,
 `data/query_daily.json`, `data/query_log.json`) reverted before
 committing; the `data/data.json` enrichment is kept as the actual
 deliverable.
+
+## Outline icons, a Gallery tile, and a bottom nav bar
+
+A further pass against the reference screenshots: the "rate this chat"
+button was an emoji star, not an icon; the Reviews tab repeated its own
+label right under a tab button already labeled "Reviews"; the
+Overview grid's second tile duplicated the Services/Menu tab instead of
+giving photos their own preview; and the app had no persistent
+navigation bar at all, unlike the reference's icon nav row.
+
+- **Outline icon, not emoji**, on the header's rate button — the emoji
+  star (`&#11088;`) is now the same stroke-based star path already used
+  everywhere else ratings render, rendered unfilled via CSS instead of
+  filled, so it reads as "rate this" rather than "already rated."
+- **Removed the redundant title inside the Reviews tab**
+  (`buildBusinessProfileBody()`) — the tab button already says
+  "Reviews"; repeating it as a heading right below added nothing.
+- **Overview's info-grid now shows a Gallery tile next to Reviews**,
+  built from `record.photos` instead of `record.menu_items` — the
+  Services/Menu tab already has its own full tab, so previewing it a
+  second time in Overview was redundant, while the business's photos
+  had no preview anywhere outside the top strip and the Photos tab.
+  Gallery thumbnails are now a fixed 44×44 instead of stretching to
+  fill the tile width (`aspect-ratio: 1` on a flexed row could make 1-2
+  photos taller than the Reviews tile next to them), and the grid no
+  longer force-stretches both tiles to match the taller one's height
+  (`align-items: start`) — previously a short Reviews tile could get
+  pulled down to match a tall photo tile, leaving visible empty space.
+- **Services/Menu items without a photo now show a small shopping-cart
+  outline icon** instead of empty space where the thumbnail would go
+  (`ICONS.cart`, new) — every demo record already has real photos so
+  this path doesn't fire today, but real imported services often won't.
+- **New persistent bottom icon nav** (Home / Search / Saved / Profile),
+  matching the icon-nav pattern already shipped for the admin's mobile
+  bottom bar. Home scrolls the chat to the top, Search focuses the
+  input — both real actions. Saved and Profile aren't real features yet,
+  so tapping them still shows which tab is active but replies with an
+  explicit "isn't available in this preview yet" instead of doing
+  nothing, so the button doesn't read as broken.
+
+All of the above mirrored into the standalone `chat-demo.html` artifact
+identically, including the new `ICONS.home/search/heart/user/cart` and
+the bottom nav markup, CSS, and click handling.
+
+Verified against a real running server (business_profile layout,
+`ABC Auto Services`): confirmed the rate button renders an `<svg>`, not
+emoji text; confirmed the Overview grid shows `["Gallery", "Reviews"]`
+tile labels with visually matched heights; confirmed the Reviews tab
+has zero redundant title elements; confirmed the bottom nav renders all
+4 labels, clicking Search focuses the input, and clicking Saved posts
+the "isn't available" bubble with the tab highlighted. Re-verified the
+same set in the standalone artifact via headless Chromium in both light
+and dark mode, and confirmed zero console/page errors throughout. Test
+config mutations reverted before committing.
