@@ -18,7 +18,6 @@
   var lastResults = [];
   var suggestTimer = null;
   var lastUserTick = null;
-  var rateBtn = document.getElementById('killi-rate');
   var lastUserMessage = '';
   var sessionTurns = [];
 
@@ -148,7 +147,7 @@
     chat.appendChild(bubble);
     if (role === 'ai' && withReaction) {
       sessionTurns.push({ query: lastUserMessage, reply: text });
-      if (rateBtn && rateBtn.hidden) rateBtn.hidden = false;
+      maybeShowInlineRating();
     }
     scrollToBottom();
     return bubble;
@@ -191,7 +190,7 @@
       video.className = 'killi-attachment-video';
       bubble.appendChild(video);
     } else {
-      var link = el('a', 'killi-attachment-file', '&#128196; ' + escapeHtml(file.filename || 'Attachment'));
+      var link = el('a', 'killi-attachment-file', ICONS.document + ' ' + escapeHtml(file.filename || 'Attachment'));
       link.href = file.url;
       link.target = '_blank';
       link.rel = 'noopener';
@@ -323,7 +322,7 @@
 
   function starRating(rating) {
     if (!rating) return '';
-    return '&#9733; ' + Number(rating).toFixed(1);
+    return '<span class="killi-star-row-icon filled">' + ICONS.star + '</span> ' + Number(rating).toFixed(1);
   }
 
   function waLink(phone) {
@@ -410,6 +409,16 @@
     user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>',
     whatsapp: '<svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 21l1.9-5.7A8.4 8.4 0 1 1 21 11.5Z"/><path d="M8.5 9.8c.3 2.6 2.5 4.8 5.1 5.1"/></svg>',
     filter: '<svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="18" r="2"/></svg>',
+    mic: '<svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>',
+    attach: '<svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.19 9.19a1.5 1.5 0 0 1-2.12-2.12l8.48-8.48"/></svg>',
+    camera: '<svg viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+    video: '<svg viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3Z"/></svg>',
+    folder: '<svg viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/></svg>',
+    moon: '<svg viewBox="0 0 24 24"><path d="M21 12.5A9 9 0 1 1 11.5 3a7 7 0 0 0 9.5 9.5Z"/></svg>',
+    sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="1.5" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22.5"/><line x1="4.2" y1="4.2" x2="6" y2="6"/><line x1="18" y1="18" x2="19.8" y2="19.8"/><line x1="1.5" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22.5" y2="12"/><line x1="4.2" y1="19.8" x2="6" y2="18"/><line x1="18" y1="6" x2="19.8" y2="4.2"/></svg>',
+    download: '<svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>',
+    send: '<svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><path d="M6 11l6-6 6 6"/></svg>',
+    document: '<svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v4h4"/></svg>',
   };
 
   /** A real 5-star row (filled up to the rounded rating), not one icon + a number — matches how every real business-profile card shows a rating. Returns markup, not a node, since callers build subline/tile HTML as strings. */
@@ -423,7 +432,7 @@
   }
 
   function buildViewButton(record) {
-    var btn = el('button', 'killi-view-btn', ICONS.eye + ' View');
+    var btn = el('button', 'killi-view-btn', ICONS.eye);
     btn.type = 'button';
     btn.setAttribute('aria-label', 'View full details for ' + record.title);
     btn.addEventListener('click', function () { openRecordModal(record); });
@@ -1007,7 +1016,7 @@
           img.alt = f.filename || '';
           mediaWrap.appendChild(img);
         } else {
-          var link = el('a', 'killi-panel-media-file', '&#128196; ' + escapeHtml(f.filename || 'file'));
+          var link = el('a', 'killi-panel-media-file', ICONS.document + ' ' + escapeHtml(f.filename || 'file'));
           link.href = f.url;
           link.target = '_blank';
           link.rel = 'noopener';
@@ -1584,7 +1593,7 @@
     } else {
       document.documentElement.removeAttribute('data-theme');
     }
-    if (themeToggle) themeToggle.textContent = isDarkActive() ? '☀️' : '🌙';
+    if (themeToggle) themeToggle.innerHTML = isDarkActive() ? ICONS.sun : ICONS.moon;
   }
 
   if (themeToggle) {
@@ -1596,26 +1605,59 @@
     });
   }
 
-  // Rate this conversation: a persistent affordance rather than trying to
-  // auto-detect "the user is done" (there's no reliable signal for that in
-  // a stateless page) — it only becomes visible once there's at least one
-  // finished exchange (sessionTurns, tracked in addBubble above) worth rating.
-  (function () {
-    var panel = document.getElementById('killi-rate-panel');
-    if (!rateBtn || !panel) return;
-    var stars = panel.querySelectorAll('.killi-star');
-    var comment = document.getElementById('killi-rate-comment');
-    var submitBtn = document.getElementById('killi-rate-submit');
-    var cancelBtn = document.getElementById('killi-rate-cancel');
-    var selected = 0;
+  // Rate this conversation: shown inline in the chat feed itself — as a
+  // card appended after the first real exchange — rather than a floating
+  // panel triggered by a header icon. No reliable signal exists for "the
+  // user is done" in a stateless page, so it appears once there's at
+  // least one finished exchange worth rating, and stays put like any
+  // other message rather than needing to be summoned.
+  var inlineRatingShown = false;
+  function maybeShowInlineRating() {
+    if (inlineRatingShown) return;
+    inlineRatingShown = true;
+    chat.appendChild(buildInlineRatingCard());
+    scrollToBottom();
+  }
 
+  function buildInlineRatingCard() {
+    var card = el('div', 'killi-inline-rate');
+    card.appendChild(el('div', 'killi-inline-rate-title', 'How did this conversation go?'));
+
+    var starsWrap = el('div', 'killi-rate-stars');
+    var stars = [];
+    for (var i = 1; i <= 5; i++) {
+      var star = el('button', 'killi-star', ICONS.star);
+      star.type = 'button';
+      star.setAttribute('data-value', i);
+      star.setAttribute('aria-label', i + ' star' + (i === 1 ? '' : 's'));
+      starsWrap.appendChild(star);
+      stars.push(star);
+    }
+    card.appendChild(starsWrap);
+
+    var comment = document.createElement('textarea');
+    comment.className = 'killi-rate-comment';
+    comment.placeholder = 'Anything we should know? (optional)';
+    comment.rows = 2;
+    card.appendChild(comment);
+
+    var actions = el('div', 'killi-rate-actions');
+    var cancelBtn = el('button', 'killi-rate-cancel', 'Dismiss');
+    cancelBtn.type = 'button';
+    var submitBtn = el('button', 'killi-rate-submit', 'Submit');
+    submitBtn.type = 'button';
+    submitBtn.disabled = true;
+    actions.appendChild(cancelBtn);
+    actions.appendChild(submitBtn);
+    card.appendChild(actions);
+
+    var selected = 0;
     function paintStars() {
       stars.forEach(function (star) {
         star.classList.toggle('filled', Number(star.getAttribute('data-value')) <= selected);
       });
       submitBtn.disabled = selected === 0;
     }
-
     stars.forEach(function (star) {
       star.addEventListener('click', function () {
         selected = Number(star.getAttribute('data-value'));
@@ -1623,17 +1665,7 @@
       });
     });
 
-    function closePanel() {
-      panel.hidden = true;
-      selected = 0;
-      comment.value = '';
-      paintStars();
-    }
-
-    rateBtn.addEventListener('click', function () {
-      panel.hidden = !panel.hidden;
-    });
-    cancelBtn.addEventListener('click', closePanel);
+    cancelBtn.addEventListener('click', function () { card.remove(); });
 
     submitBtn.addEventListener('click', function () {
       if (selected === 0) return;
@@ -1643,13 +1675,15 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rating: selected, comment: comment.value, turns: sessionTurns }),
       }).then(function () {
-        panel.innerHTML = '<div class="killi-rate-thanks">Thanks for the feedback!</div>';
-        setTimeout(function () { panel.hidden = true; }, 1600);
+        card.innerHTML = '';
+        card.appendChild(el('div', 'killi-rate-thanks', 'Thanks for the feedback!'));
       }).catch(function () {
         submitBtn.disabled = false;
       });
     });
-  })();
+
+    return card;
+  }
 
   // Bottom icon nav — Home/Search are real actions; Saved and Profile
   // open real panels backed by localStorage (no accounts yet, so nothing
@@ -1667,6 +1701,9 @@
         chat.scrollTop = 0;
       } else if (target === 'search') {
         input.focus();
+      } else if (target === 'filters') {
+        var searchHandle = {};
+        searchHandle.ref = openSimplePanel('Advanced search', buildAdvancedSearchPanel(searchHandle));
       } else if (target === 'saved') {
         var savedHandle = {};
         savedHandle.ref = openSimplePanel('Saved', buildSavedPage(savedHandle));
@@ -1675,14 +1712,6 @@
       }
     });
   })();
-
-  var filterBtn = document.getElementById('killi-filter');
-  if (filterBtn) {
-    filterBtn.addEventListener('click', function () {
-      var searchHandle = {};
-      searchHandle.ref = openSimplePanel('Advanced search', buildAdvancedSearchPanel(searchHandle));
-    });
-  }
 
   addBubble('ai', branding.welcome_message || 'Hi, what are you looking for today?');
 

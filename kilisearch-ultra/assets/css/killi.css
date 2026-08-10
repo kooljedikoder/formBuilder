@@ -92,35 +92,33 @@ body {
 }
 
 
-.killi-rate-panel {
-  position: absolute;
-  right: 12px;
-  top: 60px;
-  z-index: 5;
-  width: 240px;
+/* Inline-in-chat rating card — appended into #killi-chat itself (like a
+   bubble) rather than a floating panel triggered by a header icon, so
+   reviewing reads as part of the conversation instead of chrome. */
+.killi-inline-rate {
+  align-self: stretch;
   background: var(--killi-ai-bubble, #fff);
   color: var(--killi-text, #202124);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
-  padding: 12px;
+  border: 1px solid var(--killi-border, #e0e0e0);
+  border-radius: 14px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   animation: killi-rise 0.2s ease;
 }
-.killi-rate-panel[hidden] { display: none; }
-.killi-rate-stars { display: flex; gap: 4px; justify-content: center; }
+.killi-inline-rate-title { font-size: 13.5px; font-weight: 700; }
+.killi-rate-stars { display: flex; gap: 4px; }
 .killi-star {
   border: none;
   background: transparent;
-  font-size: 22px;
-  line-height: 1;
   cursor: pointer;
   padding: 2px;
-  opacity: 0.35;
-  color: currentColor;
+  color: var(--killi-border, #d6d8db);
+  display: flex;
 }
-.killi-star.filled { opacity: 1; color: #f5b400; }
+.killi-star svg { width: 22px; height: 22px; fill: currentColor; }
+.killi-star.filled { color: #f5b400; }
 .killi-rate-comment {
   width: 100%;
   border: 1px solid rgba(127, 127, 127, 0.3);
@@ -379,24 +377,21 @@ body {
    modal. Only rendered on cards whose source's layout isn't "simple";
    see resolveLayoutSlots() in killi.js. */
 .killi-view-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  width: 24px;
   height: 24px;
   box-sizing: border-box;
   border: 1px solid var(--killi-border, #d0d0d0);
   background: var(--killi-surface, #fafafa);
   color: var(--killi-text, #202124);
-  border-radius: 999px;
-  padding: 0 9px 0 7px;
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+  border-radius: 50%;
+  padding: 0;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
-.killi-view-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.killi-view-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 .killi-modal-overlay {
   position: fixed;
@@ -758,7 +753,9 @@ body {
 }
 
 .killi-attach-option {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   text-align: left;
   background: none;
@@ -769,6 +766,7 @@ body {
   border-radius: 10px;
   cursor: pointer;
 }
+.killi-attach-option svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
 .killi-attach-option:active { background: rgba(127, 127, 127, 0.12); }
 .killi-attach-cancel {
   margin-top: 4px;
@@ -787,7 +785,11 @@ body {
   color: #fff;
   font-size: 18px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+.killi-send svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 
 .killi-suggestions {
   position: absolute;

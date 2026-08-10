@@ -109,28 +109,13 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
     <div class="killi-header-title"><?= htmlspecialchars($branding['product_name'] ?? 'KilliGoogle.ai') ?></div>
     <div style="display:flex;gap:8px">
       <?php if (!$isEmbedded): ?>
-      <button id="killi-install" class="killi-theme-toggle" type="button" aria-label="Install app" hidden>&#8615;</button>
+      <button id="killi-install" class="killi-theme-toggle" type="button" aria-label="Install app" hidden><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg></button>
       <?php endif; ?>
-      <button id="killi-rate" class="killi-theme-toggle" type="button" aria-label="Rate this conversation" hidden><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2Z"/></svg></button>
-      <button id="killi-theme-toggle" class="killi-theme-toggle" type="button" aria-label="Toggle dark mode">&#127769;</button>
+      <button id="killi-theme-toggle" class="killi-theme-toggle" type="button" aria-label="Toggle dark mode"><svg viewBox="0 0 24 24"><path d="M21 12.5A9 9 0 1 1 11.5 3a7 7 0 0 0 9.5 9.5Z"/></svg></button>
     </div>
   </header>
 
   <div class="killi-chat" id="killi-chat"></div>
-  <div class="killi-rate-panel" id="killi-rate-panel" hidden>
-    <div class="killi-rate-stars" id="killi-rate-stars">
-      <button type="button" class="killi-star" data-value="1" aria-label="1 star">&#9733;</button>
-      <button type="button" class="killi-star" data-value="2" aria-label="2 stars">&#9733;</button>
-      <button type="button" class="killi-star" data-value="3" aria-label="3 stars">&#9733;</button>
-      <button type="button" class="killi-star" data-value="4" aria-label="4 stars">&#9733;</button>
-      <button type="button" class="killi-star" data-value="5" aria-label="5 stars">&#9733;</button>
-    </div>
-    <textarea id="killi-rate-comment" class="killi-rate-comment" placeholder="Anything we should know? (optional)" rows="2"></textarea>
-    <div class="killi-rate-actions">
-      <button type="button" class="killi-rate-cancel" id="killi-rate-cancel">Cancel</button>
-      <button type="button" class="killi-rate-submit" id="killi-rate-submit" disabled>Submit</button>
-    </div>
-  </div>
 
   <div class="killi-chips" id="killi-chips">
     <?php foreach ($sectors as $sector): ?>
@@ -140,13 +125,12 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
 
   <form class="killi-searchbar" id="killi-searchbar" autocomplete="off">
     <?php if ($hasAttachments): ?>
-    <button type="button" id="killi-attach" class="killi-icon-btn" aria-label="Attach a file">&#128206;</button>
+    <button type="button" id="killi-attach" class="killi-icon-btn" aria-label="Attach a file"><svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.19 9.19a1.5 1.5 0 0 1-2.12-2.12l8.48-8.48"/></svg></button>
     <input type="file" id="killi-attach-camera-photo" accept="image/jpeg,image/png,image/webp" capture="environment" hidden>
     <input type="file" id="killi-attach-camera-video" accept="video/mp4,video/quicktime,video/webm" capture="environment" hidden>
     <input type="file" id="killi-attach-input" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" hidden>
     <?php endif; ?>
-    <button type="button" id="killi-mic" class="killi-icon-btn" aria-label="Speak your search" hidden>&#127908;</button>
-    <button type="button" id="killi-filter" class="killi-icon-btn" aria-label="Advanced search"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="18" r="2"/></svg></button>
+    <button type="button" id="killi-mic" class="killi-icon-btn" aria-label="Speak your search" hidden><svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg></button>
     <input
       type="search"
       id="killi-input"
@@ -154,7 +138,7 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
       placeholder="<?= htmlspecialchars($branding['search_placeholder'] ?? 'Search...') ?>"
       aria-label="Search"
     >
-    <button type="submit" class="killi-send" aria-label="Search">&#8593;</button>
+    <button type="submit" class="killi-send" aria-label="Search"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><path d="M6 11l6-6 6 6"/></svg></button>
   </form>
   <div id="killi-suggestions" class="killi-suggestions" hidden></div>
   <?php if (!$hasWhiteLabel): ?>
@@ -169,6 +153,10 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
       <span class="killi-nav-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
       <span class="killi-nav-label">Search</span>
     </button>
+    <button type="button" class="killi-nav-item" data-nav="filters">
+      <span class="killi-nav-icon"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="18" r="2"/></svg></span>
+      <span class="killi-nav-label">Filters</span>
+    </button>
     <button type="button" class="killi-nav-item" data-nav="saved">
       <span class="killi-nav-icon"><svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6Z"/></svg></span>
       <span class="killi-nav-label">Saved</span>
@@ -181,9 +169,9 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
   <?php if ($hasAttachments): ?>
   <div class="killi-attach-sheet" id="killi-attach-sheet" hidden>
     <div class="killi-attach-sheet-card">
-      <button type="button" class="killi-attach-option" data-target="killi-attach-camera-photo">&#128247; Take Photo</button>
-      <button type="button" class="killi-attach-option" data-target="killi-attach-camera-video">&#127909; Record Video</button>
-      <button type="button" class="killi-attach-option" data-target="killi-attach-input">&#128193; Choose File</button>
+      <button type="button" class="killi-attach-option" data-target="killi-attach-camera-photo"><svg viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg> Take Photo</button>
+      <button type="button" class="killi-attach-option" data-target="killi-attach-camera-video"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3Z"/></svg> Record Video</button>
+      <button type="button" class="killi-attach-option" data-target="killi-attach-input"><svg viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/></svg> Choose File</button>
       <button type="button" class="killi-attach-option killi-attach-cancel" id="killi-attach-cancel">Cancel</button>
     </div>
   </div>

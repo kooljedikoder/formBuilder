@@ -1565,3 +1565,53 @@ the identical flow in the standalone artifact (mock-data cascade +
 autocomplete) via headless Chromium, plus a dark-mode screenshot. Zero
 console/page errors throughout. Test config mutations reverted before
 committing.
+
+## Icon-only View button, no header star, inline-in-chat rating, filters moved to bottom nav, emoji swapped for outline SVGs
+
+Another round of UI polish:
+
+- **View button** is now icon-only (eye SVG, no "View" text), sized to
+  the exact same 24px circle as the save/heart button — same border,
+  background, and stroke width, just a different icon.
+- **Header star/rate button removed.** Rating no longer lives behind a
+  persistent header icon that opens a floating panel. Instead, once
+  there's a finished exchange worth rating, an inline card (title, 5
+  stars, optional comment, Dismiss/Submit) appends directly into the
+  chat feed — `maybeShowInlineRating()` / `buildInlineRatingCard()` —
+  so reviewing reads as part of the conversation rather than chrome.
+  Static `#killi-rate`/`.killi-rate-panel` markup removed from
+  `portal/index.php`; the widget is built entirely in JS now.
+- **Advanced search moved out of the searchbar into the bottom nav.**
+  The searchbar was getting crowded (attach, mic, filter, input, send);
+  the filter icon now lives as a fifth "Filters" item in the bottom nav
+  (Home/Search/Filters/Saved/Profile), tapped the same way as
+  Saved/Profile.
+- **All emoji/glyph entities replaced with outline SVG icons**, matching
+  the stroke-based style already used for call/directions/website/
+  heart/eye: install (`&#8615;` → download arrow), theme toggle
+  (`🌙`/`☀️` → moon/sun SVGs swapped via `innerHTML`, not `textContent`),
+  attach (`📎` → paperclip), mic (`🎙️` → mic), send (`↑` → arrow-up),
+  attach-sheet options (`📷`/`🎥`/`📁` → camera/video/folder, now with
+  inline icon + label instead of emoji prefix), attachment file links
+  and Saved-page media file rows (`📄` → document icon), and the rating
+  stars themselves (`★` text glyph → the same outline star icon already
+  used for review-star rows elsewhere, toggling fill on select exactly
+  like the heart does). Delivery ticks (✓/✓✓) were deliberately left
+  alone — they're a plain monochrome symbol, not a colorful emoji, and
+  read fine as-is.
+- Mirrored every change into `chat-demo.html`, including three
+  demo-only decorative emoji (📍/🏷️/⚡ in the breadcrumb and "Recalled
+  instantly" tag) that don't exist in the real product at all — those
+  became plain text, matching the real app's `detectedBreadcrumb()`
+  wording instead of inventing new icons for a demo-only flourish.
+
+Verified against a real running server: header now shows only the
+theme toggle (no star), bottom nav reads Home/Search/Filters/Saved/
+Profile, tapping Filters opens the same advanced-search panel as
+before, a card's save and view buttons measure identically 24×24 with
+no "View" text, the attach sheet shows camera/video/folder icons, and
+submitting the inline rating card shows "Thanks for the feedback!"
+directly in the chat feed. Re-verified the identical flow in the
+standalone artifact via headless Chromium, plus a dark-mode screenshot.
+Zero console/page errors throughout. Test config/data mutations
+reverted before committing.
