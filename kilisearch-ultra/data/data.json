@@ -19,13 +19,67 @@
     "latitude": 6.4382,
     "longitude": 3.4712,
     "image": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22200%22%20height%3D%22120%22%3E%3Crect%20width%3D%22200%22%20height%3D%22120%22%20fill%3D%22%231a73e8%22/%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2255%25%22%20font-family%3D%22Arial%22%20font-size%3D%2236%22%20fill%3D%22white%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3EAA%3C/text%3E%3C/svg%3E",
-    "tags": ["car repair", "garage", "tyres", "brakes"],
+    "tags": [
+      "car repair",
+      "garage",
+      "tyres",
+      "brakes"
+    ],
     "rating": 4.8,
     "verified": true,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-01-10T09:00:00Z",
-    "updated_at": "2026-06-01T09:00:00Z"
+    "updated_at": "2026-06-01T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Segun K.",
+        "rating": 5,
+        "date": "5 months ago",
+        "text": "Fixed my car same day, fair price."
+      },
+      {
+        "author": "Femi D.",
+        "rating": 5,
+        "date": "2 weeks ago",
+        "text": "Honest diagnostics, didn't try to upsell me."
+      },
+      {
+        "author": "Ngozi I.",
+        "rating": 5,
+        "date": "5 months ago",
+        "text": "Quick turnaround and good communication."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2821%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2821%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%2821%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EABC%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2861%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2861%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%2861%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EABC%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28101%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28101%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28101%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EABC%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "Full Service",
+        "photo": null
+      },
+      {
+        "name": "Brake Check",
+        "photo": null
+      },
+      {
+        "name": "Engine Diagnostics",
+        "photo": null
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   },
   {
     "id": "2",
@@ -47,13 +101,66 @@
     "latitude": 6.4401,
     "longitude": 3.4735,
     "image": null,
-    "tags": ["mechanic", "engine repair", "auto electrician"],
+    "tags": [
+      "mechanic",
+      "engine repair",
+      "auto electrician"
+    ],
     "rating": 4.5,
     "verified": true,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-01-10T09:00:00Z",
-    "updated_at": "2026-05-20T09:00:00Z"
+    "updated_at": "2026-05-20T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Yusuf M.",
+        "rating": 4,
+        "date": "2 weeks ago",
+        "text": "Fixed my car same day, fair price."
+      },
+      {
+        "author": "Amaka N.",
+        "rating": 3,
+        "date": "5 months ago",
+        "text": "Honest diagnostics, didn't try to upsell me."
+      },
+      {
+        "author": "Ifeoma C.",
+        "rating": 4,
+        "date": "2 weeks ago",
+        "text": "Quick turnaround and good communication."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28144%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28144%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28144%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3ELekki%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28184%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28184%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28184%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3ELekki%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28224%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28224%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28224%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3ELekki%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "Full Service",
+        "photo": null
+      },
+      {
+        "name": "Brake Check",
+        "photo": null
+      },
+      {
+        "name": "Engine Diagnostics",
+        "photo": null
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   },
   {
     "id": "3",
@@ -71,17 +178,70 @@
     "phone": "+2348012340003",
     "whatsapp": "+2348012340003",
     "email": "hello@ikejacarclinic.example",
-    "website": null,
+    "website": "https://ikejacarclinic.example",
     "latitude": 6.6018,
     "longitude": 3.3515,
     "image": null,
-    "tags": ["mechanic", "auto repair", "car service"],
+    "tags": [
+      "mechanic",
+      "auto repair",
+      "car service"
+    ],
     "rating": 4.2,
     "verified": false,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-02-01T09:00:00Z",
-    "updated_at": "2026-05-15T09:00:00Z"
+    "updated_at": "2026-05-15T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Obinna E.",
+        "rating": 4,
+        "date": "2 months ago",
+        "text": "Fixed my car same day, fair price."
+      },
+      {
+        "author": "Fatima B.",
+        "rating": 4,
+        "date": "3 months ago",
+        "text": "Honest diagnostics, didn't try to upsell me."
+      },
+      {
+        "author": "Kemi T.",
+        "rating": 4,
+        "date": "2 months ago",
+        "text": "Quick turnaround and good communication."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28221%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28221%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28221%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EIkeja%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28261%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28261%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28261%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EIkeja%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28301%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28301%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28301%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EIkeja%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "Full Service",
+        "photo": null
+      },
+      {
+        "name": "Brake Check",
+        "photo": null
+      },
+      {
+        "name": "Engine Diagnostics",
+        "photo": null
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   },
   {
     "id": "4",
@@ -100,16 +260,69 @@
     "whatsapp": "+2348012340004",
     "email": "reservations@oceanbasket.example",
     "website": "https://oceanbasket.example",
-    "latitude": 6.4450,
-    "longitude": 3.4600,
+    "latitude": 6.445,
+    "longitude": 3.46,
     "image": null,
-    "tags": ["seafood", "restaurant", "brunch"],
+    "tags": [
+      "seafood",
+      "restaurant",
+      "brunch"
+    ],
     "rating": 4.6,
     "verified": true,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-01-15T09:00:00Z",
-    "updated_at": "2026-06-10T09:00:00Z"
+    "updated_at": "2026-06-10T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Grace P.",
+        "rating": 5,
+        "date": "2 months ago",
+        "text": "Great food, friendly staff, will be back."
+      },
+      {
+        "author": "Segun K.",
+        "rating": 4,
+        "date": "3 months ago",
+        "text": "Portions were generous and everything was fresh."
+      },
+      {
+        "author": "Femi D.",
+        "rating": 5,
+        "date": "2 months ago",
+        "text": "Lovely atmosphere, perfect for a family dinner."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28149%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28149%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28149%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EOcean%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28189%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28189%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28189%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EOcean%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28229%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28229%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28229%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EOcean%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "Jollof Rice & Chicken",
+        "photo": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28149%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28149%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28149%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EJollof%3C/text%3E%3C/svg%3E"
+      },
+      {
+        "name": "Grilled Fish",
+        "photo": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28209%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28209%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28209%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EGrilled%3C/text%3E%3C/svg%3E"
+      },
+      {
+        "name": "Suya Platter",
+        "photo": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28269%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28269%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28269%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3ESuya%3C/text%3E%3C/svg%3E"
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   },
   {
     "id": "5",
@@ -127,17 +340,70 @@
     "phone": "+2348012340005",
     "whatsapp": "+2348012340005",
     "email": "support@yabatech-repairs.example",
-    "website": null,
+    "website": "https://yabatechrepairs.example",
     "latitude": 6.5095,
     "longitude": 3.3792,
     "image": null,
-    "tags": ["phone repair", "laptop repair", "electronics"],
+    "tags": [
+      "phone repair",
+      "laptop repair",
+      "electronics"
+    ],
     "rating": 4.3,
     "verified": true,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-02-10T09:00:00Z",
-    "updated_at": "2026-05-25T09:00:00Z"
+    "updated_at": "2026-05-25T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Yusuf M.",
+        "rating": 4,
+        "date": "2 weeks ago",
+        "text": "Fixed my phone screen in under an hour."
+      },
+      {
+        "author": "Amaka N.",
+        "rating": 3,
+        "date": "5 months ago",
+        "text": "Fair pricing and genuine parts used."
+      },
+      {
+        "author": "Ifeoma C.",
+        "rating": 4,
+        "date": "2 weeks ago",
+        "text": "Explained the issue clearly before starting work."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28354%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28354%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28354%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EYaba%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2834%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2834%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%2834%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EYaba%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2874%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2874%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%2874%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EYaba%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "Screen Repair",
+        "photo": null
+      },
+      {
+        "name": "Battery Replacement",
+        "photo": null
+      },
+      {
+        "name": "Software Setup",
+        "photo": null
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   },
   {
     "id": "6",
@@ -159,13 +425,66 @@
     "latitude": 6.4281,
     "longitude": 3.4219,
     "image": null,
-    "tags": ["pharmacy", "medicine", "delivery"],
+    "tags": [
+      "pharmacy",
+      "medicine",
+      "delivery"
+    ],
     "rating": 4.7,
     "verified": true,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-01-20T09:00:00Z",
-    "updated_at": "2026-06-05T09:00:00Z"
+    "updated_at": "2026-06-05T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Segun K.",
+        "rating": 5,
+        "date": "5 months ago",
+        "text": "Very professional and gentle throughout."
+      },
+      {
+        "author": "Femi D.",
+        "rating": 5,
+        "date": "2 weeks ago",
+        "text": "Short wait time, thorough consultation."
+      },
+      {
+        "author": "Ngozi I.",
+        "rating": 5,
+        "date": "5 months ago",
+        "text": "Staff were patient and explained everything clearly."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28261%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28261%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28261%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EGreenLeaf%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28301%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28301%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28301%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EGreenLeaf%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28341%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28341%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28341%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EGreenLeaf%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "General Consultation",
+        "photo": null
+      },
+      {
+        "name": "Prescription Refill",
+        "photo": null
+      },
+      {
+        "name": "Health Screening",
+        "photo": null
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   },
   {
     "id": "7",
@@ -183,17 +502,71 @@
     "phone": "+2348012340007",
     "whatsapp": "+2348012340007",
     "email": "book@ajahbeauty.example",
-    "website": null,
+    "website": "https://ajahbeautylounge.example",
     "latitude": 6.4667,
     "longitude": 3.5667,
     "image": null,
-    "tags": ["salon", "hair", "spa", "nails"],
+    "tags": [
+      "salon",
+      "hair",
+      "spa",
+      "nails"
+    ],
     "rating": 4.4,
     "verified": false,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-02-15T09:00:00Z",
-    "updated_at": "2026-05-30T09:00:00Z"
+    "updated_at": "2026-05-30T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Ifeoma C.",
+        "rating": 4,
+        "date": "2 months ago",
+        "text": "Left feeling amazing, highly recommend."
+      },
+      {
+        "author": "Chidi O.",
+        "rating": 4,
+        "date": "3 months ago",
+        "text": "Clean space, skilled staff, booked again already."
+      },
+      {
+        "author": "Bola F.",
+        "rating": 3,
+        "date": "2 months ago",
+        "text": "Exactly the look I wanted, great attention to detail."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2883%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2883%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%2883%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EAjah%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28123%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28123%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28123%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EAjah%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28163%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28163%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28163%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EAjah%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "Haircut & Styling",
+        "photo": null
+      },
+      {
+        "name": "Manicure",
+        "photo": null
+      },
+      {
+        "name": "Facial Treatment",
+        "photo": null
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   },
   {
     "id": "8",
@@ -215,13 +588,66 @@
     "latitude": 6.5027,
     "longitude": 3.3572,
     "image": null,
-    "tags": ["lawyer", "legal advice", "consultation"],
+    "tags": [
+      "lawyer",
+      "legal advice",
+      "consultation"
+    ],
     "rating": 4.1,
     "verified": true,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-01-25T09:00:00Z",
-    "updated_at": "2026-05-18T09:00:00Z"
+    "updated_at": "2026-05-18T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Emeka U.",
+        "rating": 4,
+        "date": "1 month ago",
+        "text": "Clear advice, responded quickly to every question."
+      },
+      {
+        "author": "Obinna E.",
+        "rating": 3,
+        "date": "a week ago",
+        "text": "Handled my case professionally from start to finish."
+      },
+      {
+        "author": "Fatima B.",
+        "rating": 4,
+        "date": "1 month ago",
+        "text": "Reasonable fees and excellent communication."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28259%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28259%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28259%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3ESurulere%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28299%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28299%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28299%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3ESurulere%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28339%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28339%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28339%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3ESurulere%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "Contract Review",
+        "photo": null
+      },
+      {
+        "name": "Legal Consultation",
+        "photo": null
+      },
+      {
+        "name": "Document Drafting",
+        "photo": null
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   },
   {
     "id": "9",
@@ -240,16 +666,69 @@
     "whatsapp": "+2348012340009",
     "email": "admissions@lekkibright.example",
     "website": "https://lekkibright.example",
-    "latitude": 6.4520,
-    "longitude": 3.5300,
+    "latitude": 6.452,
+    "longitude": 3.53,
     "image": null,
-    "tags": ["school", "nursery", "tutoring"],
+    "tags": [
+      "school",
+      "nursery",
+      "tutoring"
+    ],
     "rating": 4.9,
     "verified": true,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-01-05T09:00:00Z",
-    "updated_at": "2026-06-12T09:00:00Z"
+    "updated_at": "2026-06-12T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Bola F.",
+        "rating": 5,
+        "date": "1 month ago",
+        "text": "My kids love it here, great teachers."
+      },
+      {
+        "author": "Grace P.",
+        "rating": 5,
+        "date": "a week ago",
+        "text": "Well organized and genuinely caring staff."
+      },
+      {
+        "author": "Segun K.",
+        "rating": 5,
+        "date": "1 month ago",
+        "text": "Good curriculum and small class sizes."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28337%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28337%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28337%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3ELekki%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2817%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2817%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%2817%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3ELekki%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2857%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2857%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%2857%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3ELekki%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "Enrollment Consultation",
+        "photo": null
+      },
+      {
+        "name": "Tutoring Session",
+        "photo": null
+      },
+      {
+        "name": "Parent-Teacher Meeting",
+        "photo": null
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   },
   {
     "id": "10",
@@ -271,13 +750,66 @@
     "latitude": 6.6059,
     "longitude": 3.3491,
     "image": null,
-    "tags": ["real estate", "property", "rentals"],
+    "tags": [
+      "real estate",
+      "property",
+      "rentals"
+    ],
     "rating": 4.0,
     "verified": true,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-02-05T09:00:00Z",
-    "updated_at": "2026-05-22T09:00:00Z"
+    "updated_at": "2026-05-22T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Tunde A.",
+        "rating": 4,
+        "date": "3 months ago",
+        "text": "Found us the perfect place within a week."
+      },
+      {
+        "author": "Yusuf M.",
+        "rating": 4,
+        "date": "2 months ago",
+        "text": "Transparent about costs, no hidden surprises."
+      },
+      {
+        "author": "Amaka N.",
+        "rating": 4,
+        "date": "3 months ago",
+        "text": "Very responsive agent, made the process easy."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2892%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2892%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%2892%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EIkeja%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28132%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28132%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28132%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EIkeja%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28172%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28172%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28172%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EIkeja%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "Property Viewing",
+        "photo": null
+      },
+      {
+        "name": "Rental Application",
+        "photo": null
+      },
+      {
+        "name": "Valuation",
+        "photo": null
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   },
   {
     "id": "11",
@@ -295,17 +827,70 @@
     "phone": "+2348012340011",
     "whatsapp": "+2348012340011",
     "email": "info@vifitnesshub.example",
-    "website": null,
-    "latitude": 6.4290,
-    "longitude": 3.4230,
+    "website": "https://vifitnesshub.example",
+    "latitude": 6.429,
+    "longitude": 3.423,
     "image": null,
-    "tags": ["gym", "fitness", "personal training"],
+    "tags": [
+      "gym",
+      "fitness",
+      "personal training"
+    ],
     "rating": 4.5,
     "verified": false,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-02-20T09:00:00Z",
-    "updated_at": "2026-05-28T09:00:00Z"
+    "updated_at": "2026-05-28T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Kemi T.",
+        "rating": 3,
+        "date": "a week ago",
+        "text": "Great equipment and knowledgeable trainers."
+      },
+      {
+        "author": "Tunde A.",
+        "rating": 4,
+        "date": "1 month ago",
+        "text": "Clean facility, never overcrowded."
+      },
+      {
+        "author": "Yusuf M.",
+        "rating": 4,
+        "date": "a week ago",
+        "text": "Flexible class times, love the community here."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28190%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28190%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28190%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EVI%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28230%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28230%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28230%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EVI%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28270%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28270%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28270%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EVI%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "Personal Training",
+        "photo": null
+      },
+      {
+        "name": "Group Class",
+        "photo": null
+      },
+      {
+        "name": "Gym Day Pass",
+        "photo": null
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   },
   {
     "id": "12",
@@ -327,13 +912,66 @@
     "latitude": 6.5115,
     "longitude": 3.3765,
     "image": null,
-    "tags": ["bookstore", "cafe", "events"],
+    "tags": [
+      "bookstore",
+      "cafe",
+      "events"
+    ],
     "rating": 4.6,
     "verified": true,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-01-30T09:00:00Z",
-    "updated_at": "2026-06-08T09:00:00Z"
+    "updated_at": "2026-06-08T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Fatima B.",
+        "rating": 5,
+        "date": "5 months ago",
+        "text": "Great selection and the coffee is excellent too."
+      },
+      {
+        "author": "Kemi T.",
+        "rating": 5,
+        "date": "2 weeks ago",
+        "text": "Cozy spot, always find something good to read."
+      },
+      {
+        "author": "Tunde A.",
+        "rating": 4,
+        "date": "5 months ago",
+        "text": "Staff recommendations are always spot on."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28153%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28153%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28153%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EYaba%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28193%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28193%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28193%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EYaba%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28233%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28233%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28233%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EYaba%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "Book Recommendation",
+        "photo": null
+      },
+      {
+        "name": "Special Order",
+        "photo": null
+      },
+      {
+        "name": "Gift Wrapping",
+        "photo": null
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   },
   {
     "id": "13",
@@ -351,17 +989,70 @@
     "phone": "+2348012340013",
     "whatsapp": "+2348012340013",
     "email": "orders@chevroncaterers.example",
-    "website": null,
+    "website": "https://chevrondrivecaterers.example",
     "latitude": 6.4438,
-    "longitude": 3.4590,
+    "longitude": 3.459,
     "image": null,
-    "tags": ["catering", "events", "weddings"],
+    "tags": [
+      "catering",
+      "events",
+      "weddings"
+    ],
     "rating": 4.3,
     "verified": false,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-02-25T09:00:00Z",
-    "updated_at": "2026-05-10T09:00:00Z"
+    "updated_at": "2026-05-10T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Amaka N.",
+        "rating": 4,
+        "date": "a week ago",
+        "text": "Catered our event perfectly, guests loved the food."
+      },
+      {
+        "author": "Ifeoma C.",
+        "rating": 4,
+        "date": "1 month ago",
+        "text": "Punctual, professional, and the food was outstanding."
+      },
+      {
+        "author": "Chidi O.",
+        "rating": 4,
+        "date": "a week ago",
+        "text": "Would book again for our next event."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28256%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28256%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28256%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EChevron%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28296%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28296%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28296%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EChevron%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28336%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28336%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28336%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EChevron%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "Event Catering",
+        "photo": null
+      },
+      {
+        "name": "Menu Tasting",
+        "photo": null
+      },
+      {
+        "name": "Bulk Order",
+        "photo": null
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   },
   {
     "id": "14",
@@ -380,16 +1071,69 @@
     "whatsapp": "+2348012340014",
     "email": "support@surulereit.example",
     "website": "https://surulereit.example",
-    "latitude": 6.4980,
-    "longitude": 3.3540,
+    "latitude": 6.498,
+    "longitude": 3.354,
     "image": null,
-    "tags": ["it support", "networking", "software"],
+    "tags": [
+      "it support",
+      "networking",
+      "software"
+    ],
     "rating": 4.2,
     "verified": true,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-01-12T09:00:00Z",
-    "updated_at": "2026-05-16T09:00:00Z"
+    "updated_at": "2026-05-16T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Ngozi I.",
+        "rating": 3,
+        "date": "3 months ago",
+        "text": "Fixed my phone screen in under an hour."
+      },
+      {
+        "author": "Aisha L.",
+        "rating": 4,
+        "date": "2 months ago",
+        "text": "Fair pricing and genuine parts used."
+      },
+      {
+        "author": "Emeka U.",
+        "rating": 4,
+        "date": "3 months ago",
+        "text": "Explained the issue clearly before starting work."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28200%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28200%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28200%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3ESurulere%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28240%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28240%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28240%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3ESurulere%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28280%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28280%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28280%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3ESurulere%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "Screen Repair",
+        "photo": null
+      },
+      {
+        "name": "Battery Replacement",
+        "photo": null
+      },
+      {
+        "name": "Software Setup",
+        "photo": null
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   },
   {
     "id": "15",
@@ -407,16 +1151,69 @@
     "phone": "+2348012340015",
     "whatsapp": "+2348012340015",
     "email": "book@ajahcleaning.example",
-    "website": null,
-    "latitude": 6.4700,
-    "longitude": 3.5720,
+    "website": "https://ajahhomecleaningservices.example",
+    "latitude": 6.47,
+    "longitude": 3.572,
     "image": null,
-    "tags": ["cleaning", "fumigation", "housekeeping"],
+    "tags": [
+      "cleaning",
+      "fumigation",
+      "housekeeping"
+    ],
     "rating": 4.4,
     "verified": true,
     "status": "active",
     "source_id": "src-directory",
     "created_at": "2026-02-08T09:00:00Z",
-    "updated_at": "2026-05-26T09:00:00Z"
+    "updated_at": "2026-05-26T09:00:00Z",
+    "reviews": [
+      {
+        "author": "Amaka N.",
+        "rating": 4,
+        "date": "1 month ago",
+        "text": "Thorough cleaning, showed up right on time."
+      },
+      {
+        "author": "Ifeoma C.",
+        "rating": 4,
+        "date": "a week ago",
+        "text": "Reliable and trustworthy, been using them for months."
+      },
+      {
+        "author": "Chidi O.",
+        "rating": 4,
+        "date": "1 month ago",
+        "text": "Reasonable rates and great attention to detail."
+      }
+    ],
+    "photos": [
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2891%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%2891%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%2891%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EAjah%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28131%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28131%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28131%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EAjah%3C/text%3E%3C/svg%3E",
+      "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22400%22%20height%3D%22300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28171%2C38%25%2C88%25%29%22/%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22hsl%28171%2C45%25%2C55%25%29%22%20opacity%3D%220.18%22/%3E%3Ctext%20x%3D%22200%22%20y%3D%22158%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2222%22%20fill%3D%22hsl%28171%2C30%25%2C32%25%29%22%20text-anchor%3D%22middle%22%3EAjah%3C/text%3E%3C/svg%3E"
+    ],
+    "menu_items": [
+      {
+        "name": "Deep Cleaning",
+        "photo": null
+      },
+      {
+        "name": "Plumbing Repair",
+        "photo": null
+      },
+      {
+        "name": "Electrical Inspection",
+        "photo": null
+      }
+    ],
+    "rating_breakdown": [
+      1,
+      1,
+      2,
+      10,
+      35
+    ],
+    "review_count": 49,
+    "hours_today": "Mon–Sat 9am–6pm",
+    "is_open_now": true
   }
 ]

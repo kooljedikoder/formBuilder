@@ -1319,3 +1319,56 @@ all render for both a sparse-turned-enriched demo listing and a real
 fix still holds with this additional content (measured height constant
 across all 4 tabs both before and after this change, since header height
 is measured dynamically rather than assumed).
+
+## Action-row order + real review cards, fuller Photos/Menu tabs
+
+Two more gaps against the reference profile: the action-row icon order
+didn't match (ours was Call/Directions/Share/Website; a real Google
+Business Profile puts Website right after Directions and Share last),
+and the Reviews/Photos/Services tabs were mostly empty shells — a
+rating summary with no actual reviews underneath it, one or two
+placeholder photos, one or two menu/service items.
+
+- **Action row reordered** in `buildActionRow()` (`killi.js`) to
+  `Call, Directions, Website, Share` — Share moved from third to last.
+- **New `buildReviewsList(reviews)`** renders individual review cards —
+  an avatar circle with the reviewer's initial, author name, a real
+  5-star row (via the existing `starRowHtml`), a relative date, and the
+  review text — from a new `record.reviews` array
+  (`[{author, rating, date, text}]`). Wired into the Reviews tab, below
+  the existing rating-summary tile.
+- **`data/data.json` enriched**: every one of the 15 demo records now
+  has `reviews` (3 each, drawn from a fixed pool of reviewer names,
+  ratings clustered near the record's own rating, sector-appropriate
+  text), `photos` (3 each), and `menu_items`/services (3 each — real
+  dish names for the one Restaurants-category record, Ocean Basket
+  Lekki; sector-appropriate service names for everyone else). Records
+  missing a `website`, `rating_breakdown`, `review_count`, or
+  `hours_today`/`is_open_now` got sensible fallbacks so nothing regresses
+  to an empty tile.
+- Mirrored identically into the standalone `chat-demo.html` artifact:
+  action row reordered, a `buildReviewsList` port added with matching
+  CSS, and all 6 mock listings given 3 reviews, 3 photos, and 3
+  menu/service items each (previously most had 0-2 of each, or none).
+
+New CSS (`killi.css`, mirrored verbatim in the artifact): `.killi-review-list`,
+`.killi-review-card` (flex row, avatar + body), `.killi-review-avatar`
+(filled circle, initial), `.killi-review-author`, `.killi-review-meta`,
+`.killi-review-text`.
+
+Verified against a real running server: set the demo source to the
+`business_profile` layout, opened `ABC Auto Services`, and confirmed via
+Playwright + screenshots that the action row reads
+`Call, Directions, Website, Share`; the Reviews tab shows 3 review cards
+with real author names, star ratings, dates, and text; the Photos tab
+shows 3 photos; the Services tab shows 3 service rows (`Full Service`,
+`Brake Check`, `Engine Diagnostics`). Also verified in the standalone
+artifact via headless Chromium: action order both with and without a
+`website` field present (Share correctly follows whichever of
+Directions/Website is the last one shown); 3 review cards, 3 photos, 3
+service rows for a fully-enriched mock listing; modal height still
+constant across all 4 tabs; dark mode reviewed and legible. Test-only
+config mutations (`config/data_sources.json`, `config/packages.json`,
+`data/query_daily.json`, `data/query_log.json`) reverted before
+committing; the `data/data.json` enrichment is kept as the actual
+deliverable.

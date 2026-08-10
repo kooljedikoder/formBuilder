@@ -481,6 +481,19 @@ body {
 .killi-rating-big { font-size: 21px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
 .killi-rating-big svg { width: 16px; height: 16px; fill: #f2a600; }
 .killi-rating-bars { display: flex; align-items: flex-end; gap: 3px; height: 34px; margin-top: 6px; }
+
+.killi-review-list { padding: 4px 0 8px; }
+.killi-review-card { display: flex; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--killi-border, #e0e0e0); }
+.killi-review-avatar {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--killi-primary, #1a73e8); color: #fff; font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.killi-review-body { flex: 1; min-width: 0; }
+.killi-review-author { font-size: 13.5px; font-weight: 600; }
+.killi-review-meta { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--killi-muted, #5f6368); margin-top: 2px; }
+.killi-review-meta .killi-star-row-icon svg { width: 11px; height: 11px; }
+.killi-review-text { font-size: 13px; margin: 6px 0 0; line-height: 1.45; }
 .killi-rating-bars .bar { flex: 1; background: #f2a600; border-radius: 2px 2px 0 0; min-height: 2px; }
 
 .killi-modal-footer { padding: 4px 18px 18px; font-size: 12.5px; color: var(--killi-muted, #5f6368); display: flex; justify-content: space-between; gap: 10px; }

@@ -390,8 +390,8 @@
     var entries = [
       ['phone', ICONS.phone, 'Call', record.phone ? 'tel:' + record.phone : null, false],
       ['pin', ICONS.pin, 'Directions', mapsLink(record), true],
-      ['share', ICONS.share, 'Share', '#', false],
       ['globe', ICONS.globe, 'Website', record.website || null, true],
+      ['share', ICONS.share, 'Share', '#', false],
     ];
     entries.forEach(function (entry) {
       var href = entry[3];
@@ -420,6 +420,28 @@
       wrap.appendChild(bar);
     });
     return wrap;
+  }
+
+  /** Individual reviews (record.reviews: [{author, rating, date, text}]) — the star-breakdown bars above summarize the numbers, this is what an actual visitor reads. Every field is optional; a review missing text still shows its author/rating/date. */
+  function buildReviewsList(reviews) {
+    if (!Array.isArray(reviews) || !reviews.length) return null;
+    var list = el('div', 'killi-review-list');
+    reviews.forEach(function (rev) {
+      var card = el('div', 'killi-review-card');
+      var initial = (rev.author || '?').trim().charAt(0).toUpperCase();
+      card.appendChild(el('div', 'killi-review-avatar', escapeHtml(initial)));
+      var body = el('div', 'killi-review-body');
+      var metaLine = el('div', 'killi-review-meta-line');
+      metaLine.appendChild(el('span', 'killi-review-author', escapeHtml(rev.author || 'Anonymous')));
+      body.appendChild(metaLine);
+      var sub = el('div', 'killi-review-meta');
+      sub.innerHTML = (rev.rating ? starRowHtml(rev.rating) : '') + (rev.date ? ' <span>' + escapeHtml(rev.date) + '</span>' : '');
+      body.appendChild(sub);
+      if (rev.text) body.appendChild(el('p', 'killi-review-text', escapeHtml(rev.text)));
+      card.appendChild(body);
+      list.appendChild(card);
+    });
+    return list;
   }
 
   function buildPhotoStrip(photos) {
@@ -548,6 +570,8 @@
     } else {
       reviewsSection.appendChild(el('p', 'killi-modal-footer', 'No reviews yet.'));
     }
+    var reviewsList = buildReviewsList(record.reviews);
+    if (reviewsList) reviewsSection.appendChild(reviewsList);
     body.appendChild(reviewsSection);
 
     var photosSection = el('div', 'killi-tab-section');
