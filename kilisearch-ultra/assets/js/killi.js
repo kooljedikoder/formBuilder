@@ -29,6 +29,40 @@
   var RECENT_SEARCHES_KEY = 'killi_recent_searches';
   var PROFILE_NAME_KEY = 'killi_profile_name';
   var sessionMedia = [];
+  var taxonomyTreeCache = null;
+  var locationNamesCache = null;
+
+  // Fetched once per page load and cached — the Advanced search panel
+  // reopens often as the user tweaks filters and shouldn't re-fetch the
+  // whole taxonomy/location tree every time.
+  function fetchTaxonomyTree() {
+    if (taxonomyTreeCache) return Promise.resolve(taxonomyTreeCache);
+    return fetch(API_BASE + 'taxonomy.php')
+      .then(function (res) { return res.json(); })
+      .then(function (payload) {
+        taxonomyTreeCache = payload.success ? payload.data : [];
+        return taxonomyTreeCache;
+      })
+      .catch(function () { return []; });
+  }
+  function fetchLocationNames() {
+    if (locationNamesCache) return Promise.resolve(locationNamesCache);
+    return fetch(API_BASE + 'locations.php')
+      .then(function (res) { return res.json(); })
+      .then(function (payload) {
+        var names = [];
+        (payload.success ? payload.data : []).forEach(function (country) {
+          (country.states || []).forEach(function (state) {
+            (state.cities || []).forEach(function (city) {
+              (city.areas || []).forEach(function (area) { names.push(area.name); });
+            });
+          });
+        });
+        locationNamesCache = names;
+        return names;
+      })
+      .catch(function () { return []; });
+  }
 
   function readJsonLS(key, fallback) {
     try {
@@ -897,9 +931,26 @@
   // handle is a mutable {ref} the caller fills in with openSimplePanel's
   // return value right after opening — this page needs to close itself
   // (tapping a recent search) but doesn't exist yet at the time it's built.
+  function buildSavedTabBar(sections) {
+    var names = Object.keys(sections);
+    var bar = el('div', 'killi-panel-tabs');
+    names.forEach(function (name, i) {
+      var tab = el('button', 'killi-panel-tab' + (i === 0 ? ' current' : ''), name);
+      tab.type = 'button';
+      tab.addEventListener('click', function () {
+        Array.prototype.forEach.call(bar.querySelectorAll('.killi-panel-tab'), function (t) { t.classList.remove('current'); });
+        tab.classList.add('current');
+        names.forEach(function (n) { sections[n].classList.toggle('current', n === name); });
+      });
+      bar.appendChild(tab);
+    });
+    return bar;
+  }
+
   function buildSavedPage(handle) {
     var wrap = el('div', 'killi-panel');
 
+    var savedSection = el('div', 'killi-panel-tab-section current');
     var saved = getSaved();
     var savedList = el('div', 'killi-panel-list');
     function renderSavedEmptyIfNone() {
@@ -923,7 +974,7 @@
     } else {
       renderSavedEmptyIfNone();
     }
-    wrap.appendChild(panelSectionEl('Saved businesses', savedList));
+    savedSection.appendChild(panelSectionEl('Saved businesses', savedList));
 
     var recent = readJsonLS(RECENT_SEARCHES_KEY, []);
     var recentWrap = el('div', 'killi-chips killi-panel-chips');
@@ -941,8 +992,12 @@
     } else {
       recentWrap.appendChild(el('p', 'killi-empty', 'No recent searches yet.'));
     }
-    wrap.appendChild(panelSectionEl('Recent searches', recentWrap));
+    savedSection.appendChild(panelSectionEl('Recent searches', recentWrap));
 
+    // Media tab: everything shared as an attachment this session — photos,
+    // files, and (once voice messages exist as a feature) voice notes.
+    // sessionMedia is in-memory only, so this tab is empty again on reload.
+    var mediaSection = el('div', 'killi-panel-tab-section');
     var mediaWrap = el('div', 'killi-panel-media');
     if (sessionMedia.length) {
       sessionMedia.forEach(function (f) {
@@ -960,9 +1015,13 @@
         }
       });
     } else {
-      mediaWrap.appendChild(el('p', 'killi-empty', 'Photos and files you share in chat show up here (this session only).'));
+      mediaWrap.appendChild(el('p', 'killi-empty', 'Photos, files, and other attachments you share in chat show up here (this session only).'));
     }
-    wrap.appendChild(panelSectionEl('Shared this session', mediaWrap));
+    mediaSection.appendChild(panelSectionEl('Shared this session', mediaWrap));
+
+    wrap.appendChild(buildSavedTabBar({ Saved: savedSection, Media: mediaSection }));
+    wrap.appendChild(savedSection);
+    wrap.appendChild(mediaSection);
 
     return wrap;
   }
@@ -1011,11 +1070,12 @@
   // so they're applied client-side on the response — the same pattern
   // "Verified only"/"Highest rated" already use on lastResults below.
   function runAdvancedSearch(filters, minRating, openNow) {
-    var summary = [filters.sector, filters.location, minRating ? minRating + '+ stars' : null, openNow ? 'open now' : null].filter(Boolean).join(', ') || 'all businesses';
+    var summary = [filters.category || filters.sector, filters.location, minRating ? minRating + '+ stars' : null, openNow ? 'open now' : null].filter(Boolean).join(', ') || 'all businesses';
     addBubble('user', 'Advanced search: ' + summary);
 
-    var params = new URLSearchParams({ q: filters.sector || filters.location || 'businesses', limit: '20' });
+    var params = new URLSearchParams({ q: filters.category || filters.sector || filters.location || 'businesses', limit: '20' });
     if (filters.sector) params.set('sector', filters.sector);
+    if (filters.category) params.set('category', filters.category);
     if (filters.location) params.set('location', filters.location);
 
     showTyping();
@@ -1041,23 +1101,91 @@
       });
   }
 
+  // Wires a text input to a filtered dropdown of `names`, matched by
+  // substring — same idea as the main search box's suggestion list, but
+  // scoped to this one panel field instead of the shared #killi-suggestions.
+  function attachAutocomplete(inputEl, namesPromise) {
+    var box = el('div', 'killi-panel-autocomplete');
+    box.hidden = true;
+    inputEl.insertAdjacentElement('afterend', box);
+    var allNames = [];
+    namesPromise.then(function (names) { allNames = names; });
+
+    function render() {
+      var q = inputEl.value.trim().toLowerCase();
+      box.innerHTML = '';
+      if (!q) { box.hidden = true; return; }
+      var matches = allNames.filter(function (n) { return n.toLowerCase().indexOf(q) !== -1; }).slice(0, 6);
+      if (!matches.length) { box.hidden = true; return; }
+      matches.forEach(function (n) {
+        var item = el('div', 'killi-panel-autocomplete-item', escapeHtml(n));
+        item.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          inputEl.value = n;
+          box.hidden = true;
+        });
+        box.appendChild(item);
+      });
+      box.hidden = false;
+    }
+    inputEl.addEventListener('input', render);
+    inputEl.addEventListener('blur', function () { setTimeout(function () { box.hidden = true; }, 100); });
+  }
+
   function buildAdvancedSearchPanel(handle) {
     var wrap = el('div', 'killi-panel killi-advanced-search');
 
     var sectorSel = document.createElement('select');
     sectorSel.className = 'killi-panel-select';
-    sectorSel.appendChild(new Option('Any sector', ''));
+    sectorSel.appendChild(new Option('Any', ''));
     Array.prototype.forEach.call(document.querySelectorAll('#killi-chips .killi-chip[data-sector]'), function (chip) {
       var v = chip.getAttribute('data-sector');
       sectorSel.appendChild(new Option(v, v));
     });
-    wrap.appendChild(panelSectionEl('Sector', sectorSel));
+    wrap.appendChild(panelSectionEl('Main categories', sectorSel));
+
+    // Populated once the full taxonomy loads — the chip-derived list above
+    // covers only the sectors with a quick chip, but every sector has a
+    // full category breakdown underneath it.
+    fetchTaxonomyTree().then(function (tree) {
+      var bySector = {};
+      tree.forEach(function (node) {
+        bySector[node.sector] = node;
+        if (!sectorSel.querySelector('option[value="' + node.sector.replace(/"/g, '') + '"]')) {
+          sectorSel.appendChild(new Option(node.sector, node.sector));
+        }
+      });
+      sectorSel._taxonomy = bySector;
+    });
+
+    var categorySel = document.createElement('select');
+    categorySel.className = 'killi-panel-select';
+    categorySel.appendChild(new Option('Any', ''));
+    var categorySection = panelSectionEl('Categories', categorySel);
+    categorySection.hidden = true;
+    wrap.appendChild(categorySection);
+
+    sectorSel.addEventListener('change', function () {
+      categorySel.innerHTML = '';
+      categorySel.appendChild(new Option('Any', ''));
+      var node = sectorSel._taxonomy && sectorSel._taxonomy[sectorSel.value];
+      if (sectorSel.value && node) {
+        (node.categories || []).forEach(function (c) {
+          categorySel.appendChild(new Option('— ' + c.category, c.category));
+        });
+        categorySection.hidden = false;
+      } else {
+        categorySection.hidden = true;
+      }
+    });
 
     var locationInput = document.createElement('input');
     locationInput.type = 'text';
     locationInput.className = 'killi-panel-input';
     locationInput.placeholder = 'e.g. Lekki, Victoria Island';
+    locationInput.autocomplete = 'off';
     wrap.appendChild(panelSectionEl('Location', locationInput));
+    attachAutocomplete(locationInput, fetchLocationNames());
 
     var ratingSel = document.createElement('select');
     ratingSel.className = 'killi-panel-select';
@@ -1076,7 +1204,7 @@
     var submitBtn = el('button', 'killi-panel-submit-btn', 'Search');
     submitBtn.type = 'button';
     submitBtn.addEventListener('click', function () {
-      var filters = { sector: sectorSel.value, location: locationInput.value.trim() };
+      var filters = { sector: sectorSel.value, category: categorySel.value, location: locationInput.value.trim() };
       var minRating = ratingSel.value ? Number(ratingSel.value) : 0;
       var openNow = openNowCheck.checked;
       if (handle.ref) handle.ref.close();

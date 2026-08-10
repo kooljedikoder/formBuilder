@@ -1512,3 +1512,56 @@ round action icons. Re-verified the identical flow in the standalone
 artifact via headless Chromium, plus a dark-mode screenshot of the
 Advanced search panel. Zero console/page errors throughout. Test config
 mutations reverted before committing.
+
+## Round save icon, harder View label, tabbed Saved page, category cascade + location autocomplete
+
+Follow-up polish pass on the batch above, per feedback:
+
+- **Save button** is now a round chip sized to match the View button's
+  height (24px, same as a card's action-icon rhythm) instead of a bare
+  icon — border + background like a mini version of the modal's close
+  button, so card, modal-header, and Saved-row hearts all read as the
+  same control.
+- **View button** text is uppercase, bold, and set in the page's solid
+  text color instead of the softer muted gray — reduced padding/font-size
+  to match the new 24px height exactly.
+- **Saved page is now two tabs** — "Saved" (businesses + recent
+  searches, the existing content) and "Media" (attachments shared this
+  session). Same tab-bar mechanic as the record modal's Overview/Reviews/
+  Photos tabs, just scoped to `openSimplePanel`.
+- **Advanced search**: "Sector" renamed to "Main categories"; selecting
+  one now reveals a second "Categories" select scoped to it (options
+  prefixed "— ", populated from the real product's `api/taxonomy.php`
+  tree, cached after first fetch since the panel reopens often while a
+  user tweaks filters). Category feeds `search.php`'s existing `category`
+  filter alongside sector.
+- **Location autocomplete**: the location field now suggests matches as
+  you type, sourced from `api/locations.php`'s area names (also cached).
+  `attachAutocomplete()` is a small reusable dropdown-under-an-input
+  helper — not tied to the global `#killi-suggestions` box since this is
+  a different field in a different context.
+
+Mirrored into `chat-demo.html`: no taxonomy/location API to call, so the
+Main-categories/Categories cascade and location suggestions are derived
+directly from `MOCK_LISTINGS` (unique sector→category pairs, unique
+location values) instead of a fetch.
+
+Deliberately did not build real voice-note recording/attachment for the
+Media tab — the existing mic button is speech-to-text for search, not a
+message-attachment feature, and adding actual audio capture/playback is
+a separate, much larger feature than this pass covers. The Media tab
+works correctly with what already produces attachments (photos/files);
+it's just always empty until that exists.
+
+Verified against a real running server: View button box-height 24px
+matching the save circle exactly; "VIEW" renders in caps; Saved page
+shows both "Saved" and "Media" tabs and switches correctly; Advanced
+search shows "Main categories", selecting Automotive reveals a
+"Categories" select with "— Vehicle Repair/Sales/Parts", typing "lek" in
+Location suggests and fills "Lekki" from the real locations tree, and
+the resulting search returns correct filtered results; modal header's
+save+close circles are visually paired and both fully round. Re-verified
+the identical flow in the standalone artifact (mock-data cascade +
+autocomplete) via headless Chromium, plus a dark-mode screenshot. Zero
+console/page errors throughout. Test config mutations reverted before
+committing.

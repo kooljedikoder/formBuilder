@@ -305,17 +305,22 @@ body {
 .killi-card-top-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
 .killi-save-btn {
-  border: none;
-  background: none;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--killi-border, #d0d0d0);
+  background: var(--killi-surface, #fafafa);
   color: var(--killi-muted, #9aa0a6);
+  border-radius: 50%;
   cursor: pointer;
-  padding: 2px;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
-.killi-save-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.killi-save-btn.saved { color: #e0245e; }
+.killi-save-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.killi-save-btn.saved { color: #e0245e; border-color: #e0245e; }
 .killi-save-btn.saved svg { fill: currentColor; }
 
 .killi-card-title {
@@ -376,18 +381,22 @@ body {
 .killi-view-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+  height: 24px;
+  box-sizing: border-box;
   border: 1px solid var(--killi-border, #d0d0d0);
   background: var(--killi-surface, #fafafa);
-  color: var(--killi-muted, #5f6368);
+  color: var(--killi-text, #202124);
   border-radius: 999px;
-  padding: 4px 10px 4px 8px;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 0 9px 0 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
   cursor: pointer;
   flex-shrink: 0;
 }
-.killi-view-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.killi-view-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 .killi-modal-overlay {
   position: fixed;
@@ -422,21 +431,10 @@ body {
 
 .killi-modal-save-btn {
   position: absolute;
-  top: 12px;
-  right: 50px;
-  border: none;
-  background: none;
-  color: var(--killi-muted, #9aa0a6);
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  top: 13px;
+  right: 48px;
   z-index: 2;
 }
-.killi-modal-save-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.killi-modal-save-btn.saved { color: #e0245e; }
-.killi-modal-save-btn.saved svg { fill: currentColor; }
 
 .killi-modal-close {
   /* Absolute against .killi-modal (now a fixed-height flex column) rather
@@ -575,7 +573,12 @@ body {
 
 /* ---- Saved / Profile / Advanced search panels (openSimplePanel) ---- */
 .killi-panel { padding: 4px 0 18px; }
-.killi-panel-section { padding: 14px 18px; border-top: 1px solid var(--killi-border, #e0e0e0); }
+.killi-panel-tabs { display: flex; padding: 0 18px; border-bottom: 1px solid var(--killi-border, #e0e0e0); }
+.killi-panel-tab { flex: 1; border: none; background: none; padding: 12px 0; font-size: 13px; font-weight: 700; color: var(--killi-muted, #5f6368); cursor: pointer; border-bottom: 2px solid transparent; }
+.killi-panel-tab.current { color: var(--killi-primary, #1a73e8); border-bottom-color: var(--killi-primary, #1a73e8); }
+.killi-panel-tab-section { display: none; }
+.killi-panel-tab-section.current { display: block; }
+.killi-panel-section { padding: 14px 18px; border-top: 1px solid var(--killi-border, #e0e0e0); position: relative; }
 .killi-panel-section:first-child { border-top: none; }
 .killi-panel-section-title { font-size: 12.5px; font-weight: 700; margin-bottom: 8px; }
 .killi-panel-list { display: flex; flex-direction: column; gap: 8px; }
@@ -607,6 +610,21 @@ body {
   box-sizing: border-box;
 }
 .killi-panel-checkbox { display: flex; align-items: center; gap: 8px; padding: 4px 18px 14px; font-size: 13.5px; }
+.killi-panel-autocomplete {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 100%;
+  margin-top: -1px;
+  background: var(--killi-surface, #fff);
+  border: 1px solid var(--killi-border, #d0d0d0);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 5;
+  overflow: hidden;
+}
+.killi-panel-autocomplete-item { padding: 9px 11px; font-size: 13.5px; cursor: pointer; }
+.killi-panel-autocomplete-item:hover { background: var(--killi-chat-bg, #f8f9fa); }
 .killi-panel-submit-btn {
   display: block;
   margin: 4px 18px 0;
