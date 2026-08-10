@@ -1227,3 +1227,48 @@ measured modal height for a sparse record (324px real app / 280px demo,
 down from a flat 600px) and a rich one (unchanged tall height, confirmed
 constant across all 4 tabs again). Screenshotted both in dark mode to
 match how the bug was originally reported.
+
+## Matching a real Google Business Profile card: dynamic tab label + map thumbnail
+
+Requested against a reference screenshot (a real Google Business Profile
+card for an HVAC company): two concrete gaps between that and Killi's
+result modal.
+
+- **The 4th tab always said "Menu," even for a mechanic.** Fixed by
+  deriving the label from the record's own `category`/`sector`/
+  `subcategory` text — `itemsLabel()` checks for food/drink keywords
+  (restaurant, bar, cafe, catering, bakery, diner, bistro, food, drink)
+  and returns `Menu` only when one matches, `Services` otherwise.
+  Deliberately **not** a new admin-set field: one less thing to configure
+  per record, and it can't drift out of sync with what the business
+  actually is (a restaurant renamed to a bar keeps the right label for
+  free). Applied everywhere "Menu" was hardcoded: the tab name, the
+  Overview info-tile label, the section lookup key, and the empty-state
+  fallback text ("No menu yet." vs "No services listed yet.").
+- **No map visual**, just a text "Directions" link. Added
+  `buildMapThumb()` — a small (52-56px) self-contained SVG next to the
+  address in Overview: a light grid background (suggesting street lines)
+  with a red pin drop, styled after Google's own map-pin look. It's a
+  real link to the same Google Maps search URL as the Directions button,
+  not just decorative. No external map tiles or API calls — stays
+  consistent with the rest of the app's zero-external-dependency
+  approach, and avoids a Maps API key requirement for a simple visual
+  cue. Paired with restructuring the address+hours footer into a proper
+  `.killi-modal-location` row (address text + map thumb side by side)
+  instead of two plain lines of text.
+
+Mirrored into the standalone chat-demo artifact identically (using
+`listing.location` in place of `record.address`, since the demo's mock
+data doesn't model a full street address separately from area name).
+
+Verified against a real running server: confirmed an Automotive record
+(ABC Auto Services) shows "Services" and a Hospitality/Restaurants
+record (Ocean Basket Lekki) shows "Menu," each with a working map
+thumbnail linking to the correct Google Maps search. One methodology
+trap worth noting for future testing here: `.killi-view-btn` locators
+without scoping to a specific card will grab the *first* View button
+across the whole accumulated chat history, not the most recent search's
+result — cost real time chasing a phantom bug (a second search appeared
+to inherit the first search's label) that was actually just clicking the
+wrong card. Scope Playwright locators to `.killi-card` with the record's
+title text, always.

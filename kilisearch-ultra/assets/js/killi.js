@@ -338,6 +338,38 @@
     }
   }
 
+  // "Menu" only makes sense for food/drink businesses — everyone else
+  // (HVAC, salons, garages...) gets the same items list labeled "Services"
+  // instead. Derived from the record's own category/sector, not a
+  // separate admin-set field — one less thing to configure per record,
+  // and it can't drift out of sync with what the business actually is.
+  var FOOD_CATEGORY_KEYWORDS = ['restaurant', 'bar', 'cafe', 'café', 'catering', 'food', 'drink', 'bakery', 'diner', 'bistro'];
+  function itemsLabel(record) {
+    var text = ((record.category || '') + ' ' + (record.sector || '') + ' ' + (record.subcategory || '')).toLowerCase();
+    for (var i = 0; i < FOOD_CATEGORY_KEYWORDS.length; i++) {
+      if (text.indexOf(FOOD_CATEGORY_KEYWORDS[i]) !== -1) return 'Menu';
+    }
+    return 'Services';
+  }
+
+  function buildMapThumb(record) {
+    var link = mapsLink(record);
+    if (!link) return null;
+    var a = document.createElement('a');
+    a.href = link;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.className = 'killi-map-thumb';
+    a.setAttribute('aria-label', 'Open directions to ' + record.title);
+    a.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true">'
+      + '<rect width="64" height="64" fill="#e8eaed"/>'
+      + '<path d="M0 21h64M0 43h64M18 0v64M46 0v64" stroke="#c7cad1" stroke-width="1.5"/>'
+      + '<path d="M32 16c-6.6 0-11 4.9-11 11 0 8 11 19 11 19s11-11 11-19c0-6.1-4.4-11-11-11Z" fill="#ea4335"/>'
+      + '<circle cx="32" cy="27" r="4" fill="#fff"/>'
+      + '</svg>';
+    return a;
+  }
+
   function buildActionRow(record) {
     var row = el('div', 'killi-modal-actions');
     var entries = [
@@ -417,8 +449,9 @@
     header.appendChild(el('p', 'killi-modal-subline', sublineParts.join(' · ')));
     body.appendChild(header);
 
+    var itemsTabLabel = itemsLabel(record);
     var sections = {};
-    body.appendChild(buildTabs(['Overview', 'Reviews', 'Photos', 'Menu'], function (name) {
+    body.appendChild(buildTabs(['Overview', 'Reviews', 'Photos', itemsTabLabel], function (name) {
       Object.keys(sections).forEach(function (key) { sections[key].classList.toggle('current', key === name); });
     }));
 
@@ -438,7 +471,7 @@
     var infoGrid = el('div', 'killi-info-grid');
     if (Array.isArray(record.menu_items) && record.menu_items.length) {
       var menuTile = el('div', 'killi-info-tile');
-      menuTile.appendChild(el('div', 'killi-info-tile-label', 'Menu'));
+      menuTile.appendChild(el('div', 'killi-info-tile-label', itemsTabLabel));
       var thumbs = el('div', 'killi-menu-thumbs');
       record.menu_items.slice(0, 3).forEach(function (item) {
         if (!item.photo) return;
@@ -460,10 +493,16 @@
       infoGrid.appendChild(reviewTile);
     }
     if (infoGrid.children.length) overviewSection.appendChild(infoGrid);
-    var footerParts = [];
-    if (record.address) footerParts.push('<span>' + escapeHtml(record.address) + '</span>');
-    if (record.hours_today) footerParts.push('<span class="' + (record.is_open_now ? 'killi-modal-status-open' : '') + '">' + escapeHtml(record.hours_today) + '</span>');
-    if (footerParts.length) overviewSection.appendChild(el('div', 'killi-modal-footer', footerParts.join('')));
+    if (record.hours_today) {
+      overviewSection.appendChild(el('div', 'killi-modal-footer', '<span class="' + (record.is_open_now ? 'killi-modal-status-open' : '') + '">' + escapeHtml(record.hours_today) + '</span>'));
+    }
+    if (record.address) {
+      var locationCard = el('div', 'killi-modal-location');
+      locationCard.appendChild(el('div', 'killi-modal-location-text', escapeHtml(record.address)));
+      var mapThumb = buildMapThumb(record);
+      if (mapThumb) locationCard.appendChild(mapThumb);
+      overviewSection.appendChild(locationCard);
+    }
     body.appendChild(overviewSection);
 
     var reviewsSection = el('div', 'killi-tab-section');
@@ -510,14 +549,14 @@
       });
       menuSection.appendChild(menuList);
     } else {
-      menuSection.appendChild(el('p', 'killi-modal-footer', 'No menu yet.'));
+      menuSection.appendChild(el('p', 'killi-modal-footer', itemsTabLabel === 'Menu' ? 'No menu yet.' : 'No services listed yet.'));
     }
     body.appendChild(menuSection);
 
     sections.Overview = overviewSection;
     sections.Reviews = reviewsSection;
     sections.Photos = photosSection;
-    sections.Menu = menuSection;
+    sections[itemsTabLabel] = menuSection;
 
     return body;
   }
