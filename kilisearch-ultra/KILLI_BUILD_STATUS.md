@@ -1456,3 +1456,59 @@ Re-verified the same in the standalone artifact via headless Chromium,
 including a dark-mode screenshot of the card actions to confirm the
 WhatsApp green stays legible. Zero console/page errors. Test config
 mutations reverted before committing.
+
+## Save/bookmark, Saved and Profile pages, and an Advanced search panel
+
+Three real features, not just polish this time — the bottom nav's
+Saved and Profile buttons went from a "not available yet" placeholder
+to actual pages, and search gained a filter panel alongside the
+existing free-text box.
+
+- **Save/bookmark.** Every result card and the record modal now have a
+  heart-icon toggle (`buildSaveButton()`) next to View/Close. Saving
+  writes a small snapshot of the record (title/category/location/
+  rating/phone/website/whatsapp — enough to render a row later without
+  re-fetching) to `localStorage['killi_saved_records']`. No accounts
+  exist yet, so this is per-browser, not per-user.
+- **Saved page** (`buildSavedPage()`): three sections — saved
+  businesses (each row's heart unsaves it live, no page reload), recent
+  searches (last 8, tapping one re-runs it and closes the panel), and
+  media shared this session (`sessionMedia`, in-memory only — there's
+  nowhere durable to put uploads without real accounts, so this list
+  resets on refresh; the other two persist).
+- **Profile page** (`buildProfilePage()`): an editable local
+  display name (`localStorage['killi_profile_name']`, no backend
+  account — just a label), a search-count/saved-count stat row, and a
+  "clear saved data on this device" reset button. Deliberately minimal
+  given there's no real identity system to hang more onto yet.
+- **Advanced search panel**, opened from a new filter icon in the
+  searchbar (`buildAdvancedSearchPanel()`): sector (read straight from
+  the existing chip buttons already in the DOM, so it can't drift out
+  of sync), free-text location, minimum rating, and an open-now
+  checkbox. Sector/location go through `search.php`'s existing
+  structured `filters` parameter (`SearchEngine::passesFilters()`
+  already supported category/sector/location/verified — this was
+  already wired for chip clicks and "near me", just not exposed as its
+  own panel). Minimum rating and open-now aren't server-side filters,
+  so they're applied client-side on the response, the same pattern the
+  existing "Verified only"/"Highest rated" quick-replies already use.
+- Both `openRecordModal` and the new `openSimplePanel()` (a lighter
+  sibling with no tabs, for Saved/Profile/Advanced-search) share the
+  same overlay/sheet shell and content-height-lock technique — no new
+  modal CSS needed.
+
+Mirrored into `chat-demo.html` with the same structure, adapted for a
+backend-less demo: `runAdvancedSearchMock()` filters `MOCK_LISTINGS`
+directly instead of calling `search.php`, and sector options read from
+the demo's own `data-chip` buttons.
+
+Verified against a real running server: saved ABC Auto Services from
+its card, confirmed the modal's save button also shows saved, opened
+the Saved panel and confirmed the row and a recent-search chip appear,
+unsaved it and confirmed the empty state replaces it live; set a
+profile name and confirmed the avatar updates to its initial; ran an
+Automotive advanced search and got 3 correct mechanic results with
+round action icons. Re-verified the identical flow in the standalone
+artifact via headless Chromium, plus a dark-mode screenshot of the
+Advanced search panel. Zero console/page errors throughout. Test config
+mutations reverted before committing.

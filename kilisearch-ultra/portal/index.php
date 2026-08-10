@@ -146,6 +146,7 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
     <input type="file" id="killi-attach-input" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" hidden>
     <?php endif; ?>
     <button type="button" id="killi-mic" class="killi-icon-btn" aria-label="Speak your search" hidden>&#127908;</button>
+    <button type="button" id="killi-filter" class="killi-icon-btn" aria-label="Advanced search"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="18" r="2"/></svg></button>
     <input
       type="search"
       id="killi-input"

@@ -22,6 +22,61 @@
   var lastUserMessage = '';
   var sessionTurns = [];
 
+  // Saved businesses and recent searches persist across visits
+  // (localStorage); attachments shared in chat only live for this tab's
+  // session — there's nowhere durable to put them without real accounts.
+  var SAVED_KEY = 'killi_saved_records';
+  var RECENT_SEARCHES_KEY = 'killi_recent_searches';
+  var PROFILE_NAME_KEY = 'killi_profile_name';
+  var sessionMedia = [];
+
+  function readJsonLS(key, fallback) {
+    try {
+      var raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+  function writeJsonLS(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage unavailable */ }
+  }
+  function getSaved() { return readJsonLS(SAVED_KEY, []); }
+  function isRecordSaved(record) {
+    var id = record.id != null ? record.id : record.title;
+    return getSaved().some(function (r) { return (r.id != null ? r.id : r.title) === id; });
+  }
+  function toggleSaved(record, btn) {
+    var id = record.id != null ? record.id : record.title;
+    var saved = getSaved();
+    var idx = saved.findIndex(function (r) { return (r.id != null ? r.id : r.title) === id; });
+    if (idx === -1) {
+      saved.unshift({ id: record.id, title: record.title, category: record.category, location: record.location, rating: record.rating, phone: record.phone, website: record.website, whatsapp: record.whatsapp });
+    } else {
+      saved.splice(idx, 1);
+    }
+    writeJsonLS(SAVED_KEY, saved);
+    if (btn) btn.classList.toggle('saved', idx === -1);
+    return idx === -1;
+  }
+  function buildSaveButton(record) {
+    var btn = el('button', 'killi-save-btn' + (isRecordSaved(record) ? ' saved' : ''), ICONS.heart);
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Save ' + record.title);
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleSaved(record, btn);
+    });
+    return btn;
+  }
+  function pushRecentSearch(query) {
+    query = (query || '').trim();
+    if (!query) return;
+    var list = readJsonLS(RECENT_SEARCHES_KEY, []).filter(function (q) { return q.toLowerCase() !== query.toLowerCase(); });
+    list.unshift(query);
+    writeJsonLS(RECENT_SEARCHES_KEY, list.slice(0, 8));
+  }
+
   function el(tag, className, html) {
     var node = document.createElement(tag);
     if (className) node.className = className;
@@ -120,6 +175,7 @@
 
   /** Sends an already-uploaded file to the bot as its own turn — acknowledged by chat.php ahead of any form/intent handling. */
   function sendAttachment(file) {
+    sessionMedia.unshift(file);
     addAttachmentBubble(file);
     showTyping();
     return fetch(API_BASE + 'chat.php', {
@@ -259,7 +315,10 @@
     // line so it's still visible without crowding the title.
     var top = el('div', 'killi-card-top');
     top.appendChild(el('div', 'killi-card-title', escapeHtml(record.title) + (record.verified ? '<span class="killi-badge">Verified</span>' : '')));
-    top.appendChild(buildViewButton(record));
+    var topActions = el('div', 'killi-card-top-actions');
+    topActions.appendChild(buildSaveButton(record));
+    topActions.appendChild(buildViewButton(record));
+    top.appendChild(topActions);
     card.appendChild(top);
 
     var metaTextParts = [record.subcategory || record.category, record.location].filter(Boolean);
@@ -316,6 +375,7 @@
     heart: '<svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6Z"/></svg>',
     user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>',
     whatsapp: '<svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 21l1.9-5.7A8.4 8.4 0 1 1 21 11.5Z"/><path d="M8.5 9.8c.3 2.6 2.5 4.8 5.1 5.1"/></svg>',
+    filter: '<svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="18" r="2"/></svg>',
   };
 
   /** A real 5-star row (filled up to the rounded rating), not one icon + a number — matches how every real business-profile card shows a rating. Returns markup, not a node, since callers build subline/tile HTML as strings. */
@@ -737,6 +797,15 @@
       : buildBusinessProfileBody;
     modal.appendChild(bodyBuilder(record));
 
+    // Injected generically (rather than in each body-builder) so every
+    // layout gets a save toggle without three copies of the same code.
+    var modalHeader = modal.querySelector('.killi-modal-header');
+    if (modalHeader) {
+      var modalSaveBtn = buildSaveButton(record);
+      modalSaveBtn.classList.add('killi-modal-save-btn');
+      modalHeader.appendChild(modalSaveBtn);
+    }
+
     // Keep the header/tabs fixed and move everything else into a
     // scrolling wrapper — otherwise the modal's own height would follow
     // whichever tab's content is tallest, resizing on every tab switch.
@@ -781,6 +850,241 @@
     modal.style.height = Math.max(Math.min(desired, ceiling), 180) + 'px';
 
     document.body.appendChild(overlay);
+  }
+
+  // A lighter-weight sibling of openRecordModal — same overlay/sheet shell,
+  // no tabs, for content that isn't a business record (Saved, Profile,
+  // Advanced search).
+  function openSimplePanel(title, bodyNode) {
+    var overlay = el('div', 'killi-modal-overlay');
+    var modal = el('div', 'killi-modal');
+    var closeBtn = el('button', 'killi-modal-close', '&times;');
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', 'Close');
+    modal.appendChild(closeBtn);
+
+    var header = el('div', 'killi-modal-header');
+    header.appendChild(el('p', 'killi-modal-title', escapeHtml(title)));
+    modal.appendChild(header);
+
+    var scrollBody = el('div', 'killi-modal-body');
+    scrollBody.appendChild(bodyNode);
+    modal.appendChild(scrollBody);
+
+    overlay.appendChild(modal);
+    function close() { overlay.remove(); document.removeEventListener('keydown', onKey); }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', onKey);
+
+    document.body.appendChild(overlay);
+
+    var ceiling = Math.min(600, window.innerHeight * 0.88);
+    var desired = header.offsetHeight + scrollBody.scrollHeight + 4;
+    modal.style.height = Math.max(Math.min(desired, ceiling), 180) + 'px';
+
+    return { close: close };
+  }
+
+  function panelSectionEl(title, node) {
+    var wrap = el('div', 'killi-panel-section');
+    wrap.appendChild(el('div', 'killi-panel-section-title', escapeHtml(title)));
+    wrap.appendChild(node);
+    return wrap;
+  }
+
+  // handle is a mutable {ref} the caller fills in with openSimplePanel's
+  // return value right after opening — this page needs to close itself
+  // (tapping a recent search) but doesn't exist yet at the time it's built.
+  function buildSavedPage(handle) {
+    var wrap = el('div', 'killi-panel');
+
+    var saved = getSaved();
+    var savedList = el('div', 'killi-panel-list');
+    function renderSavedEmptyIfNone() {
+      if (!savedList.children.length) savedList.appendChild(el('p', 'killi-empty', 'Nothing saved yet — tap the heart on a listing to save it.'));
+    }
+    if (saved.length) {
+      saved.forEach(function (r) {
+        var row = el('div', 'killi-panel-row');
+        row.appendChild(el('div', '', '<div class="killi-panel-row-title">' + escapeHtml(r.title) + '</div><div class="killi-panel-row-sub">' + escapeHtml([r.category, r.location].filter(Boolean).join(' · ')) + '</div>'));
+        var unsaveBtn = el('button', 'killi-save-btn saved', ICONS.heart);
+        unsaveBtn.type = 'button';
+        unsaveBtn.setAttribute('aria-label', 'Remove ' + r.title + ' from saved');
+        unsaveBtn.addEventListener('click', function () {
+          toggleSaved(r);
+          row.remove();
+          renderSavedEmptyIfNone();
+        });
+        row.appendChild(unsaveBtn);
+        savedList.appendChild(row);
+      });
+    } else {
+      renderSavedEmptyIfNone();
+    }
+    wrap.appendChild(panelSectionEl('Saved businesses', savedList));
+
+    var recent = readJsonLS(RECENT_SEARCHES_KEY, []);
+    var recentWrap = el('div', 'killi-chips killi-panel-chips');
+    if (recent.length) {
+      recent.forEach(function (q) {
+        var chip = el('button', 'killi-chip', escapeHtml(q));
+        chip.type = 'button';
+        chip.addEventListener('click', function () {
+          if (handle.ref) handle.ref.close();
+          input.value = q;
+          form.requestSubmit();
+        });
+        recentWrap.appendChild(chip);
+      });
+    } else {
+      recentWrap.appendChild(el('p', 'killi-empty', 'No recent searches yet.'));
+    }
+    wrap.appendChild(panelSectionEl('Recent searches', recentWrap));
+
+    var mediaWrap = el('div', 'killi-panel-media');
+    if (sessionMedia.length) {
+      sessionMedia.forEach(function (f) {
+        if (f.mime && f.mime.indexOf('image/') === 0) {
+          var img = document.createElement('img');
+          img.src = f.url;
+          img.alt = f.filename || '';
+          mediaWrap.appendChild(img);
+        } else {
+          var link = el('a', 'killi-panel-media-file', '&#128196; ' + escapeHtml(f.filename || 'file'));
+          link.href = f.url;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          mediaWrap.appendChild(link);
+        }
+      });
+    } else {
+      mediaWrap.appendChild(el('p', 'killi-empty', 'Photos and files you share in chat show up here (this session only).'));
+    }
+    wrap.appendChild(panelSectionEl('Shared this session', mediaWrap));
+
+    return wrap;
+  }
+
+  function buildProfilePage() {
+    var wrap = el('div', 'killi-panel');
+
+    var name = readJsonLS(PROFILE_NAME_KEY, '');
+    var head = el('div', 'killi-profile-head');
+    var avatar = el('div', 'killi-profile-avatar', escapeHtml((name || 'G').charAt(0).toUpperCase()));
+    head.appendChild(avatar);
+    var nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'killi-panel-input killi-profile-name-input';
+    nameInput.value = name;
+    nameInput.placeholder = 'Your name';
+    nameInput.addEventListener('change', function () {
+      var v = nameInput.value.trim();
+      writeJsonLS(PROFILE_NAME_KEY, v);
+      avatar.textContent = (v || 'G').charAt(0).toUpperCase();
+    });
+    head.appendChild(nameInput);
+    wrap.appendChild(head);
+
+    var stats = el('div', 'killi-profile-stats');
+    stats.appendChild(el('div', 'killi-profile-stat', '<strong>' + readJsonLS(RECENT_SEARCHES_KEY, []).length + '</strong><span>Searches</span>'));
+    stats.appendChild(el('div', 'killi-profile-stat', '<strong>' + getSaved().length + '</strong><span>Saved</span>'));
+    wrap.appendChild(stats);
+
+    var clearBtn = el('button', 'killi-panel-clear-btn', 'Clear saved data on this device');
+    clearBtn.type = 'button';
+    clearBtn.addEventListener('click', function () {
+      writeJsonLS(SAVED_KEY, []);
+      writeJsonLS(RECENT_SEARCHES_KEY, []);
+      writeJsonLS(PROFILE_NAME_KEY, '');
+      addBubble('ai', 'Cleared your saved data on this device.');
+    });
+    wrap.appendChild(clearBtn);
+
+    return wrap;
+  }
+
+  // Structured filters (sector/location) hit search.php directly, same as
+  // the chip/near-me path; minimum rating and open-now aren't server-side
+  // filters (SearchEngine only supports category/sector/location/verified)
+  // so they're applied client-side on the response — the same pattern
+  // "Verified only"/"Highest rated" already use on lastResults below.
+  function runAdvancedSearch(filters, minRating, openNow) {
+    var summary = [filters.sector, filters.location, minRating ? minRating + '+ stars' : null, openNow ? 'open now' : null].filter(Boolean).join(', ') || 'all businesses';
+    addBubble('user', 'Advanced search: ' + summary);
+
+    var params = new URLSearchParams({ q: filters.sector || filters.location || 'businesses', limit: '20' });
+    if (filters.sector) params.set('sector', filters.sector);
+    if (filters.location) params.set('location', filters.location);
+
+    showTyping();
+    fetch(API_BASE + 'search.php?' + params.toString())
+      .then(function (res) { return res.json(); })
+      .then(function (payload) {
+        hideTyping();
+        markDelivered();
+        if (!payload.success) {
+          addBubble('ai', payload.error && payload.error.message ? payload.error.message : 'Something went wrong.');
+          return;
+        }
+        var results = payload.data;
+        if (minRating) results = results.filter(function (r) { return (r.rating || 0) >= minRating; });
+        if (openNow) results = results.filter(function (r) { return r.is_open_now; });
+        lastResults = results;
+        addBubble('ai', results.length ? 'Found ' + results.length + ' match' + (results.length === 1 ? '' : 'es') + ':' : 'No matches for those filters — try widening them.', true);
+        renderResults(results);
+      })
+      .catch(function () {
+        hideTyping();
+        addBubble('ai', 'I’m having trouble reaching the search service. Please try again.');
+      });
+  }
+
+  function buildAdvancedSearchPanel(handle) {
+    var wrap = el('div', 'killi-panel killi-advanced-search');
+
+    var sectorSel = document.createElement('select');
+    sectorSel.className = 'killi-panel-select';
+    sectorSel.appendChild(new Option('Any sector', ''));
+    Array.prototype.forEach.call(document.querySelectorAll('#killi-chips .killi-chip[data-sector]'), function (chip) {
+      var v = chip.getAttribute('data-sector');
+      sectorSel.appendChild(new Option(v, v));
+    });
+    wrap.appendChild(panelSectionEl('Sector', sectorSel));
+
+    var locationInput = document.createElement('input');
+    locationInput.type = 'text';
+    locationInput.className = 'killi-panel-input';
+    locationInput.placeholder = 'e.g. Lekki, Victoria Island';
+    wrap.appendChild(panelSectionEl('Location', locationInput));
+
+    var ratingSel = document.createElement('select');
+    ratingSel.className = 'killi-panel-select';
+    [['Any rating', ''], ['4.5+ stars', '4.5'], ['4+ stars', '4'], ['3+ stars', '3']].forEach(function (o) {
+      ratingSel.appendChild(new Option(o[0], o[1]));
+    });
+    wrap.appendChild(panelSectionEl('Minimum rating', ratingSel));
+
+    var openNowLabel = el('label', 'killi-panel-checkbox');
+    var openNowCheck = document.createElement('input');
+    openNowCheck.type = 'checkbox';
+    openNowLabel.appendChild(openNowCheck);
+    openNowLabel.appendChild(document.createTextNode(' Open now only'));
+    wrap.appendChild(openNowLabel);
+
+    var submitBtn = el('button', 'killi-panel-submit-btn', 'Search');
+    submitBtn.type = 'button';
+    submitBtn.addEventListener('click', function () {
+      var filters = { sector: sectorSel.value, location: locationInput.value.trim() };
+      var minRating = ratingSel.value ? Number(ratingSel.value) : 0;
+      var openNow = openNowCheck.checked;
+      if (handle.ref) handle.ref.close();
+      runAdvancedSearch(filters, minRating, openNow);
+    });
+    wrap.appendChild(submitBtn);
+
+    return wrap;
   }
 
   function renderResults(records) {
@@ -980,6 +1284,7 @@
     hideSuggestions();
     addBubble('user', query);
     input.value = '';
+    pushRecentSearch(query);
     runChat(query);
   }
 
@@ -1218,9 +1523,9 @@
     });
   })();
 
-  // Bottom icon nav — Home/Search are real actions; Saved/Profile are
-  // placeholders for now (no such feature yet), so they still switch the
-  // active state but say so rather than silently doing nothing.
+  // Bottom icon nav — Home/Search are real actions; Saved and Profile
+  // open real panels backed by localStorage (no accounts yet, so nothing
+  // syncs beyond this browser).
   (function () {
     var nav = document.getElementById('killi-bottom-nav');
     if (!nav) return;
@@ -1234,11 +1539,22 @@
         chat.scrollTop = 0;
       } else if (target === 'search') {
         input.focus();
-      } else {
-        addBubble('ai', (target === 'saved' ? 'Saved listings' : 'Profile') + " isn't available in this preview yet.");
+      } else if (target === 'saved') {
+        var savedHandle = {};
+        savedHandle.ref = openSimplePanel('Saved', buildSavedPage(savedHandle));
+      } else if (target === 'profile') {
+        openSimplePanel('Profile', buildProfilePage());
       }
     });
   })();
+
+  var filterBtn = document.getElementById('killi-filter');
+  if (filterBtn) {
+    filterBtn.addEventListener('click', function () {
+      var searchHandle = {};
+      searchHandle.ref = openSimplePanel('Advanced search', buildAdvancedSearchPanel(searchHandle));
+    });
+  }
 
   addBubble('ai', branding.welcome_message || 'Hi, what are you looking for today?');
 
