@@ -331,23 +331,28 @@ body {
 
 .killi-card-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
-.killi-action {
+.killi-card-action-icon-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
   text-decoration: none;
-  font-size: 13px;
-  border-radius: 8px;
-  padding: 6px 10px;
-  border: 1px solid var(--killi-border, #d0d0d0);
-  color: var(--killi-text, #202124);
-  background: var(--killi-surface, #fafafa);
+  color: var(--killi-primary, #1a73e8);
 }
-
-.killi-action.call { border-color: var(--killi-primary, #1a73e8); color: var(--killi-primary, #1a73e8); }
-.killi-action.whatsapp { border-color: #25d366; color: #128c3e; }
-.killi-action.website { border-color: #5f6368; }
+.killi-card-action-icon {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--killi-primary, #1a73e8);
+  display: flex; align-items: center; justify-content: center;
+}
+.killi-card-action-icon svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.killi-card-action-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; }
+.killi-card-action-icon-wrap.whatsapp { color: #128c3e; }
+.killi-card-action-icon-wrap.whatsapp .killi-card-action-icon { border-color: #25d366; }
 
 /* "View" — the eye-icon button that opens the expanded result-detail
    modal. Only rendered on cards whose source's layout isn't "simple";
@@ -478,6 +483,7 @@ body {
 }
 
 .killi-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 18px 16px; align-items: start; }
+.killi-info-tile-full { grid-column: 1 / -1; }
 .killi-info-tile { background: var(--killi-chat-bg, #f8f9fa); border-radius: 10px; padding: 10px 12px; }
 .killi-info-tile-label { font-size: 12.5px; font-weight: 700; margin-bottom: 6px; }
 .killi-menu-thumbs { display: flex; gap: 5px; }

@@ -1426,3 +1426,33 @@ the "isn't available" bubble with the tab highlighted. Re-verified the
 same set in the standalone artifact via headless Chromium in both light
 and dark mode, and confirmed zero console/page errors throughout. Test
 config mutations reverted before committing.
+
+## Drop the Gallery tile back out; give result cards round action icons
+
+Two corrections on the previous batch: the just-added Gallery tile in
+Overview's info-grid was unwanted after all — pulled back out, and the
+Reviews tile now spans the full grid width on its own instead of
+leaving an empty second column.
+
+The bigger change is the compact result card shown inline in chat
+(`addResultCard()`) — it only ever had Call/WhatsApp/Website as
+rectangular text-pill buttons, with no Directions action at all. It
+now matches the modal's action-row language: small round icon buttons
+with a label underneath, in the order `Call, Directions, Website,
+WhatsApp` — Directions is new, and Website sits immediately after it
+as asked. `ICONS.whatsapp` (new) gives WhatsApp its own icon instead of
+reusing a generic one; its circle keeps the brand-green tint the old
+text pill had. `.killi-action`/`.killi-card-actions` (old rectangular
+pills) replaced by `.killi-card-action-icon-wrap` /
+`.killi-card-action-icon` / `.killi-card-action-label`.
+
+Mirrored identically into `chat-demo.html`.
+
+Verified against a real running server (`ABC Auto Services`): confirmed
+the card's action labels read `["Call", "Directions", "Website",
+"WhatsApp"]` in that order with round icon buttons; confirmed the
+Overview grid now renders only `["Reviews"]` as a full-width tile.
+Re-verified the same in the standalone artifact via headless Chromium,
+including a dark-mode screenshot of the card actions to confirm the
+WhatsApp green stays legible. Zero console/page errors. Test config
+mutations reverted before committing.

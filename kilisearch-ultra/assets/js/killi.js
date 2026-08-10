@@ -273,25 +273,20 @@
     }
 
     var actions = el('div', 'killi-card-actions');
-    if (record.phone) {
-      var call = el('a', 'killi-action call', 'Call');
-      call.href = 'tel:' + record.phone;
-      actions.appendChild(call);
-    }
-    if (record.whatsapp) {
-      var wa = el('a', 'killi-action whatsapp', 'WhatsApp');
-      wa.href = waLink(record.whatsapp);
-      wa.target = '_blank';
-      wa.rel = 'noopener';
-      actions.appendChild(wa);
-    }
-    if (record.website) {
-      var site = el('a', 'killi-action website', 'Website');
-      site.href = record.website;
-      site.target = '_blank';
-      site.rel = 'noopener';
-      actions.appendChild(site);
-    }
+    [
+      ['', ICONS.phone, 'Call', record.phone ? 'tel:' + record.phone : null, false],
+      ['', ICONS.pin, 'Directions', mapsLink(record), true],
+      ['', ICONS.globe, 'Website', record.website || null, true],
+      [' whatsapp', ICONS.whatsapp, 'WhatsApp', record.whatsapp ? waLink(record.whatsapp) : null, true],
+    ].forEach(function (entry) {
+      if (!entry[3]) return;
+      var a = document.createElement('a');
+      a.className = 'killi-card-action-icon-wrap' + entry[0];
+      a.href = entry[3];
+      if (entry[4]) { a.target = '_blank'; a.rel = 'noopener'; }
+      a.innerHTML = '<span class="killi-card-action-icon">' + entry[1] + '</span><span class="killi-card-action-label">' + entry[2] + '</span>';
+      actions.appendChild(a);
+    });
     card.appendChild(actions);
 
     return card;
@@ -320,6 +315,7 @@
     search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
     heart: '<svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6Z"/></svg>',
     user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>',
+    whatsapp: '<svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 21l1.9-5.7A8.4 8.4 0 1 1 21 11.5Z"/><path d="M8.5 9.8c.3 2.6 2.5 4.8 5.1 5.1"/></svg>',
   };
 
   /** A real 5-star row (filled up to the rounded rating), not one icon + a number — matches how every real business-profile card shows a rating. Returns markup, not a node, since callers build subline/tile HTML as strings. */
@@ -526,21 +522,8 @@
       overviewSection.appendChild(cta);
     }
     var infoGrid = el('div', 'killi-info-grid');
-    if (Array.isArray(record.photos) && record.photos.length) {
-      var galleryTile = el('div', 'killi-info-tile');
-      galleryTile.appendChild(el('div', 'killi-info-tile-label', 'Gallery'));
-      var galleryThumbs = el('div', 'killi-menu-thumbs');
-      record.photos.slice(0, 3).forEach(function (src) {
-        var img = document.createElement('img');
-        img.src = src;
-        img.alt = '';
-        galleryThumbs.appendChild(img);
-      });
-      galleryTile.appendChild(galleryThumbs);
-      infoGrid.appendChild(galleryTile);
-    }
     if (record.rating) {
-      var reviewTile = el('div', 'killi-info-tile');
+      var reviewTile = el('div', 'killi-info-tile killi-info-tile-full');
       reviewTile.appendChild(el('div', 'killi-info-tile-label', 'Reviews'));
       var ratingBig = el('div', 'killi-rating-big', Number(record.rating).toFixed(1) + ' ' + starRowHtml(record.rating));
       reviewTile.appendChild(ratingBig);
