@@ -107,6 +107,11 @@ if (!empty($_SESSION['killi_form'])) {
 
 $intent = $conversation->detectIntent($message);
 
+// Small offline lexicon scorer (core/SentimentEngine.php, config/sentiment.json)
+// — not a full NLP model, just enough to notice "this is useless" and soften
+// the reply below rather than answering as if nothing was wrong.
+$sentiment = killi_sentiment_engine()->analyze($message);
+
 // 2. Start a new form.
 if ($intent === 'start_enquiry') {
     if (!killi_has_feature('forms')) {
@@ -137,10 +142,11 @@ if (in_array($intent, ['greeting', 'thanks', 'help', 'unknown'], true)) {
         'success' => true,
         'data' => [
             'intent' => $intent,
-            'reply' => $conversation->respond($intent),
+            'reply' => killi_apply_sentiment_prefix($conversation->respond($intent), $sentiment),
             'detected' => [],
             'results' => [],
             'total' => 0,
+            'sentiment' => $sentiment,
         ],
     ]);
     exit;
@@ -162,12 +168,13 @@ if ($faqMatch !== null) {
         'success' => true,
         'data' => [
             'intent' => 'faq',
-            'reply' => $faqMatch['answer'],
+            'reply' => killi_apply_sentiment_prefix($faqMatch['answer'], $sentiment),
             'detected' => [],
             'results' => $linked,
             'total' => count($linked),
             'faq_id' => $faqMatch['id'],
             'image' => $faqMatch['image'] ?? null,
+            'sentiment' => $sentiment,
         ],
     ]);
     exit;
@@ -195,10 +202,11 @@ echo json_encode([
     'success' => true,
     'data' => [
         'intent' => $intent,
-        'reply' => $reply,
+        'reply' => killi_apply_sentiment_prefix($reply, $sentiment),
         'detected' => array_filter($context, fn($v) => $v !== null),
         'results' => $results,
         'total' => $result['total'],
         'offer_ticket' => $result['total'] === 0,
+        'sentiment' => $sentiment,
     ],
 ]);

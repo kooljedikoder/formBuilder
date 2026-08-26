@@ -58,7 +58,11 @@ class TaxonomyEngine
      */
     public function extractTaxonomy(string $query): ?array
     {
-        $normalized = ' ' . mb_strtolower(preg_replace('/[^a-z0-9\s]/u', ' ', $query)) . ' ';
+        // Strip punctuation with a Unicode letter/number class (not a-z0-9)
+        // so it doesn't matter that this runs before mb_strtolower() below —
+        // an [^a-z0-9] class here would silently drop every capital letter
+        // first, breaking any query typed with capitals at all.
+        $normalized = ' ' . mb_strtolower(preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $query)) . ' ';
 
         $matched = null;
         $matchedPhrase = '';

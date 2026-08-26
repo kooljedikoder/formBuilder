@@ -16,6 +16,7 @@ require_once __DIR__ . '/core/EntitlementManager.php';
 require_once __DIR__ . '/core/LicenseManager.php';
 require_once __DIR__ . '/core/CrudEngine.php';
 require_once __DIR__ . '/core/DbAdapter.php';
+require_once __DIR__ . '/core/SentimentEngine.php';
 
 use Killi\Adapters\JsonAdapter;
 use Killi\Core\SearchEngine;
@@ -32,6 +33,7 @@ use Killi\Core\EntitlementManager;
 use Killi\Core\LicenseManager;
 use Killi\Core\CrudEngine;
 use Killi\Core\DbAdapter;
+use Killi\Core\SentimentEngine;
 use Killi\Adapters\StorageInterface;
 
 /** Reads a JSON config file, returning [] if it doesn't exist or is invalid. */
@@ -884,6 +886,33 @@ function killi_taxonomy_engine(): TaxonomyEngine
     }
 
     return $engine;
+}
+
+function killi_sentiment_engine(): SentimentEngine
+{
+    static $engine = null;
+    if ($engine === null) {
+        $engine = new SentimentEngine(killi_read_json(__DIR__ . '/config/sentiment.json'));
+    }
+
+    return $engine;
+}
+
+/**
+ * Softens a reply when the message it's answering read as negative —
+ * prepends a short empathy line from config/conversation.json's
+ * "empathy_negative" intent rather than changing the underlying reply
+ * logic. A no-op for neutral/positive sentiment.
+ */
+function killi_apply_sentiment_prefix(string $reply, array $sentiment): string
+{
+    if (($sentiment['label'] ?? 'neutral') !== 'negative') {
+        return $reply;
+    }
+
+    $prefix = killi_conversation_engine()->respond('empathy_negative');
+
+    return $prefix !== '' ? $prefix . ' ' . $reply : $reply;
 }
 
 function killi_source_registry(): SourceRegistry

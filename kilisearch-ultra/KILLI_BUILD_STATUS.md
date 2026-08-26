@@ -1727,3 +1727,63 @@ bubble before the answer, exactly the confirmation that was missing.
 Re-verified the identical "cars" → "Sector: Automotive" behavior in the
 standalone artifact via headless Chromium. Test config/data mutations
 reverted before committing.
+
+## Sentiment analysis — small offline lexicon, plus two bugs it surfaced
+
+Follow-up to the taxonomy-alias work: a direct ask for offline sentiment
+detection on user input, using a small lexicon (not a model/API), same
+philosophy as everything else here.
+
+- **`core/SentimentEngine.php`** + **`config/sentiment.json`**: tokenizes
+  the message, sums +1/-1 per known word against a ~30-word positive
+  list and ~40-word negative list, with a small negator list ("not",
+  "never", "n't"...) that flips the *next* polarity word — "not good"
+  scores negative, not positive. Score `<= -1` → `negative`, `>= 1` →
+  `positive`, else `neutral`. Registered in `bootstrap.php` as
+  `killi_sentiment_engine()`, same singleton-factory pattern as every
+  other engine.
+- Wired into `api/chat.php`: sentiment is computed once per free-text
+  message and included in the JSON response (`data.sentiment`). When
+  the label is `negative`, `killi_apply_sentiment_prefix()` prepends a
+  short empathy line — a new `empathy_negative` intent added to
+  `config/conversation.json` (3 template responses, picked at random
+  exactly like every other intent) — ahead of whatever the reply would
+  normally have been (small talk, FAQ recall, or search results). Not
+  wired into the in-progress-form-answer path deliberately — injecting
+  an empathy line mid-form felt like it would interrupt structured data
+  collection rather than help.
+- **Two real bugs found and fixed while testing this**, both pre-dating
+  this change and both in the message-normalization path every free-text
+  query goes through:
+  1. `ConversationEngine::detectIntent()` used plain `str_contains()`
+     with no word boundaries, so "hi" (a greeting pattern) matched
+     *inside* the word "this" — "mechanic near this address" was
+     silently misrouted to a greeting reply instead of a search. Fixed
+     by padding the normalized message and each pattern with spaces and
+     matching ` pattern ` (the same phrase-boundary technique
+     Taxonomy/LocationEngine already use), with punctuation stripped via
+     a Unicode letter/number class first.
+  2. `TaxonomyEngine::extractTaxonomy()` and `LocationEngine::extractLocation()`
+     both ran `preg_replace('/[^a-z0-9\s]/u', ...)` *before*
+     `mb_strtolower()` — since the character class only allowed lowercase
+     a-z, every capital letter got silently stripped first. Searching
+     "Cars" (capitalized) returned zero detected context; "cars"
+     (lowercase) worked. Fixed by switching both to a
+     `\p{L}\p{N}` Unicode class, which matches letters regardless of
+     case, so the operation order no longer matters.
+- Mirrored into `chat-demo.html`: the same lexicon, negation handling,
+  and empathy-prefix logic re-implemented in plain JS
+  (`analyzeSentiment()`/`applySentimentPrefix()`), applied in
+  `sendMessage()` ahead of both the results-found path and the
+  plain-text reply path.
+
+Verified against a real running server: "this app is useless and the
+mechanic search is broken" scores `{"score":-2,"label":"negative"}` and
+now correctly gets `intent: find_service` (previously silently became
+`greeting` — bug #1 above) with an empathy line prepended in the chat
+UI; "not good" scores negative via the negation flip; "thanks that was
+quick and helpful" scores strongly positive with no prefix change;
+`Cars` (capitalized) now correctly detects `sector: Automotive` (bug #2
+above, previously empty). Re-verified the identical negative-sentiment
+→ empathy-prefix behavior in the standalone artifact via headless
+Chromium. Test config/data mutations reverted before committing.
