@@ -1787,3 +1787,59 @@ quick and helpful" scores strongly positive with no prefix change;
 above, previously empty). Re-verified the identical negative-sentiment
 → empathy-prefix behavior in the standalone artifact via headless
 Chromium. Test config/data mutations reverted before committing.
+
+## Typo-tolerant sentiment + "Raise a request / Try again" quick replies
+
+Direct follow-up: a deliberately misspelled "niot working" ("not"
+typo'd as "niot") scored neutral — the sentiment lexicon only did exact
+word lookups, so a single-character typo on a negator silently dropped
+the whole signal. Also asked for real next-step actions on a negative
+message, not just a softer sentence, and for a view on adopting a full
+sentiment lexicon.
+
+- **`SentimentEngine::classify()`** now falls back to the exact same
+  fuzzy (Levenshtein) + phonetic (Soundex) technique `SearchEngine`
+  already uses for typo'd search terms, rather than a new approach:
+  exact match first, then Levenshtein distance ≤1 for words 3+ chars,
+  then Soundex as a last resort. `config/sentiment.json` gained
+  `fuzzy_max_distance`/`fuzzy_min_word_length` (default 1/3 — sentiment
+  words are often short, so a wider distance risks false positives).
+  Verified: `niot working` → `{"score":-1,"label":"negative"}`,
+  `terible servise` → negative, `niot bad` → **positive** (the negation
+  flip correctly reads "not bad" as positive, not just "not X" as
+  always-negative).
+- Also added `working` to the positive list — "not working" needs
+  "working" to be a recognized polarity word for the negator to have
+  anything to flip; it was missing entirely, so the exact-match version
+  of "not working" (no typo) was *already* silently scoring neutral
+  before this batch, which is likely the real root cause behind the
+  original report reading as "not working at all."
+- **Quick replies on negative sentiment**: when `data.sentiment.label
+  === 'negative'`, the chat UI now shows "Raise a request" (routes into
+  the existing enquiry-form intent) and "Try again" (refocuses the
+  input) — reusing the exact same `addQuickReplies()` mechanism already
+  used for zero-result search and "Highest rated"/"Verified only".
+  Takes priority over those other quick-reply sets when both would
+  otherwise apply.
+- **On "a full lexicon library"** (answered inline, not built): explicitly
+  did *not* import a full AFINN/VADER-style word list. Those run
+  ~2,500–7,500 words tuned for general text (product reviews, social
+  media) — most of that vocabulary never appears in a business-search
+  chat, and a bigger generic list raises false-positive risk on
+  domain-neutral words more than it improves real coverage here. The
+  actual gap wasn't lexicon size, it was typo tolerance (now fixed) and
+  one missing common word (`working`, now added). Modestly expanded
+  the list (~35→~48 words) rather than adopting a large third-party
+  one; happy to grow it further with real examples if specific missed
+  words turn up.
+- Mirrored into `chat-demo.html`: a JS `levenshtein()` implementation
+  + the same fuzzy classification logic (no Soundex in the browser
+  version — Levenshtein alone already covers the reported case; not
+  worth porting a full phonetic algorithm for a static demo), plus the
+  same negative-sentiment quick-reply chips.
+
+Verified against a real running server and the standalone artifact:
+typing "niot working" now scores negative, shows the empathy-prefixed
+reply, and surfaces "Raise a request"/"Try again" chips that route into
+the existing enquiry flow / refocus the input respectively — in both
+places. Test config/data mutations reverted before committing.

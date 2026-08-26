@@ -1399,7 +1399,25 @@
           renderResults(data.results);
         }
 
-        if (data.total > 1) {
+        // A negative-reading message gets real next steps, not just the
+        // empathy line already baked into data.reply server-side — same
+        // idea as offer_ticket below, just triggered by tone instead of
+        // a zero-result search.
+        if (data.sentiment && data.sentiment.label === 'negative') {
+          addQuickReplies([
+            {
+              label: 'Raise a request',
+              onClick: function () {
+                addBubble('user', 'Raise a request');
+                runChat('raise a request');
+              },
+            },
+            {
+              label: 'Try again',
+              onClick: function () { input.focus(); },
+            },
+          ]);
+        } else if (data.total > 1) {
           addQuickReplies(buildQuickReplies(message, {}));
         } else if (data.offer_ticket) {
           addQuickReplies([{
