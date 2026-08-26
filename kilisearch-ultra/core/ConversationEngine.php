@@ -20,14 +20,23 @@ class ConversationEngine
 
     public function detectIntent(string $message): string
     {
-        $normalized = mb_strtolower(trim($message));
-        if ($normalized === '') {
+        $trimmed = trim($message);
+        if ($trimmed === '') {
             return 'unknown';
         }
 
+        // Padded + word-bounded, same technique as TaxonomyEngine/
+        // LocationEngine's phrase matching — plain str_contains() let "hi"
+        // match inside "this", so "mechanic near this address" was
+        // misrouted to the greeting intent instead of a search.
+        $normalized = ' ' . mb_strtolower(preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $trimmed)) . ' ';
+
         foreach ($this->intents as $intent) {
             foreach ($intent['patterns'] ?? [] as $pattern) {
-                if ($pattern !== '' && str_contains($normalized, mb_strtolower($pattern))) {
+                if ($pattern === '') {
+                    continue;
+                }
+                if (str_contains($normalized, ' ' . mb_strtolower($pattern) . ' ')) {
                     return $intent['id'];
                 }
             }

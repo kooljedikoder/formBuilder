@@ -43,6 +43,7 @@ body {
   height: 100vh;
   max-width: 720px;
   margin: 0 auto;
+  position: relative;
 }
 
 .killi-header {
@@ -68,8 +69,12 @@ body {
   font-size: 16px;
   cursor: pointer;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .killi-theme-toggle:active { background: rgba(255, 255, 255, 0.3); }
+.killi-theme-toggle svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 .killi-chat {
   flex: 1;
@@ -86,25 +91,64 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.killi-reactions {
-  display: flex;
-  gap: 4px;
-  align-self: flex-start;
-  margin-top: -4px;
-}
 
-.killi-reaction {
+/* Inline-in-chat rating card — appended into #killi-chat itself (like a
+   bubble) rather than a floating panel triggered by a header icon, so
+   reviewing reads as part of the conversation instead of chrome. */
+.killi-inline-rate {
+  align-self: stretch;
+  background: var(--killi-ai-bubble, #fff);
+  color: var(--killi-text, #202124);
+  border: 1px solid var(--killi-border, #e0e0e0);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: killi-rise 0.2s ease;
+}
+.killi-inline-rate-title { font-size: 13.5px; font-weight: 700; }
+.killi-rate-stars { display: flex; gap: 4px; }
+.killi-star {
   border: none;
   background: transparent;
-  font-size: 15px;
-  padding: 2px 5px;
-  border-radius: 8px;
   cursor: pointer;
-  opacity: 0.5;
-  line-height: 1;
+  padding: 2px;
+  color: var(--killi-border, #d6d8db);
+  display: flex;
 }
-.killi-reaction:active { background: rgba(127, 127, 127, 0.15); }
-.killi-reaction.selected { opacity: 1; background: rgba(127, 127, 127, 0.15); }
+.killi-star svg { width: 22px; height: 22px; fill: currentColor; }
+.killi-star.filled { color: #f5b400; }
+.killi-rate-comment {
+  width: 100%;
+  border: 1px solid rgba(127, 127, 127, 0.3);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12.5px;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  box-sizing: border-box;
+}
+.killi-rate-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.killi-rate-cancel, .killi-rate-submit {
+  border: none;
+  border-radius: 7px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.killi-rate-cancel { background: transparent; color: inherit; opacity: 0.7; }
+.killi-rate-submit { background: var(--killi-primary, #1a73e8); color: #fff; }
+.killi-rate-submit:disabled { opacity: 0.4; cursor: default; }
+.killi-rate-thanks {
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--killi-primary, #1a73e8);
+  font-weight: 600;
+}
 
 .killi-bubble,
 .killi-quick-replies,
@@ -121,14 +165,20 @@ body {
   white-space: pre-wrap;
 }
 
-.killi-tick {
-  display: block;
-  text-align: right;
+.killi-bubble-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
   font-size: 11px;
-  letter-spacing: -1px;
-  margin-top: 2px;
-  opacity: 0.75;
+  opacity: 0.65;
 }
+.killi-bubble.user .killi-bubble-meta { justify-content: flex-end; }
+.killi-bubble.ai .killi-bubble-meta { justify-content: flex-start; }
+
+.killi-timestamp { white-space: nowrap; }
+
+.killi-tick { letter-spacing: -1px; }
 .killi-tick.delivered { color: #8ecfff; opacity: 1; }
 
 .killi-typing span {
@@ -246,19 +296,34 @@ body {
 .killi-card-top {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
 }
+
+.killi-card-top-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.killi-save-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--killi-border, #d0d0d0);
+  background: var(--killi-surface, #fafafa);
+  color: var(--killi-muted, #9aa0a6);
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+.killi-save-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.killi-save-btn.saved { color: #e0245e; border-color: #e0245e; }
+.killi-save-btn.saved svg { fill: currentColor; }
 
 .killi-card-title {
   font-weight: 600;
   font-size: 15px;
-}
-
-.killi-card-rating {
-  font-size: 13px;
-  color: #f2a600;
-  white-space: nowrap;
 }
 
 .killi-card-meta {
@@ -285,23 +350,298 @@ body {
 
 .killi-card-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
-.killi-action {
+.killi-card-action-icon-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
   text-decoration: none;
-  font-size: 13px;
-  border-radius: 8px;
-  padding: 6px 10px;
+  color: var(--killi-primary, #1a73e8);
+}
+.killi-card-action-icon {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--killi-primary, #1a73e8);
+  display: flex; align-items: center; justify-content: center;
+}
+.killi-card-action-icon svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.killi-card-action-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; }
+.killi-card-action-icon-wrap.whatsapp { color: #128c3e; }
+.killi-card-action-icon-wrap.whatsapp .killi-card-action-icon { border-color: #25d366; }
+
+/* "View" — the eye-icon button that opens the expanded result-detail
+   modal. Only rendered on cards whose source's layout isn't "simple";
+   see resolveLayoutSlots() in killi.js. */
+.killi-view-btn {
+  width: 24px;
+  height: 24px;
+  box-sizing: border-box;
   border: 1px solid var(--killi-border, #d0d0d0);
-  color: var(--killi-text, #202124);
   background: var(--killi-surface, #fafafa);
+  color: var(--killi-text, #202124);
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.killi-view-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.killi-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 40;
+}
+.killi-modal {
+  background: var(--killi-bg, #fff);
+  color: var(--killi-text, #202124);
+  width: 100%;
+  max-width: 480px;
+  /* Fixed, not content-driven — switching tabs must never resize the
+     modal itself. Only .killi-modal-body (below) scrolls. */
+  height: min(600px, 88vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  border-radius: 16px 16px 0 0;
+  animation: killi-modal-up 0.2s ease;
+}
+.killi-modal-body { flex: 1; overflow-y: auto; }
+@media (min-width: 560px) {
+  .killi-modal-overlay { align-items: center; }
+  .killi-modal { border-radius: 16px; height: min(600px, 80vh); }
+}
+@keyframes killi-modal-up { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.killi-modal-save-btn {
+  position: absolute;
+  top: 13px;
+  right: 48px;
+  z-index: 2;
 }
 
-.killi-action.call { border-color: var(--killi-primary, #1a73e8); color: var(--killi-primary, #1a73e8); }
-.killi-action.whatsapp { border-color: #25d366; color: #128c3e; }
-.killi-action.website { border-color: #5f6368; }
+.killi-modal-close {
+  /* Absolute against .killi-modal (now a fixed-height flex column) rather
+     than sticky/float, which don't apply the way they used to when this
+     sat inline in a single scrolling block — this keeps it pinned
+     top-right regardless of which tab's content is scrolled. */
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--killi-text, #202124);
+  font-size: 16px;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.killi-modal-header { padding: 16px 84px 10px 18px; flex-shrink: 0; }
+.killi-modal-title { font-size: 19px; font-weight: 700; margin: 0; }
+.killi-modal-subline { font-size: 13px; color: var(--killi-muted, #5f6368); margin-top: 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.killi-modal-subline .killi-star { color: #f2a600; display: inline-flex; }
+.killi-modal-subline .killi-star svg { width: 13px; height: 13px; fill: currentColor; }
+.killi-modal-status-open { color: var(--killi-secondary, #0f9d58); font-weight: 600; }
+
+.killi-star-row { display: inline-flex; gap: 1px; }
+.killi-star-row-icon { display: inline-flex; }
+.killi-star-row-icon svg { width: 13px; height: 13px; fill: var(--killi-border, #d6d8db); }
+.killi-star-row-icon.filled svg { fill: #f2a600; }
+.killi-rating-big .killi-star-row-icon svg { width: 15px; height: 15px; }
+
+.killi-modal-tagline { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; margin: 0 18px 4px; border-top: 1px solid var(--killi-border, #e0e0e0); border-bottom: 1px solid var(--killi-border, #e0e0e0); font-size: 13.5px; }
+.killi-modal-tagline svg { width: 16px; height: 16px; stroke: var(--killi-muted, #5f6368); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+.killi-modal-tabs { display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; flex-shrink: 0; }
+.killi-modal-tab {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--killi-border, #d0d0d0);
+  background: transparent;
+  color: var(--killi-muted, #5f6368);
+  cursor: pointer;
+}
+.killi-modal-tab.current { background: var(--killi-primary, #1a73e8); color: #fff; border-color: transparent; }
+
+.killi-photo-strip { display: flex; gap: 3px; overflow-x: auto; height: 160px; }
+.killi-photo-strip img { flex-shrink: 0; height: 100%; object-fit: cover; }
+.killi-photo-strip img:first-child { width: 78%; }
+.killi-photo-strip img:not(:first-child) { width: 45%; }
+
+.killi-modal-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 14px 18px 6px; text-align: center; }
+.killi-modal-actions a { text-decoration: none; color: var(--killi-primary, #1a73e8); }
+.killi-modal-action-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid var(--killi-primary, #1a73e8);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 4px;
+}
+.killi-modal-action-icon svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.killi-modal-action-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+.killi-modal-actions a.whatsapp { color: #128c3e; }
+.killi-modal-actions a.whatsapp .killi-modal-action-icon { border-color: #25d366; }
+
+.killi-modal-cta {
+  display: block;
+  margin: 6px 18px 14px;
+  text-align: center;
+  border: 1px solid var(--killi-primary, #1a73e8);
+  color: var(--killi-primary, #1a73e8);
+  border-radius: 999px;
+  padding: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.killi-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 18px 16px; align-items: start; }
+.killi-info-tile-full { grid-column: 1 / -1; }
+.killi-info-tile { background: var(--killi-chat-bg, #f8f9fa); border-radius: 10px; padding: 10px 12px; }
+.killi-info-tile-label { font-size: 12.5px; font-weight: 700; margin-bottom: 6px; }
+.killi-menu-thumbs { display: flex; gap: 5px; }
+.killi-menu-thumbs img { width: 44px; height: 44px; flex: 0 0 auto; border-radius: 6px; object-fit: cover; }
+.killi-rating-big { font-size: 21px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+.killi-rating-big svg { width: 16px; height: 16px; fill: #f2a600; }
+.killi-rating-bars { display: flex; align-items: flex-end; gap: 3px; height: 34px; margin-top: 6px; }
+
+.killi-review-list { padding: 4px 0 8px; }
+.killi-review-card { display: flex; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--killi-border, #e0e0e0); }
+.killi-review-avatar {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--killi-primary, #1a73e8); color: #fff; font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.killi-review-body { flex: 1; min-width: 0; }
+.killi-review-author { font-size: 13.5px; font-weight: 600; }
+.killi-review-meta { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--killi-muted, #5f6368); margin-top: 2px; }
+.killi-review-meta .killi-star-row-icon svg { width: 11px; height: 11px; }
+.killi-review-text { font-size: 13px; margin: 6px 0 0; line-height: 1.45; }
+.killi-rating-bars .bar { flex: 1; background: #f2a600; border-radius: 2px 2px 0 0; min-height: 2px; }
+
+.killi-modal-footer { padding: 4px 18px 18px; font-size: 12.5px; color: var(--killi-muted, #5f6368); display: flex; justify-content: space-between; gap: 10px; }
+
+.killi-modal-location {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px 18px;
+}
+.killi-modal-location-text { flex: 1; font-size: 13px; color: var(--killi-text, #202124); line-height: 1.5; }
+.killi-modal-location-text strong { font-size: 13.5px; }
+.killi-map-thumb {
+  flex-shrink: 0;
+  width: 68px;
+  height: 68px;
+  border-radius: 10px;
+  overflow: hidden;
+  display: block;
+  border: 1px solid var(--killi-border, #e0e0e0);
+}
+.killi-map-thumb svg { width: 100%; height: 100%; display: block; }
+
+.killi-item-list { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 10px; }
+.killi-item-row { display: flex; gap: 10px; align-items: center; }
+.killi-item-row img { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: var(--killi-chat-bg, #f8f9fa); }
+.killi-item-row-fallback {
+  width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0;
+  background: var(--killi-chat-bg, #f8f9fa);
+  display: flex; align-items: center; justify-content: center;
+}
+.killi-item-row-fallback svg { width: 22px; height: 22px; stroke: var(--killi-muted, #5f6368); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.killi-item-row-title { font-size: 13.5px; font-weight: 600; }
+.killi-item-row-sub { font-size: 12px; color: var(--killi-muted, #5f6368); }
+
+/* ---- Saved / Profile / Advanced search panels (openSimplePanel) ---- */
+.killi-panel { padding: 4px 0 18px; }
+.killi-panel-tabs { display: flex; padding: 0 18px; border-bottom: 1px solid var(--killi-border, #e0e0e0); }
+.killi-panel-tab { flex: 1; border: none; background: none; padding: 12px 0; font-size: 13px; font-weight: 700; color: var(--killi-muted, #5f6368); cursor: pointer; border-bottom: 2px solid transparent; }
+.killi-panel-tab.current { color: var(--killi-primary, #1a73e8); border-bottom-color: var(--killi-primary, #1a73e8); }
+.killi-panel-tab-section { display: none; }
+.killi-panel-tab-section.current { display: block; }
+.killi-panel-section { padding: 14px 18px; border-top: 1px solid var(--killi-border, #e0e0e0); position: relative; }
+.killi-panel-section:first-child { border-top: none; }
+.killi-panel-section-title { font-size: 12.5px; font-weight: 700; margin-bottom: 8px; }
+.killi-panel-list { display: flex; flex-direction: column; gap: 8px; }
+.killi-panel-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--killi-chat-bg, #f8f9fa); border-radius: 10px; padding: 10px 12px; }
+.killi-panel-row-title { font-size: 13.5px; font-weight: 600; }
+.killi-panel-row-sub { font-size: 12px; color: var(--killi-muted, #5f6368); margin-top: 2px; }
+.killi-panel-chips { padding: 0; }
+.killi-panel-media { display: flex; flex-wrap: wrap; gap: 6px; }
+.killi-panel-media img { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; }
+.killi-panel-media-file { display: block; font-size: 13px; color: var(--killi-primary, #1a73e8); text-decoration: none; }
+.killi-panel-media-audio { display: flex; align-items: center; gap: 8px; width: 100%; }
+.killi-panel-media-audio .killi-panel-media-file { display: flex; color: var(--killi-primary, #1a73e8); flex-shrink: 0; }
+.killi-panel-media-audio .killi-panel-media-file svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.killi-panel-media-audio audio { flex: 1; min-width: 0; height: 32px; }
+
+.killi-profile-head { display: flex; align-items: center; gap: 12px; padding: 16px 18px 6px; }
+.killi-profile-avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--killi-primary, #1a73e8); color: #fff; font-size: 22px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.killi-profile-name-input { flex: 1; min-width: 0; }
+.killi-profile-stats { display: flex; gap: 10px; padding: 12px 18px; }
+.killi-profile-stat { flex: 1; background: var(--killi-chat-bg, #f8f9fa); border-radius: 10px; padding: 10px; text-align: center; }
+.killi-profile-stat strong { display: block; font-size: 19px; font-weight: 700; }
+.killi-profile-stat span { font-size: 11.5px; color: var(--killi-muted, #5f6368); }
+.killi-panel-clear-btn { display: block; margin: 6px 18px 0; width: calc(100% - 36px); border: 1px solid var(--killi-border, #d0d0d0); background: none; color: var(--killi-muted, #5f6368); border-radius: 999px; padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+.killi-panel-select, .killi-panel-input {
+  width: 100%;
+  border: 1px solid var(--killi-border, #d0d0d0);
+  background: var(--killi-surface, #fff);
+  color: var(--killi-text, #202124);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+.killi-panel-checkbox { display: flex; align-items: center; gap: 8px; padding: 4px 18px 14px; font-size: 13.5px; }
+.killi-panel-autocomplete {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 100%;
+  margin-top: -1px;
+  background: var(--killi-surface, #fff);
+  border: 1px solid var(--killi-border, #d0d0d0);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 5;
+  overflow: hidden;
+}
+.killi-panel-autocomplete-item { padding: 9px 11px; font-size: 13.5px; cursor: pointer; }
+.killi-panel-autocomplete-item:hover { background: var(--killi-chat-bg, #f8f9fa); }
+.killi-panel-submit-btn {
+  display: block;
+  margin: 4px 18px 0;
+  width: calc(100% - 36px);
+  border: none;
+  background: var(--killi-primary, #1a73e8);
+  color: #fff;
+  border-radius: 999px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.killi-tab-section { display: none; }
+.killi-tab-section.current { display: block; }
 
 .killi-chips {
   display: flex;
@@ -335,6 +675,56 @@ body {
   border-top: 1px solid var(--killi-border, #eee);
   position: relative;
 }
+.killi-searchbar[hidden] { display: none; }
+
+/* Replaces the searchbar in place while a voice note is being recorded —
+   same row height/padding so nothing else on the page shifts. */
+.killi-voice-record-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  flex-shrink: 0;
+  background: var(--killi-bg, #fff);
+  border-top: 1px solid var(--killi-border, #eee);
+}
+.killi-voice-record-bar[hidden] { display: none; }
+.killi-voice-cancel {
+  border: none;
+  background: none;
+  color: var(--killi-muted, #5f6368);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+}
+.killi-voice-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e53935;
+  flex-shrink: 0;
+  animation: killi-pulse 1s infinite ease-in-out;
+}
+.killi-voice-timer { font-weight: 700; font-size: 13.5px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.killi-voice-hint { flex: 1; color: var(--killi-muted, #5f6368); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.killi-voice-stop {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--killi-primary, #1a73e8);
+  color: #fff;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.killi-voice-stop svg { width: 16px; height: 16px; fill: currentColor; }
+.killi-attachment-audio { width: 220px; max-width: 100%; }
 
 .killi-input {
   flex: 1;
@@ -358,7 +748,11 @@ body {
   font-size: 18px;
   flex-shrink: 0;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+.killi-icon-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .killi-icon-btn:active { background: rgba(127, 127, 127, 0.15); }
 .killi-icon-btn:disabled { opacity: 0.5; cursor: default; }
 .killi-icon-btn.listening {
@@ -386,6 +780,58 @@ body {
   font-size: 14px;
 }
 
+.killi-attachment-video {
+  max-width: 240px;
+  max-height: 240px;
+  border-radius: 12px;
+  display: block;
+}
+
+.killi-attach-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.killi-attach-sheet[hidden] { display: none; }
+
+.killi-attach-sheet-card {
+  background: var(--killi-surface, #fff);
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 480px;
+  padding: 8px 8px calc(10px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+  animation: killi-rise 0.18s ease;
+}
+
+.killi-attach-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--killi-text, #202124);
+  font-size: 15px;
+  padding: 13px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.killi-attach-option svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.killi-attach-option:active { background: rgba(127, 127, 127, 0.12); }
+.killi-attach-cancel {
+  margin-top: 4px;
+  border-top: 1px solid var(--killi-border, #e0e0e0);
+  padding-top: 13px;
+  color: var(--killi-muted, #5f6368);
+  font-weight: 600;
+}
+
 .killi-send {
   width: 44px;
   height: 44px;
@@ -395,7 +841,11 @@ body {
   color: #fff;
   font-size: 18px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+.killi-send svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 
 .killi-suggestions {
   position: absolute;
@@ -423,11 +873,36 @@ body {
   font-size: 11px;
   letter-spacing: 0.02em;
   color: var(--killi-muted, #5f6368);
-  padding: 6px 12px max(6px, env(safe-area-inset-bottom));
+  padding: 6px 12px;
   flex-shrink: 0;
   background: var(--killi-bg, #fff);
 }
 .killi-suggestion-item:active { background: rgba(127, 127, 127, 0.15); }
+
+.killi-bottom-nav {
+  display: flex;
+  flex-shrink: 0;
+  background: var(--killi-surface, #fff);
+  border-top: 1px solid var(--killi-border, #e0e0e0);
+  padding: 6px 4px max(6px, env(safe-area-inset-bottom));
+}
+.killi-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--killi-muted, #5f6368);
+  padding: 5px 4px;
+  border-radius: 10px;
+}
+.killi-nav-icon svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.killi-nav-label { font-size: 10.5px; font-weight: 600; }
+.killi-nav-item.active { color: var(--killi-primary, #1a73e8); }
 
 .killi-empty {
   font-size: 14px;

@@ -714,3 +714,1132 @@ Playwright pass (default pane, click-to-switch, hash updates, scroll-spy
 highlighting, and the mobile chip-nav breakpoint) — zero console errors.
 Also published as a standalone Claude Artifact for quick sharing outside
 the repo.
+
+## FAQ: tied vs. untied source
+
+Raised in review: if a live database backs Search/CRUD anyway, is there any
+real reason for the Memory pillar's FAQ table to be its own separate,
+hardcoded local store? The answer landed on "the matching logic and the
+promotion feedback loop are the differentiators, not the storage" — so FAQ
+storage itself should collapse into the same `StorageInterface` abstraction
+Search/CRUD already use, without losing the ability to run fully standalone
+on JSON-only installs. Implemented as an explicit toggle rather than forcing
+one model:
+
+- **Untied** (default, unchanged behavior) — FAQ reads/writes its own
+  dedicated `data/faq.json`, independent of whatever backs Search/CRUD.
+- **Tied** — FAQ reads/writes its own table via the *same named connection*
+  as an existing configured profile — one set of DB credentials serving
+  every pillar, no separate FAQ connection to maintain. Configured from a
+  new "FAQ source" card on the connections page: pick a table from an
+  already-configured profile ("Use for FAQ"), map which detected column is
+  the id/question/answer, optionally mark it writable so promoting a
+  question writes a real row. Untying is one click and keeps the last tied
+  connection/table/mapping remembered for re-tying later without re-entering
+  them.
+
+`core/MemoryEngine.php` needed zero changes — it already only ever wanted a
+plain array of entries, storage-agnostic from the start. The actual gap was
+one line in `bootstrap.php`'s `killi_memory_engine()`, hardcoded to
+`killi_read_json('data/faq.json')` instead of resolving storage the way
+`killi_crud_engine()` already did. Added `killi_faq_storage()` (mirrors
+`killi_build_storage()`'s JSON-vs-`DbAdapter` branch, but reads its
+connection/table/mapping from a new `faq` block in `data_sources.json`
+rather than from whichever source happens to be "active") and rewired
+`killi_memory_engine()`/`killi_memory_record_hit()` and every read/write in
+`admin/faq.php` (previously raw `file_put_contents` calls) through it.
+
+Caught one real bug before shipping: the first pass built the FAQ mapping as
+canonical-field → column, but `DbAdapter`/`SchemaDetector::applyMapping()`
+actually expect column → canonical-field — the exact opposite direction.
+Untested, this would have silently rendered every tied FAQ's question/answer
+as blank. Found immediately by testing tied mode against a **real** local
+Postgres 16 database (a throwaway `killi_faq_test` DB with a deliberately
+oddly-named `knowledge_base` table — columns `kb_id`/`kb_question`/
+`kb_answer`, not the obvious `id`/`question`/`answer` — specifically to
+prove the column-mapping direction end to end), not just PHP's own linter:
+tying, chat recall against the live DB, promoting a new question (a real
+`INSERT`), deleting one (a real `DELETE`), and untying back to the local
+store (confirmed the original local `faq.json` was never touched while
+tied) were all exercised through actual HTTP requests against a running
+`php -S` server, plus a real headless Playwright pass over the admin UI
+(login → preview → column-pick → tie → verify status card → untie) with
+zero console errors. Postgres and all `.env`/`config/data_sources.json`/
+`data/*.json` test state were torn down/reverted to the clean shipped
+defaults afterward.
+
+## End-of-conversation ratings + a feedback review screen
+
+Raised in review: visitors could already react to an individual reply
+(the existing 😍/👍/😐/👎 emoji row), but nothing let them rate the
+conversation as a whole, and — checked while investigating — nothing let
+an *admin* review either kind of feedback at all. `data/feedback.json` was
+being written to by `api/feedback.php` but had no admin screen reading it
+back; it was a write-only sink.
+
+- **Rate this conversation** — a star icon appears in the chat header once
+  a visitor has had at least one finished exchange (there's no reliable way
+  to detect "the user is done" in a stateless page, so this is a persistent
+  affordance rather than an auto-triggered end-of-session popup). Opens a
+  small panel: 1-5 stars, an optional comment, Submit. Posts to the new
+  `api/session_feedback.php`, which validates the rating (1-5) and stores it
+  via `killi_record_session_rating()` in `data/session_feedback.json`,
+  alongside the actual transcript being rated (capped to the last 20
+  exchanges, 500 characters each, since this comes straight from an
+  unauthenticated browser).
+- **`admin/feedback.php`** — new admin screen, linked from every other admin
+  page's nav row. Two cards: conversation ratings (worst-first, so the
+  conversations actually worth reviewing surface on their own, each with an
+  expandable transcript) and reply reactions (most recent first, with an
+  "😐/👎 only" filter to skip straight to the negative ones). Either kind can
+  be dismissed once reviewed.
+- Neither collection point nor the review screen is tier-gated — feedback is
+  treated as a core operational signal, not a premium feature, matching how
+  the existing emoji-reaction endpoint was already ungated.
+
+Verified against a real running `php -S` server with a real headless
+Chromium session (not mocked): confirmed the star icon stays hidden until
+an exchange completes, submitted an actual 👍 reaction and a real 4-star
+rating with a comment through the live chat UI, confirmed both landed in
+their JSON files with the exact transcript text, logged into the admin
+screen and confirmed the rating/reaction rendered correctly (stars,
+comment, transcript, filter), exercised the dismiss action on both and
+confirmed the files emptied, and hit the API directly with an out-of-range
+and a non-numeric rating to confirm both are rejected with 422. All
+test-created admin accounts and mutated `data/*.json` state were reverted
+to the clean shipped defaults afterward.
+
+## Result-detail layouts (View → expanded card)
+
+Raised in review, working from a real Google Business Profile screenshot:
+Killi's result cards are one fixed shape regardless of what the underlying
+data actually is — a coffee shop and a mechanic and a product listing all
+render the same title/rating/Call/WhatsApp/Website card. Discussed several
+shapes this could take (an admin-authored template language, a slot-picker,
+literal custom markup) before converging on the smallest version that's
+still real: **3 fixed layouts we build, admins pick one per data source and
+supply data — never markup, never new rendering code per install.**
+
+- **Simple** (default, unchanged) — today's compact card only.
+- **Business Profile** — photo strip, hours, an "Order online" CTA, a
+  Menu/Reviews info-tile pair with a 5-bar rating histogram, address/hours
+  footer, and 4 real tabs (Overview/Reviews/Photos/Menu) that actually
+  switch visible content, not just styling.
+- **Menu & Catalog** — photo strip, price, stock status, and a variant
+  list — aimed at product/inventory data rather than a business directory,
+  proving the same 3-layout mechanism generalizes past "business listing."
+
+Each layout's fields are entirely optional — a record missing `photos` or
+`menu_items` or `order_online_url` just skips that slot, nothing errors.
+`DataSourceEngine::layoutFor()` resolves which layout a source uses
+(default `"simple"`); `killi_resolve_sources()` stamps the resolved layout
+onto every record as `_layout` once per batch (search always queries a
+single active source per request, never a merge, so this is safe to do
+once rather than per record). A "View" button (real inline SVG icon, not
+emoji — matches earlier icon-audit feedback) only renders on cards whose
+layout isn't `"simple"`, opening a modal built from small reusable
+functions (`buildPhotoStrip()`, `buildActionRow()`, `buildRatingBars()`,
+`buildTabs()`) shared across both rich layouts — deliberately written as
+separate functions rather than one monolithic renderer per layout, so a
+future "compose your own from these slots" option (raised as a phase-2
+idea, not built here) recombines what already exists instead of a rewrite.
+Every action link is real: `tel:`, a Google Maps address link, the Web
+Share API (clipboard fallback), and the actual website URL — each hidden
+outright when its field is absent, not shown disabled.
+
+An owner picks the layout per data source from a new dropdown on
+`admin/records.php`, next to two downloadable starter files —
+`samples/business-profile.sample.json` and `samples/menu-catalog.sample.json`
+— so filling in a layout's fields means editing a known-good example, not
+guessing key names from scratch.
+
+Caught one real bug before shipping: `killi_set_source_layout()`'s first
+draft wrote `foreach ($config['sources'] ?? [] as &$source)` — the `??`
+produces a temporary value, so a by-reference foreach over it silently
+never mutates the real array. Every layout change would have looked
+successful (no error, a success notice) while writing nothing at all.
+Caught immediately by testing the actual persisted file after calling the
+function, not just checking for a thrown exception — fixed by guarding
+emptiness separately and iterating the real array directly.
+
+Verified against a real running `php -S` server and real headless
+Chromium (not mocked): set a live demo source to Business Profile,
+created an actual record through `CrudEngine` with photos/hours/menu/
+rating-breakdown fields, confirmed the View button appears, opened the
+modal, confirmed the header/subline/Call-href/CTA-href render the real
+data, clicked through all 4 tabs and confirmed each swaps visible content
+(Reviews shows the rating, Photos shows both images, Menu shows both
+items), closed via Escape. Repeated for Menu & Catalog with a product
+record (price/stock/variants, no tabs). Confirmed zero regression on the
+untouched default Simple layout — same inline rating, no View button.
+Verified the admin dropdown persists a real change via an actual HTTP POST
+with a real CSRF token, and that both sample files are reachable at their
+real URLs. All test records, the test admin account, and every mutated
+`data/*.json`/`config/*.json` file were reverted to the clean shipped
+defaults afterward.
+
+## Free-tier query-log gating fix
+
+A real asymmetry, flagged in review: FAQ **recall** was already gated
+behind the Standard/Ultra `memory` feature, but query **logging**
+(`killi_memory_remember_query()`, called from `api/chat.php`) ran
+unconditionally — a Free install was quietly accumulating a query log it
+has no admin screen to see (the FAQ page that displays it is itself
+memory-gated). Fixed by wrapping that one call in the same
+`killi_has_feature('memory')` check recall already uses. One line, no
+behavior change for anyone already on Standard/Ultra.
+
+## Phase 2: a 4th "Custom" layout — a slot palette, not a template language
+
+Raised in review: the 3 fixed layouts cover a business directory and a
+product/inventory catalog, but not everything — and adding a 5th, 6th,
+7th fixed layout for every future vertical doesn't scale. Generalized the
+*method* instead: a 4th layout option, `"custom"`, built from the same 6
+components the 2 fixed rich layouts already render with — `photos`,
+`pricing` (price/price_range + stock_status), `rating` (+ breakdown bars),
+`hours`, `items` (menu_items or variants, whichever is present), and `cta`
+(order_online_url) — plus the always-on action row every layout gets.
+`KILLI_CUSTOM_SLOT_PALETTE` in `bootstrap.php` is the single source of
+truth for the 6 valid slot names, checked by both
+`killi_set_source_layout()`'s validation and `killi.js`'s
+`CUSTOM_SLOT_BUILDERS` map.
+
+Deliberately **not** drag-and-drop reorderable — an admin picks which of
+the 6 checkboxes apply on `admin/records.php`, and they always render in
+one fixed canonical order (the palette's own order), regardless of the
+order the form happened to submit them in. That's what "we don't do a lot
+on our side, strict rules" meant in practice: no new rendering code per
+admin, no ordering logic to validate, just recomposing the exact same
+`buildPhotoStrip()`/`buildRatingBars()`/`buildActionRow()`/etc. functions
+the fixed layouts already use — the reuse groundwork laid down when those
+were first built paid for itself immediately here, with zero rewrite.
+
+Verified against a real running server and real headless Chromium: set a
+source to `custom` with `photos`/`rating`/`items` selected (deliberately
+*not* `pricing`/`hours`/`cta`), created a real record via `CrudEngine`,
+confirmed the modal rendered exactly those 3 slots and nothing else — no
+pricing line, no hours line, no CTA button — while the always-on action
+row (a real `tel:` link) still appeared. Submitted a real admin POST with
+the checkboxes in `cta, hours, pricing` order and confirmed the persisted
+`custom_slots` array came back in the canonical `pricing, hours, cta`
+order regardless. All test records/admin/config state reverted afterward.
+
+## Deferred idea, not built: an opt-in AI rephraser
+
+Raised in review — should Killi support plugging in a real AI provider
+(model + API key), given the whole point of Killi is answering from a
+gated dataset, not the open world? Discussed and deliberately **not
+implemented**; recorded here as a scoped handoff for whoever (human or
+another AI) picks this up next, since the user may take development to a
+different AI IDE before coming back.
+
+**The core tension**: a general LLM's value is world knowledge; Killi's
+entire trust promise is the opposite — "I only answer from what you gave
+me." Wiring in an AI module to *generate* answers risks hallucinating
+specifics about the org's own business that were never in its data — the
+one thing Killi is explicitly built not to do.
+
+**The version that's actually worth building**: an AI layer that only
+**rephrases an answer SearchEngine/MemoryEngine already retrieved** —
+never given free rein to add facts, never shown anything beyond the
+matched record(s)/FAQ entry already decided on. Concretely, that means:
+
+- A new opt-in setting, **Ultra-gated**, off by default — matches the
+  existing tier pattern (`db_connections` is the closest precedent: an
+  Ultra-only capability with its own admin config card).
+- A settings screen (provider, model, API key) analogous to
+  `admin/connections.php`'s DB connection-profile card — credentials
+  belong in `.env`, never in `config/*.json`, same rule as every other
+  credential in this app.
+- The integration point is narrow and late: in `api/chat.php`, *after*
+  `killi_search_engine()->search()` or `killi_memory_engine()->recall()`
+  has already produced a reply and result set — never before. The AI call
+  receives only that already-decided reply text (and maybe the matched
+  record's fields) and returns a reworded version of the same reply; it
+  never sees the raw query against open-world knowledge and never gets to
+  introduce a fact that wasn't already in the retrieved data.
+- Falls back to the plain rule-based reply on any AI-call failure/timeout
+  — the feature being off (network error, bad key, timeout) must never
+  break the underlying answer, only skip the rewording.
+
+**Known tradeoffs to accept, not solve**: real per-message latency and
+cost, a new failure mode (the AI provider being down) the current
+zero-dependency rule-based engine doesn't have, and non-determinism (an
+LLM can still occasionally ignore a "don't add facts" instruction even
+when constrained — this reduces that risk, it doesn't eliminate it).
+
+**Not started**: no code, no settings screen, no provider abstraction.
+This section is the spec, not a stub — implement from here.
+
+## Try-it-as-guest demo page
+
+Requested: a way to let evaluators/prospective buyers try each tier
+without a real setup. Scoped deliberately as its own page rather than
+buttons on the real customer-facing portal — a live deployment's actual
+visitors have no reason to see "Try Free/Standard/Ultra," they're there
+to search a specific business's data, not shop for Killi itself.
+
+- **`portal/demo.php`** — a standalone, unauthenticated page listing the 3
+  tiers with their real feature sets (read live from
+  `config/packages.json`, not hand-copied text, so it can't drift out of
+  sync). "Try as guest" reuses the *existing* host-app identity hook —
+  sets `$_SESSION['killi_host_user'] = ['user_id' => 'demo-guest',
+  'package' => $tier]` and redirects into the real `portal/index.php` — so
+  a demo run exercises the actual feature gates a real host-app
+  integration would, not a separately mocked-up experience. An
+  unrecognized `?tier=` value is checked against
+  `EntitlementManager::packageIds()` and silently falls through to the
+  picker instead of setting anything.
+- **`portal/index.php`** — shows a small "Demo mode — browsing as X ·
+  Exit demo" banner whenever that session flag is present, so it's never
+  ambiguous whether you're looking at a real customer session or a demo
+  one. "Exit demo" clears the flag and returns to `demo.php`. Nothing
+  about this touches real admin accounts, licensing, or the app-password
+  gate — a password-protected deployment still gates a demo guest exactly
+  like a real visitor.
+
+Verified against a real running server: fetched `demo.php` and confirmed
+all 3 tiers list the right feature counts; clicked "Try Standard" and
+confirmed the attachment button appears (Standard+ only) while it's
+absent under "Try Free"; confirmed the banner shows the correct tier
+name; clicked "Exit demo" and confirmed the banner disappears and the
+session flag is actually cleared; confirmed `?tier=admin` (not a real
+package id) is rejected and just re-shows the picker rather than setting
+anything.
+
+## Bug fix: rating panel visible on every page load
+
+Found while building a standalone chat-preview mockup for the user (not
+shipped — a one-off HTML file, not part of this repo) and ported the real
+`killi.css` into it for accuracy. Doing that surfaced a real bug in the
+shipped CSS: `.killi-rate-panel` sets `display: flex` unconditionally,
+which — per how the CSS cascade weighs origins — overrides the browser's
+own `[hidden] { display: none }` rule even though `portal/index.php`
+renders the panel with the `hidden` attribute. Every fresh page load
+showed the 5-star panel floating over the welcome message, before any
+conversation happened and before the star button that's supposed to
+reveal it.
+
+Fix: added `.killi-rate-panel[hidden] { display: none; }` (the same
+pattern already used for `.killi-unlock-error[hidden]`) so the attribute
+wins again.
+
+Verified against a real running server: confirmed the panel is
+`isVisible() === false` on a fresh load, ran a search so the star button
+appears, clicked it, confirmed the panel opens correctly, submitted a
+rating, confirmed it still saves to `data/session_feedback.json` as
+before.
+
+## Admin interface overhaul: dashboard, pills, mobile bottom nav, dark mode
+
+Requested: a real dashboard, pill-style buttons, and a mobile-responsive
+admin — specifically a bottom icon tab bar on small screens, matching the
+dark/light polish already in the customer-facing chat and the Interactive
+Help Guide.
+
+Every existing `admin/*.php` screen had grown its own copy-pasted
+`<style>` block, but they'd all converged on the *same* class vocabulary
+(`.card`, `.notice`, `.upsell`, `button`/`button.secondary`/
+`button.danger`, `table`, `a.link`, `form.inline`, `label`, `.nav a`) —
+so instead of a rewrite, this defines that vocabulary once and swaps only
+the outer chrome per page:
+
+- **`assets/css/admin.css`** — one design system for every admin screen.
+  Light/dark tokens follow the exact pattern `killi.css` already uses
+  (`:root` → `@media (prefers-color-scheme: dark)` guarded
+  `:not([data-theme="light"])` → `[data-theme="dark"]` override), so admin
+  and the customer chat now share one visual language. Buttons became
+  pill-shaped (`border-radius: 999px`). New pieces: a desktop top pill-nav,
+  a fixed bottom icon tab bar for ≤860px screens, a slide-up "More" sheet
+  for the screens that don't fit the bottom bar, and dashboard-only
+  widgets (stat cards, tier pill, source-count rows, quick-action pills).
+- **`assets/js/admin.js`** — theme toggle (localStorage `killi-admin-theme`,
+  same on/off-system-preference logic as the customer app's toggle) and
+  the mobile "More" sheet open/close.
+- **`admin/_chrome.php`** (new) — `killi_admin_head()` /
+  `killi_admin_body_open($active)` / `killi_admin_body_close()` plus a
+  small inline-SVG icon set. One place owns the nav item list
+  (`KILLI_ADMIN_NAV_ITEMS`) instead of every page hand-rolling its own
+  `<span class="nav">`. The 4 most-used screens (Dashboard, Records, FAQ,
+  Feedback) get bottom-bar icons directly; Connections/Backups/Setup live
+  under "More" so the bar stays at 5 items on a phone. Also adds a global
+  logout icon button, since every page now shares one header.
+- **`admin/dashboard.php`** (new) — the tier + feature count, per-source
+  record counts (each wrapped in try/catch so an unreachable live-DB
+  source shows "—" instead of a fatal), FAQ count, average end-of-chat
+  rating, a "negative reactions to review" counter, quick-action pills
+  (add a record, import, review feedback, try as guest), and a "latest
+  feedback" preview. Every widget has a zero-state string for a fresh
+  install instead of a blank card.
+- **records/connections/faq/feedback/backup/setup.php** — swapped each
+  page's `<html>/<style>/<body>` boilerplate and old `<span class="nav">`
+  for the shared chrome; kept every form, CSRF field, and business-logic
+  branch byte-for-byte. Page-specific styles that don't belong in the
+  shared vocabulary (feedback's rating/reaction/transcript styles, setup's
+  step-progress bar) stayed local, just re-pointed at the shared color
+  tokens. `connections.php`'s two *pre-authentication* mini-pages (first-run
+  admin creation, login form) were deliberately left as their own
+  standalone inline-styled pages — they render before any nav would make
+  sense, and touching them was outside what was asked.
+
+Verified against a real running server, logged in as a real owner
+account: every one of the 7 admin pages renders inside the shared chrome
+with the correct active nav pill; the desktop top-nav and mobile bottom-nav
+are mutually exclusive at the 860px breakpoint on every page; the mobile
+"More" sheet opens/closes and its links navigate correctly; dark mode
+toggles and persists across a full page navigation; a real FAQ add, a
+real backup creation, and a real login → logout round-trip all still work
+through the new chrome; the two pre-auth connections.php gates (admin
+creation, login) render exactly as before. All test-created admin
+accounts, license overrides, FAQ entries, and backup files were reverted
+after testing.
+
+## Chat polish batch: no per-reply prompts, always-on View, camera/video, timestamps
+
+Requested together: (1) stop asking for a rating on every single reply —
+only at the end of the session; (2) every listing response should get a
+View button, not just ones with rich fields; (3) the attach button should
+offer camera photo/video capture, not just a file picker; (4) a visible
+timestamp per message. Applied to the real app (`assets/js/killi.js`,
+`assets/css/killi.css`, `portal/index.php`, `api/upload.php`) and mirrored
+into the standalone chat-demo artifact for parity.
+
+- **Per-reply reactions removed.** `buildReactionRow()`/`REACTION_EMOJI`
+  and their CSS are gone; `addBubble()` no longer renders them. The
+  end-of-session star panel (`#killi-rate-panel`) is now the only feedback
+  prompt — unchanged otherwise, still reveals after the first "final
+  answer" AI turn. `admin/feedback.php`'s reaction-review section is left
+  in place (harmless; it just stops receiving new rows) rather than torn
+  out, since only the chat-side prompting was in scope.
+- **View button on every listing.** `renderCard()` no longer gates the
+  button behind `record._layout !== 'simple'` — every result gets one.
+  `buildBusinessProfileBody()` was already written to skip any field a
+  record doesn't have, so a Simple-layout record just opens a sparser
+  modal (title, rating, category, call/WhatsApp/website) instead of not
+  expanding at all. The now-unused `.killi-card-rating` inline-rating
+  style was removed as dead code.
+- **Attach → action sheet.** Clicking attach now opens a small bottom
+  sheet (Take Photo / Record Video / Choose File) instead of firing a
+  single file picker — same slide-up-card pattern as the admin's mobile
+  "More" sheet. Camera options use `capture="environment"` on dedicated
+  hidden inputs; all three funnel into the same `uploadAttachment()` call.
+  `api/upload.php` now accepts `video/mp4`, `video/quicktime`,
+  `video/webm` with its own 25MB ceiling (images/PDF stay at 5MB) — an
+  early size check at the larger limit runs before MIME sniffing, then a
+  type-specific check after. `addAttachmentBubble()` renders a
+  `<video controls>` for video attachments.
+- **Timestamps.** Every bubble now shows a small `h:mm AM/PM` stamp
+  (`toLocaleTimeString`, rendered client-side at paint time — never
+  server time, so it always matches the visitor's clock). Restructured
+  the tick/timestamp markup into a shared `.killi-bubble-meta` row so
+  both sit on one line instead of the tick's old block-level styling;
+  `addAttachmentBubble()` (which builds its own bubble outside
+  `addBubble()`) gets the same meta row so attachments aren't the one
+  bubble type missing a timestamp.
+
+Verified against a real running server: searched for a Simple-layout
+listing and confirmed its View button now opens a (sparser) modal that
+was previously not expandable at all; confirmed zero `.killi-reaction`
+elements render after a search, and that the star rate-button still
+reveals after the first answer; opened the attach sheet, picked "Take
+Photo," and completed a real upload+render round-trip with a synthetic
+image; did the same for "Record Video" with a synthetic minimal MP4
+(confirmed `video/mp4` sniffed correctly and rendered with `<video
+controls>`); confirmed timestamps render on user, AI, and attachment
+bubbles alike, and persist correctly through a dark-mode toggle. All
+synthetic uploads were deleted from `storage/uploads/` afterward (already
+gitignored, so nothing to revert in git).
+
+## Sentiment analysis: considered, not built
+
+Asked whether to add a sentiment-analysis library to make the chat feel
+more responsive to frustration. Recommended against it for now: Killi's
+replies are template-driven, not generated, so a real sentiment model
+adds a dependency and per-request latency for very little payoff — there's
+no free-text generation for it to steer. The data already collected (a
+1-2★ end-session rating, a repeated zero-result query) is a cheaper,
+zero-dependency signal for the same goal, if a "detect frustration and
+soften the fallback reply" feature is wanted later.
+
+## Bug fix: modal height followed whichever tab was tallest
+
+Reported: switching between Overview/Reviews/Photos/Menu resized the
+modal itself instead of just the content — jarring since a short tab
+(Menu with no items) collapsed the modal small, then Photos popped it
+back open tall.
+
+Cause: `.killi-modal` used `max-height: 88vh; overflow-y: auto` as a
+single scroll container around header + tabs + all four tab-sections —
+so the modal's own box height always matched its currently-*visible*
+content, and toggling `.killi-tab-section.current` changed what content
+that was.
+
+Fix: `.killi-modal` is now a fixed-height (`min(600px, 88vh)`) flex
+column that never resizes. `openRecordModal()` moves everything except
+the close button, header, and tabs bar into a new `.killi-modal-body`
+wrapper (`flex:1; overflow-y:auto`) — so header/tabs stay pinned and only
+the current tab's content scrolls, inside a box that's always the same
+size regardless of which tab is showing. `.killi-modal-close` moved from
+`position:sticky;float:right` (which doesn't apply the same way inside a
+flex column) to `position:absolute` pinned to the modal's top-right
+corner; `.killi-modal-header` got right-padding so a long title doesn't
+run underneath it. Mirrored the identical fix into the standalone
+chat-demo artifact.
+
+Verified against a real running server: seeded a business-profile-layout
+record with photos/hours/reviews/menu fields, opened its modal, and
+measured `getBoundingClientRect().height` while clicking through all 4
+tabs — constant across every one, where it previously varied with each
+tab's content. Re-verified for `menu_catalog` layout (single flat body,
+no tabs) to confirm the same wrapping logic doesn't break records that
+have no `.killi-modal-tabs` at all. Close button still closes the modal
+in both cases. All seeded test data reverted afterward.
+
+## Follow-up fix: the fixed height above created a new problem
+
+Reported (with a screenshot) right after the fix above shipped: opening a
+sparse record — one with barely any fields, like "Femi's Garage" with
+only a phone number and rating — left a huge dead void under the little
+content it had. Looked like something was missing; it wasn't, the modal
+was just always 600px regardless of how little there was to show.
+
+The literal "fixed height" fix traded one problem for another: no resize
+*while switching tabs*, but the same tall box for every record regardless
+of how much content it actually has. The right fix locks the height once,
+per record, to whatever its tallest tab actually needs — not a global
+constant:
+
+- On open, each `.killi-tab-section` is briefly marked `.current` (one at
+  a time) purely to read its real `scrollHeight`, then restored — this
+  needs the overlay already attached to the document, since a detached
+  node reports 0 for any layout measurement.
+- The modal's height is set once, inline, to
+  `header height + tabs-bar height + tallest tab's content + a few px`,
+  capped at `min(600px, 88vh)` (real app) / `min(560px, phone-height × 0.85)`
+  (demo) and floored so it's never absurdly short.
+- Because this happens once at open — not on every tab click — switching
+  tabs still never resizes the modal. A rich record gets a tall box that
+  fits its tallest tab; a sparse one gets a short box that fits what it
+  actually has.
+
+Verified against a real running server and the demo artifact alike:
+measured modal height for a sparse record (324px real app / 280px demo,
+down from a flat 600px) and a rich one (unchanged tall height, confirmed
+constant across all 4 tabs again). Screenshotted both in dark mode to
+match how the bug was originally reported.
+
+## Matching a real Google Business Profile card: dynamic tab label + map thumbnail
+
+Requested against a reference screenshot (a real Google Business Profile
+card for an HVAC company): two concrete gaps between that and Killi's
+result modal.
+
+- **The 4th tab always said "Menu," even for a mechanic.** Fixed by
+  deriving the label from the record's own `category`/`sector`/
+  `subcategory` text — `itemsLabel()` checks for food/drink keywords
+  (restaurant, bar, cafe, catering, bakery, diner, bistro, food, drink)
+  and returns `Menu` only when one matches, `Services` otherwise.
+  Deliberately **not** a new admin-set field: one less thing to configure
+  per record, and it can't drift out of sync with what the business
+  actually is (a restaurant renamed to a bar keeps the right label for
+  free). Applied everywhere "Menu" was hardcoded: the tab name, the
+  Overview info-tile label, the section lookup key, and the empty-state
+  fallback text ("No menu yet." vs "No services listed yet.").
+- **No map visual**, just a text "Directions" link. Added
+  `buildMapThumb()` — a small (52-56px) self-contained SVG next to the
+  address in Overview: a light grid background (suggesting street lines)
+  with a red pin drop, styled after Google's own map-pin look. It's a
+  real link to the same Google Maps search URL as the Directions button,
+  not just decorative. No external map tiles or API calls — stays
+  consistent with the rest of the app's zero-external-dependency
+  approach, and avoids a Maps API key requirement for a simple visual
+  cue. Paired with restructuring the address+hours footer into a proper
+  `.killi-modal-location` row (address text + map thumb side by side)
+  instead of two plain lines of text.
+
+Mirrored into the standalone chat-demo artifact identically (using
+`listing.location` in place of `record.address`, since the demo's mock
+data doesn't model a full street address separately from area name).
+
+Verified against a real running server: confirmed an Automotive record
+(ABC Auto Services) shows "Services" and a Hospitality/Restaurants
+record (Ocean Basket Lekki) shows "Menu," each with a working map
+thumbnail linking to the correct Google Maps search. One methodology
+trap worth noting for future testing here: `.killi-view-btn` locators
+without scoping to a specific card will grab the *first* View button
+across the whole accumulated chat history, not the most recent search's
+result — cost real time chasing a phantom bug (a second search appeared
+to inherit the first search's label) that was actually just clicking the
+wrong card. Scope Playwright locators to `.killi-card` with the record's
+title text, always.
+
+## Closing the remaining design gap against the reference
+
+Follow-up on the same reference screenshot: even after the tab-label and
+map-thumbnail fixes, a sparse demo listing (VI Motor Works) still looked
+noticeably thinner than the reference (Jack's HVAC) — not a bug this
+time, a real design gap. Four concrete pieces, all in
+`buildBusinessProfileBody()`:
+
+- **A real 5-star row.** Every rating used to render as one star icon +
+  a number ("★ 4.6"); real business-profile cards show 5 stars, filled
+  up to the rounded rating. New `starRowHtml(rating)` builds that markup
+  once and is used everywhere a rating renders — the header, both
+  Reviews surfaces (the Overview info-tile and the Reviews tab).
+- **Category + location as a sentence.** "Vehicle Repair" alone became
+  "Vehicle Repair business in Victoria Island" — reads the way a real
+  profile describes itself, built from fields that already existed
+  (`category` + `location`), falling back to whichever one is present
+  if only one is.
+- **A description/tagline row.** If `record.description` exists, it now
+  renders as its own row (with a chevron, matching the reference's
+  "see more" affordance) between the action icons and the info tiles —
+  previously the field was collected but never actually shown in this
+  layout.
+- **A richer map thumbnail.** More grid detail (extra "street" lines, two
+  small building blocks, a bigger pin) at a bigger size (68px vs 56px),
+  and the location card now also shows the business name above the
+  address, matching the reference's combined name+address+map block.
+
+All four mirrored into the standalone chat-demo artifact identically.
+The demo's mock listings were also the real reason VI Motor Works looked
+sparse — 5 of its 6 listings had only a title/category/rating/phone, no
+`description` or `address` at all (only "Lekki Auto Clinic" was ever
+fully populated). All 15 real demo records in `data/data.json` already
+had descriptions and addresses, so no data changes were needed there —
+gave all 6 mock listings a one-line description and a street address to
+match, so the improved design is visible on whichever listing gets
+clicked, not just the one already-rich one.
+
+Verified against a real running server and the demo artifact alike:
+confirmed 5 filled stars render for a 4.6-4.9 rated record; confirmed
+the category+location sentence, tagline row, and name+address+map card
+all render for both a sparse-turned-enriched demo listing and a real
+`data.json` record; re-confirmed the modal height-lock from the previous
+fix still holds with this additional content (measured height constant
+across all 4 tabs both before and after this change, since header height
+is measured dynamically rather than assumed).
+
+## Action-row order + real review cards, fuller Photos/Menu tabs
+
+Two more gaps against the reference profile: the action-row icon order
+didn't match (ours was Call/Directions/Share/Website; a real Google
+Business Profile puts Website right after Directions and Share last),
+and the Reviews/Photos/Services tabs were mostly empty shells — a
+rating summary with no actual reviews underneath it, one or two
+placeholder photos, one or two menu/service items.
+
+- **Action row reordered** in `buildActionRow()` (`killi.js`) to
+  `Call, Directions, Website, Share` — Share moved from third to last.
+- **New `buildReviewsList(reviews)`** renders individual review cards —
+  an avatar circle with the reviewer's initial, author name, a real
+  5-star row (via the existing `starRowHtml`), a relative date, and the
+  review text — from a new `record.reviews` array
+  (`[{author, rating, date, text}]`). Wired into the Reviews tab, below
+  the existing rating-summary tile.
+- **`data/data.json` enriched**: every one of the 15 demo records now
+  has `reviews` (3 each, drawn from a fixed pool of reviewer names,
+  ratings clustered near the record's own rating, sector-appropriate
+  text), `photos` (3 each), and `menu_items`/services (3 each — real
+  dish names for the one Restaurants-category record, Ocean Basket
+  Lekki; sector-appropriate service names for everyone else). Records
+  missing a `website`, `rating_breakdown`, `review_count`, or
+  `hours_today`/`is_open_now` got sensible fallbacks so nothing regresses
+  to an empty tile.
+- Mirrored identically into the standalone `chat-demo.html` artifact:
+  action row reordered, a `buildReviewsList` port added with matching
+  CSS, and all 6 mock listings given 3 reviews, 3 photos, and 3
+  menu/service items each (previously most had 0-2 of each, or none).
+
+New CSS (`killi.css`, mirrored verbatim in the artifact): `.killi-review-list`,
+`.killi-review-card` (flex row, avatar + body), `.killi-review-avatar`
+(filled circle, initial), `.killi-review-author`, `.killi-review-meta`,
+`.killi-review-text`.
+
+Verified against a real running server: set the demo source to the
+`business_profile` layout, opened `ABC Auto Services`, and confirmed via
+Playwright + screenshots that the action row reads
+`Call, Directions, Website, Share`; the Reviews tab shows 3 review cards
+with real author names, star ratings, dates, and text; the Photos tab
+shows 3 photos; the Services tab shows 3 service rows (`Full Service`,
+`Brake Check`, `Engine Diagnostics`). Also verified in the standalone
+artifact via headless Chromium: action order both with and without a
+`website` field present (Share correctly follows whichever of
+Directions/Website is the last one shown); 3 review cards, 3 photos, 3
+service rows for a fully-enriched mock listing; modal height still
+constant across all 4 tabs; dark mode reviewed and legible. Test-only
+config mutations (`config/data_sources.json`, `config/packages.json`,
+`data/query_daily.json`, `data/query_log.json`) reverted before
+committing; the `data/data.json` enrichment is kept as the actual
+deliverable.
+
+## Outline icons, a Gallery tile, and a bottom nav bar
+
+A further pass against the reference screenshots: the "rate this chat"
+button was an emoji star, not an icon; the Reviews tab repeated its own
+label right under a tab button already labeled "Reviews"; the
+Overview grid's second tile duplicated the Services/Menu tab instead of
+giving photos their own preview; and the app had no persistent
+navigation bar at all, unlike the reference's icon nav row.
+
+- **Outline icon, not emoji**, on the header's rate button — the emoji
+  star (`&#11088;`) is now the same stroke-based star path already used
+  everywhere else ratings render, rendered unfilled via CSS instead of
+  filled, so it reads as "rate this" rather than "already rated."
+- **Removed the redundant title inside the Reviews tab**
+  (`buildBusinessProfileBody()`) — the tab button already says
+  "Reviews"; repeating it as a heading right below added nothing.
+- **Overview's info-grid now shows a Gallery tile next to Reviews**,
+  built from `record.photos` instead of `record.menu_items` — the
+  Services/Menu tab already has its own full tab, so previewing it a
+  second time in Overview was redundant, while the business's photos
+  had no preview anywhere outside the top strip and the Photos tab.
+  Gallery thumbnails are now a fixed 44×44 instead of stretching to
+  fill the tile width (`aspect-ratio: 1` on a flexed row could make 1-2
+  photos taller than the Reviews tile next to them), and the grid no
+  longer force-stretches both tiles to match the taller one's height
+  (`align-items: start`) — previously a short Reviews tile could get
+  pulled down to match a tall photo tile, leaving visible empty space.
+- **Services/Menu items without a photo now show a small shopping-cart
+  outline icon** instead of empty space where the thumbnail would go
+  (`ICONS.cart`, new) — every demo record already has real photos so
+  this path doesn't fire today, but real imported services often won't.
+- **New persistent bottom icon nav** (Home / Search / Saved / Profile),
+  matching the icon-nav pattern already shipped for the admin's mobile
+  bottom bar. Home scrolls the chat to the top, Search focuses the
+  input — both real actions. Saved and Profile aren't real features yet,
+  so tapping them still shows which tab is active but replies with an
+  explicit "isn't available in this preview yet" instead of doing
+  nothing, so the button doesn't read as broken.
+
+All of the above mirrored into the standalone `chat-demo.html` artifact
+identically, including the new `ICONS.home/search/heart/user/cart` and
+the bottom nav markup, CSS, and click handling.
+
+Verified against a real running server (business_profile layout,
+`ABC Auto Services`): confirmed the rate button renders an `<svg>`, not
+emoji text; confirmed the Overview grid shows `["Gallery", "Reviews"]`
+tile labels with visually matched heights; confirmed the Reviews tab
+has zero redundant title elements; confirmed the bottom nav renders all
+4 labels, clicking Search focuses the input, and clicking Saved posts
+the "isn't available" bubble with the tab highlighted. Re-verified the
+same set in the standalone artifact via headless Chromium in both light
+and dark mode, and confirmed zero console/page errors throughout. Test
+config mutations reverted before committing.
+
+## Drop the Gallery tile back out; give result cards round action icons
+
+Two corrections on the previous batch: the just-added Gallery tile in
+Overview's info-grid was unwanted after all — pulled back out, and the
+Reviews tile now spans the full grid width on its own instead of
+leaving an empty second column.
+
+The bigger change is the compact result card shown inline in chat
+(`addResultCard()`) — it only ever had Call/WhatsApp/Website as
+rectangular text-pill buttons, with no Directions action at all. It
+now matches the modal's action-row language: small round icon buttons
+with a label underneath, in the order `Call, Directions, Website,
+WhatsApp` — Directions is new, and Website sits immediately after it
+as asked. `ICONS.whatsapp` (new) gives WhatsApp its own icon instead of
+reusing a generic one; its circle keeps the brand-green tint the old
+text pill had. `.killi-action`/`.killi-card-actions` (old rectangular
+pills) replaced by `.killi-card-action-icon-wrap` /
+`.killi-card-action-icon` / `.killi-card-action-label`.
+
+Mirrored identically into `chat-demo.html`.
+
+Verified against a real running server (`ABC Auto Services`): confirmed
+the card's action labels read `["Call", "Directions", "Website",
+"WhatsApp"]` in that order with round icon buttons; confirmed the
+Overview grid now renders only `["Reviews"]` as a full-width tile.
+Re-verified the same in the standalone artifact via headless Chromium,
+including a dark-mode screenshot of the card actions to confirm the
+WhatsApp green stays legible. Zero console/page errors. Test config
+mutations reverted before committing.
+
+## Save/bookmark, Saved and Profile pages, and an Advanced search panel
+
+Three real features, not just polish this time — the bottom nav's
+Saved and Profile buttons went from a "not available yet" placeholder
+to actual pages, and search gained a filter panel alongside the
+existing free-text box.
+
+- **Save/bookmark.** Every result card and the record modal now have a
+  heart-icon toggle (`buildSaveButton()`) next to View/Close. Saving
+  writes a small snapshot of the record (title/category/location/
+  rating/phone/website/whatsapp — enough to render a row later without
+  re-fetching) to `localStorage['killi_saved_records']`. No accounts
+  exist yet, so this is per-browser, not per-user.
+- **Saved page** (`buildSavedPage()`): three sections — saved
+  businesses (each row's heart unsaves it live, no page reload), recent
+  searches (last 8, tapping one re-runs it and closes the panel), and
+  media shared this session (`sessionMedia`, in-memory only — there's
+  nowhere durable to put uploads without real accounts, so this list
+  resets on refresh; the other two persist).
+- **Profile page** (`buildProfilePage()`): an editable local
+  display name (`localStorage['killi_profile_name']`, no backend
+  account — just a label), a search-count/saved-count stat row, and a
+  "clear saved data on this device" reset button. Deliberately minimal
+  given there's no real identity system to hang more onto yet.
+- **Advanced search panel**, opened from a new filter icon in the
+  searchbar (`buildAdvancedSearchPanel()`): sector (read straight from
+  the existing chip buttons already in the DOM, so it can't drift out
+  of sync), free-text location, minimum rating, and an open-now
+  checkbox. Sector/location go through `search.php`'s existing
+  structured `filters` parameter (`SearchEngine::passesFilters()`
+  already supported category/sector/location/verified — this was
+  already wired for chip clicks and "near me", just not exposed as its
+  own panel). Minimum rating and open-now aren't server-side filters,
+  so they're applied client-side on the response, the same pattern the
+  existing "Verified only"/"Highest rated" quick-replies already use.
+- Both `openRecordModal` and the new `openSimplePanel()` (a lighter
+  sibling with no tabs, for Saved/Profile/Advanced-search) share the
+  same overlay/sheet shell and content-height-lock technique — no new
+  modal CSS needed.
+
+Mirrored into `chat-demo.html` with the same structure, adapted for a
+backend-less demo: `runAdvancedSearchMock()` filters `MOCK_LISTINGS`
+directly instead of calling `search.php`, and sector options read from
+the demo's own `data-chip` buttons.
+
+Verified against a real running server: saved ABC Auto Services from
+its card, confirmed the modal's save button also shows saved, opened
+the Saved panel and confirmed the row and a recent-search chip appear,
+unsaved it and confirmed the empty state replaces it live; set a
+profile name and confirmed the avatar updates to its initial; ran an
+Automotive advanced search and got 3 correct mechanic results with
+round action icons. Re-verified the identical flow in the standalone
+artifact via headless Chromium, plus a dark-mode screenshot of the
+Advanced search panel. Zero console/page errors throughout. Test config
+mutations reverted before committing.
+
+## Round save icon, harder View label, tabbed Saved page, category cascade + location autocomplete
+
+Follow-up polish pass on the batch above, per feedback:
+
+- **Save button** is now a round chip sized to match the View button's
+  height (24px, same as a card's action-icon rhythm) instead of a bare
+  icon — border + background like a mini version of the modal's close
+  button, so card, modal-header, and Saved-row hearts all read as the
+  same control.
+- **View button** text is uppercase, bold, and set in the page's solid
+  text color instead of the softer muted gray — reduced padding/font-size
+  to match the new 24px height exactly.
+- **Saved page is now two tabs** — "Saved" (businesses + recent
+  searches, the existing content) and "Media" (attachments shared this
+  session). Same tab-bar mechanic as the record modal's Overview/Reviews/
+  Photos tabs, just scoped to `openSimplePanel`.
+- **Advanced search**: "Sector" renamed to "Main categories"; selecting
+  one now reveals a second "Categories" select scoped to it (options
+  prefixed "— ", populated from the real product's `api/taxonomy.php`
+  tree, cached after first fetch since the panel reopens often while a
+  user tweaks filters). Category feeds `search.php`'s existing `category`
+  filter alongside sector.
+- **Location autocomplete**: the location field now suggests matches as
+  you type, sourced from `api/locations.php`'s area names (also cached).
+  `attachAutocomplete()` is a small reusable dropdown-under-an-input
+  helper — not tied to the global `#killi-suggestions` box since this is
+  a different field in a different context.
+
+Mirrored into `chat-demo.html`: no taxonomy/location API to call, so the
+Main-categories/Categories cascade and location suggestions are derived
+directly from `MOCK_LISTINGS` (unique sector→category pairs, unique
+location values) instead of a fetch.
+
+Deliberately did not build real voice-note recording/attachment for the
+Media tab — the existing mic button is speech-to-text for search, not a
+message-attachment feature, and adding actual audio capture/playback is
+a separate, much larger feature than this pass covers. The Media tab
+works correctly with what already produces attachments (photos/files);
+it's just always empty until that exists.
+
+Verified against a real running server: View button box-height 24px
+matching the save circle exactly; "VIEW" renders in caps; Saved page
+shows both "Saved" and "Media" tabs and switches correctly; Advanced
+search shows "Main categories", selecting Automotive reveals a
+"Categories" select with "— Vehicle Repair/Sales/Parts", typing "lek" in
+Location suggests and fills "Lekki" from the real locations tree, and
+the resulting search returns correct filtered results; modal header's
+save+close circles are visually paired and both fully round. Re-verified
+the identical flow in the standalone artifact (mock-data cascade +
+autocomplete) via headless Chromium, plus a dark-mode screenshot. Zero
+console/page errors throughout. Test config mutations reverted before
+committing.
+
+## Icon-only View button, no header star, inline-in-chat rating, filters moved to bottom nav, emoji swapped for outline SVGs
+
+Another round of UI polish:
+
+- **View button** is now icon-only (eye SVG, no "View" text), sized to
+  the exact same 24px circle as the save/heart button — same border,
+  background, and stroke width, just a different icon.
+- **Header star/rate button removed.** Rating no longer lives behind a
+  persistent header icon that opens a floating panel. Instead, once
+  there's a finished exchange worth rating, an inline card (title, 5
+  stars, optional comment, Dismiss/Submit) appends directly into the
+  chat feed — `maybeShowInlineRating()` / `buildInlineRatingCard()` —
+  so reviewing reads as part of the conversation rather than chrome.
+  Static `#killi-rate`/`.killi-rate-panel` markup removed from
+  `portal/index.php`; the widget is built entirely in JS now.
+- **Advanced search moved out of the searchbar into the bottom nav.**
+  The searchbar was getting crowded (attach, mic, filter, input, send);
+  the filter icon now lives as a fifth "Filters" item in the bottom nav
+  (Home/Search/Filters/Saved/Profile), tapped the same way as
+  Saved/Profile.
+- **All emoji/glyph entities replaced with outline SVG icons**, matching
+  the stroke-based style already used for call/directions/website/
+  heart/eye: install (`&#8615;` → download arrow), theme toggle
+  (`🌙`/`☀️` → moon/sun SVGs swapped via `innerHTML`, not `textContent`),
+  attach (`📎` → paperclip), mic (`🎙️` → mic), send (`↑` → arrow-up),
+  attach-sheet options (`📷`/`🎥`/`📁` → camera/video/folder, now with
+  inline icon + label instead of emoji prefix), attachment file links
+  and Saved-page media file rows (`📄` → document icon), and the rating
+  stars themselves (`★` text glyph → the same outline star icon already
+  used for review-star rows elsewhere, toggling fill on select exactly
+  like the heart does). Delivery ticks (✓/✓✓) were deliberately left
+  alone — they're a plain monochrome symbol, not a colorful emoji, and
+  read fine as-is.
+- Mirrored every change into `chat-demo.html`, including three
+  demo-only decorative emoji (📍/🏷️/⚡ in the breadcrumb and "Recalled
+  instantly" tag) that don't exist in the real product at all — those
+  became plain text, matching the real app's `detectedBreadcrumb()`
+  wording instead of inventing new icons for a demo-only flourish.
+
+Verified against a real running server: header now shows only the
+theme toggle (no star), bottom nav reads Home/Search/Filters/Saved/
+Profile, tapping Filters opens the same advanced-search panel as
+before, a card's save and view buttons measure identically 24×24 with
+no "View" text, the attach sheet shows camera/video/folder icons, and
+submitting the inline rating card shows "Thanks for the feedback!"
+directly in the chat feed. Re-verified the identical flow in the
+standalone artifact via headless Chromium, plus a dark-mode screenshot.
+Zero console/page errors throughout. Test config/data mutations
+reverted before committing.
+
+## Voice notes, action-row consistency, and confirming the emoji sweep is project-wide
+
+- **Project-wide emoji audit.** Re-swept every `.php`/`.js` file (not just
+  the portal chat widget) for both literal emoji characters and numeric
+  HTML entities in the emoji ranges. Found nothing left — the admin
+  panel's own dark-mode toggle (`admin/_chrome.php` + `assets/js/admin.js`)
+  already used outline SVGs before this project touched it. Only
+  `&#10003;` (a plain checkmark, used for delivery ticks) remains, kept
+  deliberately as documented last round.
+- **Modal action row now matches the card exactly.** The record modal's
+  action row was showing `Call / Directions / Website / Share` while the
+  card showed `Call / Directions / Website / WhatsApp` — the same
+  listing offered WhatsApp on the card and lost it the moment you tapped
+  View. `buildActionRow()` now uses the identical four actions in the
+  identical order as the card, and the now-unused `shareRecord()`
+  helper was removed rather than left dead.
+- **Voice notes**: a real "Voice Note" option in the attach sheet
+  (alongside Take Photo/Record Video/Choose File), recorded via
+  `MediaRecorder` and sent through the existing upload pipeline — not a
+  separate feature bolted on, the same `uploadAttachment()` →
+  `sendAttachment()` path every other attachment already uses. Tapping
+  it replaces the searchbar in place (same row, so nothing else shifts)
+  with a live recording bar: pulsing dot, running timer, cancel (×), and
+  a stop button. Stopping uploads the clip and it appears as a real
+  `<audio controls>` bubble; cancelling discards it and releases the mic
+  stream. `api/upload.php`'s allow-list gained `audio/webm`, `audio/mp4`,
+  `audio/mpeg`, and `audio/ogg`.
+  - One real bug caught by testing: `finfo` sniffs an audio-only WebM
+    recording as `video/webm` server-side (the container format is
+    genuinely ambiguous without deeper inspection), which would have
+    rendered every voice note as a silent-looking video player. Fixed by
+    having `uploadAttachment()` accept an optional `'voice'` kind hint —
+    the client knows for certain what it just recorded, so it overrides
+    the render hint after upload rather than trusting the sniffed mime
+    for that one case.
+  - The existing `#killi-mic` button is untouched — it's speech-to-text
+    into the search box (Web Speech API), a different feature from
+    recording and sending an audio message. Deliberately did not build
+    this earlier when first asked, reasoning that a phone's own keyboard
+    already has dictation built in so a second speech-to-text control
+    would be redundant clutter — that reasoning still holds for the
+    *search* mic. Voice notes are different: an audio message *sent* as
+    its own attachment, which no on-device keyboard feature covers.
+  - Saved page's Media tab gained a proper inline audio-player row for
+    voice notes (was falling through to a generic file-link before).
+- Mirrored into `chat-demo.html`: the modal/card action-row fix is
+  identical, and voice notes are recorded for real (this demo is
+  already fully client-side, so there's no reason to fake it) — a blob
+  URL plays back directly in an `<audio>` bubble, no upload endpoint
+  needed.
+
+Verified against a real running server (fake-microphone Chromium):
+card and modal both list `["Call","Directions","Website","WhatsApp"]`;
+tapping Voice Note hides the searchbar and shows the recording bar with
+a live timer; stopping restores the searchbar and posts a working
+`<audio controls>` bubble; the Saved page's Media tab shows the same
+clip with a working player. Caught and fixed the video/webm mime
+mis-detection bug via this same test run. Re-verified the identical
+flow in the standalone artifact via headless Chromium (with the demo's
+own real recording, not a fake), plus a dark-mode screenshot. Zero
+console/page errors throughout. Test uploads and config mutations
+(`storage/uploads/*.webm` is gitignored regardless) cleaned up before
+committing.
+
+## Taxonomy aliases — "cars" now resolves to Automotive
+
+A real gap, found by testing: searching "cars" returned results with no
+indication the app understood it as an Automotive query — because
+`TaxonomyEngine::extractTaxonomy()` only matched the literal taxonomy
+names ("Automotive", "Vehicle Repair", ...), and "cars" isn't literally
+any of those. There was no synonym layer feeding sector/category
+detection, only the separate `SearchEngine` synonym config used for
+result *ranking*.
+
+Fixed by giving `TaxonomyEngine` an alias mechanism identical to the one
+`LocationEngine` already has for area names ("vi" → Victoria Island):
+`data/taxonomy.json` sector and category nodes can now carry an
+`"aliases"` array, indexed the same way as the canonical name. "cars",
+"car", "vehicle", "vehicles" now resolve to sector=Automotive; every
+other sector/category got a similarly modest, sensible alias list
+(clinic→Healthcare, gym→Fitness, lawyer→Legal, property→Real Estate,
+etc.). This is what feeds `killi_extract_context()`, which is what
+already drives the "Sector: X" breadcrumb bubble shown before the
+answer — so the fix surfaces through UI that already existed, no new
+UI needed. Also added the same words to `config/search.json`'s
+existing synonym config so free-text ranking benefits too.
+
+This was in response to a direct question about whether an offline NLP
+library (word-relation/synonym libraries, sentiment analysis) belonged
+here. Answered inline rather than in this file: a curated alias
+dictionary is the right-sized, dependency-free, deterministic answer
+for a closed vocabulary like business categories — matches what
+`LocationEngine` already does and what the project's `ConversationEngine`
+docblock already commits to (rule-based, no AI/LLM). Full NLP libraries
+(spaCy/NLTK/word2vec) are Python-only or heavyweight and would be
+solving a much bigger problem than this one. Sentiment analysis on user
+input is a separate, real feature (a small offline lexicon-based scorer
+would fit the same philosophy) — not built here since it wasn't what
+the immediate complaint needed; flagged as a future ask if wanted.
+
+Mirrored into `chat-demo.html`: its parallel `SECTOR_KEYWORDS` map
+already had "car" but was missing the plural "cars" (the exact word
+that surfaced the bug) and "vehicle"/"vehicles" — added.
+
+Verified against a real running server: `api/search.php?q=cars` returns
+`"detected":{"sector":"Automotive"}` and correctly ranked Automotive
+results; in the live chat UI this renders as a "Sector: Automotive"
+bubble before the answer, exactly the confirmation that was missing.
+Re-verified the identical "cars" → "Sector: Automotive" behavior in the
+standalone artifact via headless Chromium. Test config/data mutations
+reverted before committing.
+
+## Sentiment analysis — small offline lexicon, plus two bugs it surfaced
+
+Follow-up to the taxonomy-alias work: a direct ask for offline sentiment
+detection on user input, using a small lexicon (not a model/API), same
+philosophy as everything else here.
+
+- **`core/SentimentEngine.php`** + **`config/sentiment.json`**: tokenizes
+  the message, sums +1/-1 per known word against a ~30-word positive
+  list and ~40-word negative list, with a small negator list ("not",
+  "never", "n't"...) that flips the *next* polarity word — "not good"
+  scores negative, not positive. Score `<= -1` → `negative`, `>= 1` →
+  `positive`, else `neutral`. Registered in `bootstrap.php` as
+  `killi_sentiment_engine()`, same singleton-factory pattern as every
+  other engine.
+- Wired into `api/chat.php`: sentiment is computed once per free-text
+  message and included in the JSON response (`data.sentiment`). When
+  the label is `negative`, `killi_apply_sentiment_prefix()` prepends a
+  short empathy line — a new `empathy_negative` intent added to
+  `config/conversation.json` (3 template responses, picked at random
+  exactly like every other intent) — ahead of whatever the reply would
+  normally have been (small talk, FAQ recall, or search results). Not
+  wired into the in-progress-form-answer path deliberately — injecting
+  an empathy line mid-form felt like it would interrupt structured data
+  collection rather than help.
+- **Two real bugs found and fixed while testing this**, both pre-dating
+  this change and both in the message-normalization path every free-text
+  query goes through:
+  1. `ConversationEngine::detectIntent()` used plain `str_contains()`
+     with no word boundaries, so "hi" (a greeting pattern) matched
+     *inside* the word "this" — "mechanic near this address" was
+     silently misrouted to a greeting reply instead of a search. Fixed
+     by padding the normalized message and each pattern with spaces and
+     matching ` pattern ` (the same phrase-boundary technique
+     Taxonomy/LocationEngine already use), with punctuation stripped via
+     a Unicode letter/number class first.
+  2. `TaxonomyEngine::extractTaxonomy()` and `LocationEngine::extractLocation()`
+     both ran `preg_replace('/[^a-z0-9\s]/u', ...)` *before*
+     `mb_strtolower()` — since the character class only allowed lowercase
+     a-z, every capital letter got silently stripped first. Searching
+     "Cars" (capitalized) returned zero detected context; "cars"
+     (lowercase) worked. Fixed by switching both to a
+     `\p{L}\p{N}` Unicode class, which matches letters regardless of
+     case, so the operation order no longer matters.
+- Mirrored into `chat-demo.html`: the same lexicon, negation handling,
+  and empathy-prefix logic re-implemented in plain JS
+  (`analyzeSentiment()`/`applySentimentPrefix()`), applied in
+  `sendMessage()` ahead of both the results-found path and the
+  plain-text reply path.
+
+Verified against a real running server: "this app is useless and the
+mechanic search is broken" scores `{"score":-2,"label":"negative"}` and
+now correctly gets `intent: find_service` (previously silently became
+`greeting` — bug #1 above) with an empathy line prepended in the chat
+UI; "not good" scores negative via the negation flip; "thanks that was
+quick and helpful" scores strongly positive with no prefix change;
+`Cars` (capitalized) now correctly detects `sector: Automotive` (bug #2
+above, previously empty). Re-verified the identical negative-sentiment
+→ empathy-prefix behavior in the standalone artifact via headless
+Chromium. Test config/data mutations reverted before committing.
+
+## Typo-tolerant sentiment + "Raise a request / Try again" quick replies
+
+Direct follow-up: a deliberately misspelled "niot working" ("not"
+typo'd as "niot") scored neutral — the sentiment lexicon only did exact
+word lookups, so a single-character typo on a negator silently dropped
+the whole signal. Also asked for real next-step actions on a negative
+message, not just a softer sentence, and for a view on adopting a full
+sentiment lexicon.
+
+- **`SentimentEngine::classify()`** now falls back to the exact same
+  fuzzy (Levenshtein) + phonetic (Soundex) technique `SearchEngine`
+  already uses for typo'd search terms, rather than a new approach:
+  exact match first, then Levenshtein distance ≤1 for words 3+ chars,
+  then Soundex as a last resort. `config/sentiment.json` gained
+  `fuzzy_max_distance`/`fuzzy_min_word_length` (default 1/3 — sentiment
+  words are often short, so a wider distance risks false positives).
+  Verified: `niot working` → `{"score":-1,"label":"negative"}`,
+  `terible servise` → negative, `niot bad` → **positive** (the negation
+  flip correctly reads "not bad" as positive, not just "not X" as
+  always-negative).
+- Also added `working` to the positive list — "not working" needs
+  "working" to be a recognized polarity word for the negator to have
+  anything to flip; it was missing entirely, so the exact-match version
+  of "not working" (no typo) was *already* silently scoring neutral
+  before this batch, which is likely the real root cause behind the
+  original report reading as "not working at all."
+- **Quick replies on negative sentiment**: when `data.sentiment.label
+  === 'negative'`, the chat UI now shows "Raise a request" (routes into
+  the existing enquiry-form intent) and "Try again" (refocuses the
+  input) — reusing the exact same `addQuickReplies()` mechanism already
+  used for zero-result search and "Highest rated"/"Verified only".
+  Takes priority over those other quick-reply sets when both would
+  otherwise apply.
+- **On "a full lexicon library"** (answered inline, not built): explicitly
+  did *not* import a full AFINN/VADER-style word list. Those run
+  ~2,500–7,500 words tuned for general text (product reviews, social
+  media) — most of that vocabulary never appears in a business-search
+  chat, and a bigger generic list raises false-positive risk on
+  domain-neutral words more than it improves real coverage here. The
+  actual gap wasn't lexicon size, it was typo tolerance (now fixed) and
+  one missing common word (`working`, now added). Modestly expanded
+  the list (~35→~48 words) rather than adopting a large third-party
+  one; happy to grow it further with real examples if specific missed
+  words turn up.
+- Mirrored into `chat-demo.html`: a JS `levenshtein()` implementation
+  + the same fuzzy classification logic (no Soundex in the browser
+  version — Levenshtein alone already covers the reported case; not
+  worth porting a full phonetic algorithm for a static demo), plus the
+  same negative-sentiment quick-reply chips.
+
+Verified against a real running server and the standalone artifact:
+typing "niot working" now scores negative, shows the empathy-prefixed
+reply, and surfaces "Raise a request"/"Try again" chips that route into
+the existing enquiry flow / refocus the input respectively — in both
+places. Test config/data mutations reverted before committing.

@@ -1,0 +1,424 @@
+{
+  "project": "Killi (formerly KiliSearch Ultra)",
+  "description": "Zero-required-database search + chat + memory + CRUD platform, plain PHP/JS, no LLM.",
+  "repo": "kooljedikoder/formBuilder",
+  "path": "kilisearch-ultra/",
+  "branch": "claude/kilisearch-ultra-build-qsuo20",
+  "pull_requests": [
+    {
+      "number": 1,
+      "title": "Add KiliSearch Ultra: search/chat/memory/CRUD engine, licensing, admin, PWA",
+      "state": "merged",
+      "url": "https://github.com/kooljedikoder/formBuilder/pull/1"
+    },
+    {
+      "number": 2,
+      "title": "KilliSearch Ultra: help docs, rename cleanup, deployment guide",
+      "state": "merged",
+      "url": "https://github.com/kooljedikoder/formBuilder/pull/2"
+    },
+    {
+      "number": 3,
+      "title": "KilliSearch Ultra: FAQ tied/untied source, feedback ratings, result-detail layouts",
+      "state": "open",
+      "url": "https://github.com/kooljedikoder/formBuilder/pull/3"
+    }
+  ],
+  "bugs_found_and_fixed": [
+    {
+      "commit": "c7e63a9",
+      "title": "Rating panel visible on every page load",
+      "cause": ".killi-rate-panel set display:flex unconditionally, beating the browser's [hidden] rule.",
+      "fix": "Added .killi-rate-panel[hidden] { display: none; } guard. (Superseded by 5aefcab — rating moved inline into the chat feed, no [hidden]-toggled panel at all anymore.)"
+    },
+    {
+      "commit": "b607c2a",
+      "title": "Mobile swipe-to-reveal record cards didn't actually swipe",
+      "cause": ".admin-swipe-actions used inset:0, stretching it to the full card width, so the JS-measured reveal distance was ~4x too large.",
+      "fix": "Changed to top/bottom/right only (no left), so it sizes to its own button content."
+    },
+    {
+      "commit": "5e7326a",
+      "title": "Result-detail modal resized on every tab switch",
+      "cause": ".killi-modal was one scroll container around header+tabs+all tab-sections, so its box height matched whichever tab was visible.",
+      "fix": "Fixed-height flex column; only a new .killi-modal-body wrapper scrolls, header/tabs stay pinned."
+    },
+    {
+      "commit": "dc5d728",
+      "title": "Modal action row silently dropped WhatsApp",
+      "cause": "buildActionRow() (modal) and the card's own action-row builder were two separate hardcoded entry lists that drifted apart — card offered Call/Directions/Website/WhatsApp, modal offered Call/Directions/Website/Share for the same record.",
+      "fix": "Modal now uses the identical four entries in the identical order as the card; removed the now-dead shareRecord() helper."
+    },
+    {
+      "commit": "0a04846",
+      "title": "Intent detection misrouted any message containing \"this\" (or similar) to the greeting intent",
+      "cause": "ConversationEngine::detectIntent() used plain str_contains() with no word boundaries, so the greeting pattern \"hi\" matched *inside* the word \"this\" — e.g. \"mechanic near this address\" silently became a greeting reply instead of a search.",
+      "fix": "Pad the normalized message and each pattern with spaces and match ' pattern ' — same phrase-boundary technique TaxonomyEngine/LocationEngine already use."
+    },
+    {
+      "commit": "0a04846",
+      "title": "Capitalized queries lost all context detection",
+      "cause": "TaxonomyEngine::extractTaxonomy() and LocationEngine::extractLocation() both ran preg_replace('/[^a-z0-9\\\\s]/u', ...) BEFORE mb_strtolower() — since the character class only allowed lowercase a-z, every capital letter was silently stripped first. \"Cars\" (capitalized) detected nothing; \"cars\" (lowercase) worked.",
+      "fix": "Switched both to a \\\\p{L}\\\\p{N} Unicode class, which matches letters regardless of case, so the operation order no longer matters."
+    },
+    {
+      "commit": "0a04846",
+      "title": "Server-side mime sniffing made every voice note render as a silent video player",
+      "cause": "finfo sniffs an audio-only WebM recording (from MediaRecorder) as video/webm, not audio/webm — the container format is genuinely ambiguous without deeper inspection.",
+      "fix": "uploadAttachment() now accepts an optional 'voice' kind hint the client sets explicitly for recordings started via the Voice Note button, overriding the render hint after upload rather than trusting the sniffed mime for that one case."
+    }
+  ],
+  "deferred_or_rejected": [
+    {
+      "idea": "Opt-in AI rephraser",
+      "status": "deferred",
+      "note": "Full handoff spec written in KILLI_BUILD_STATUS.md; scoped rephrase-only, Ultra-gated, never free generation."
+    },
+    {
+      "idea": "Sentiment analysis library",
+      "status": "built",
+      "note": "Reversed from the earlier 'rejected_for_now' call. Built as a small offline lexicon scorer (core/SentimentEngine.php + config/sentiment.json) with Levenshtein/Soundex typo tolerance — no ML model, no external API, ~50 words per polarity. Softens the reply and surfaces Raise-a-request/Try-again quick replies on a negative read. See KILLI_BUILD_STATUS.md for the full writeup and the two detection bugs it surfaced."
+    },
+    {
+      "idea": "Full third-party sentiment lexicon (AFINN/VADER-style)",
+      "status": "rejected_for_now",
+      "note": "Considered when the small lexicon missed a typo'd word. The actual gap was typo tolerance and one missing word (\"working\"), not list size — a 2,500+ word generic list would raise false-positive risk on domain-neutral words more than it improves real coverage for a business-search chat. Lexicon grown modestly (~35→~48 words) instead."
+    },
+    {
+      "idea": "Explicit \"did you mean 'not'?\" clarifying question for likely typos",
+      "status": "rejected",
+      "note": "Considered for sentiment word typos specifically. Chose silent fuzzy-match tolerance instead (SentimentEngine::classify()) — a bot second-guessing every typo reads as more robotic, not less; the real ask underneath (\"tell me what to do next\") is served better by the Raise-a-request/Try-again quick replies that were built instead."
+    }
+  ],
+  "commits": [
+    {
+      "commit": "92c00a5",
+      "date": "2026-08-08",
+      "title": "Add KiliSearch Ultra proof-of-concept (KiliGoogle.ai)",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "09c00f1",
+      "date": "2026-08-08",
+      "title": "Add Location, Source and Taxonomy engines to KiliSearch Ultra V1",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "5f194f5",
+      "date": "2026-08-08",
+      "title": "Add schema detector and rule-based conversation engine; fix chip regression",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "5ed52ad",
+      "date": "2026-08-08",
+      "title": "Finish import pipeline: add commit step (detect -> preview -> import)",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "bb0cfaa",
+      "date": "2026-08-08",
+      "title": "Add minimal Enquiry form and FAQ/memory engine",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "983e0fe",
+      "date": "2026-08-08",
+      "title": "Consolidate FaqEngine + query logging into one MemoryEngine",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "7cc4817",
+      "date": "2026-08-08",
+      "title": "Add Data Source Engine: swappable datasets + schema-detected publishing",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "3d746cf",
+      "date": "2026-08-08",
+      "title": "Add dark/light toggle, chip-fills-input, typing indicator, ticks, animation",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "73972a0",
+      "date": "2026-08-08",
+      "title": "Add emoji reactions, file attachment, voice input, media responses, DB connections",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "12682d3",
+      "date": "2026-08-08",
+      "title": "Add two-tier auth: mandatory admin login, optional app-wide password",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "b742771",
+      "date": "2026-08-08",
+      "title": "Add license/package entitlement system with a pluggable host-auth hook",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "aec3d3e",
+      "date": "2026-08-08",
+      "title": "Add reference host-app integration demo + admin default-package control",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "e95683d",
+      "date": "2026-08-08",
+      "title": "Add license key activation to unlock Ultra features",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "47e6c96",
+      "date": "2026-08-08",
+      "title": "Fix product name to Killi, rename tiers to Free/Standard/Ultra, add PACKAGES.md",
+      "pr": 1,
+      "type": "rename"
+    },
+    {
+      "commit": "edff74e",
+      "date": "2026-08-08",
+      "title": "Add guided standalone setup wizard",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "5b6fe35",
+      "date": "2026-08-08",
+      "title": "Audit chat/branding features against tiers, add white-label + fix attachment gating gap",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "4bf2928",
+      "date": "2026-08-08",
+      "title": "Add CRUD engine — the fourth pillar (Search / Conversational / Memory / CRUD)",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "268e7c5",
+      "date": "2026-08-08",
+      "title": "Harden admin security, add multi-admin, FAQ curation, chat auth-survival, live-query DB mode",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "ac72b49",
+      "date": "2026-08-08",
+      "title": "Add admin permission levels, live-query CRUD writes, and standalone PWA",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "60347a0",
+      "date": "2026-08-08",
+      "title": "Add PWA offline fallback page and manifest shortcuts",
+      "pr": 1,
+      "type": "feature"
+    },
+    {
+      "commit": "0f14a15",
+      "date": "2026-08-09",
+      "title": "Rename internal Kili identifiers to Killi throughout",
+      "pr": 2,
+      "type": "rename"
+    },
+    {
+      "commit": "44ee65d",
+      "date": "2026-08-09",
+      "title": "Add full help.html covering Users, Admins, and Developers",
+      "pr": 2,
+      "type": "feature"
+    },
+    {
+      "commit": "8f90611",
+      "date": "2026-08-09",
+      "title": "Fix two leftover Kili->Killi rename stragglers",
+      "pr": 2,
+      "type": "rename"
+    },
+    {
+      "commit": "172984f",
+      "date": "2026-08-09",
+      "title": "Add DEPLOYMENT.md",
+      "pr": 2,
+      "type": "feature"
+    },
+    {
+      "commit": "008944e",
+      "date": "2026-08-09",
+      "title": "Add tied/untied toggle for the FAQ source",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "ed95225",
+      "date": "2026-08-09",
+      "title": "Add end-of-conversation ratings and a feedback review screen",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "a36826b",
+      "date": "2026-08-09",
+      "title": "Add 3 fixed result-detail layouts (Simple / Business Profile / Menu & Catalog)",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "4a258b0",
+      "date": "2026-08-09",
+      "title": "Gate Free-tier query logging, add Custom layout, document AI-rephraser idea",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "9d8fb1e",
+      "date": "2026-08-09",
+      "title": "Add a standalone try-it-as-guest demo page for Free/Standard/Ultra",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "c7e63a9",
+      "date": "2026-08-09",
+      "title": "Fix rate panel showing on every page load instead of staying hidden",
+      "pr": 3,
+      "type": "bug_fix"
+    },
+    {
+      "commit": "b607c2a",
+      "date": "2026-08-09",
+      "title": "Add admin dashboard, pill-nav, mobile bottom bar, and dark mode",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "53507c9",
+      "date": "2026-08-09",
+      "title": "Simplify chat feedback prompting, always show View, add camera/video attach and timestamps",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "5e7326a",
+      "date": "2026-08-09",
+      "title": "Fix result-detail modal resizing when switching tabs",
+      "pr": 3,
+      "type": "bug_fix"
+    },
+    {
+      "commit": "201b118",
+      "date": "2026-08-10",
+      "title": "Add CLAUDE.md, TEAM.md, and BUILD_HISTORY.json for cross-account handoff",
+      "pr": 3,
+      "type": "docs"
+    },
+    {
+      "commit": "a2ef03b",
+      "date": "2026-08-10",
+      "title": "Size the result modal to its content instead of a flat height",
+      "pr": 3,
+      "type": "bug_fix"
+    },
+    {
+      "commit": "97786bd",
+      "date": "2026-08-10",
+      "title": "Add dynamic Menu/Services tab label and a map thumbnail to result modal",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "2c0348e",
+      "date": "2026-08-10",
+      "title": "Close remaining design gap vs. a real Google Business Profile card",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "1f6309b",
+      "date": "2026-08-10",
+      "title": "Reorder action row (Website before Share) and populate Reviews/Photos/Services tabs",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "3641498",
+      "date": "2026-08-10",
+      "title": "Outline rate icon, Gallery tile, cart fallback icon, and bottom nav bar",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "0cce07a",
+      "date": "2026-08-10",
+      "title": "Drop Overview's Gallery tile, give result cards round action icons",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "89f8cb8",
+      "date": "2026-08-10",
+      "title": "Add save/bookmark, Saved and Profile pages, and an Advanced search panel",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "41d5d49",
+      "date": "2026-08-10",
+      "title": "Round save icon, harder View label, tabbed Saved page, category cascade + location autocomplete",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "5aefcab",
+      "date": "2026-08-10",
+      "title": "Icon-only View button, no header star, inline-in-chat rating, filters moved to bottom nav, emoji swapped for outline SVGs",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "dc5d728",
+      "date": "2026-08-26",
+      "title": "Add voice notes, fix modal/card action-row mismatch, confirm project-wide emoji removal",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "de9620c",
+      "date": "2026-08-26",
+      "title": "Add taxonomy aliases so everyday words resolve to sectors/categories",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "0a04846",
+      "date": "2026-08-26",
+      "title": "Add offline lexicon-based sentiment analysis; fix two intent/context detection bugs it surfaced",
+      "pr": 3,
+      "type": "feature"
+    },
+    {
+      "commit": "f67a906",
+      "date": "2026-08-26",
+      "title": "Add typo tolerance to sentiment lexicon; add Raise-a-request/Try-again quick replies on negative sentiment",
+      "pr": 3,
+      "type": "feature"
+    }
+  ]
+}

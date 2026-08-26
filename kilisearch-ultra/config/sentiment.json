@@ -1,0 +1,23 @@
+{
+  "positive": [
+    "great", "good", "excellent", "awesome", "amazing", "love", "loved",
+    "perfect", "thanks", "thank", "appreciate", "helpful", "easy", "fast",
+    "quick", "nice", "wonderful", "fantastic", "best", "happy", "pleased",
+    "satisfied", "brilliant", "cool", "super", "works", "worked", "working",
+    "smooth", "friendly", "kind", "exactly", "glad", "helped", "resolved",
+    "fixed", "reliable"
+  ],
+  "negative": [
+    "terrible", "horrible", "awful", "bad", "worst", "hate", "hated",
+    "annoying", "annoyed", "useless", "broken", "frustrated", "frustrating",
+    "angry", "upset", "disappointed", "disappointing", "waste", "slow",
+    "rude", "ridiculous", "unacceptable", "sucks", "garbage", "junk",
+    "scam", "wrong", "confusing", "confused", "lost", "stuck", "problem",
+    "issue", "complaint", "poor", "difficult", "fail", "failed", "failure",
+    "ignored", "delay", "delayed", "unhelpful", "unresponsive", "unreliable",
+    "misleading", "pathetic"
+  ],
+  "negators": ["not", "no", "never", "n't", "without", "hardly", "barely"],
+  "fuzzy_max_distance": 1,
+  "fuzzy_min_word_length": 3
+}

@@ -50,7 +50,10 @@ class LocationEngine
      */
     public function extractLocation(string $query): ?array
     {
-        $normalized = ' ' . mb_strtolower(preg_replace('/[^a-z0-9\s]/u', ' ', $query)) . ' ';
+        // See TaxonomyEngine::extractTaxonomy() for why this uses a
+        // Unicode letter/number class instead of [^a-z0-9] — the latter
+        // strips capital letters before mb_strtolower() ever runs.
+        $normalized = ' ' . mb_strtolower(preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $query)) . ' ';
 
         $matched = null;
         $matchedPhrase = '';

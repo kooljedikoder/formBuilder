@@ -15,5 +15,12 @@
             "file": "data/demo-uk-home-services.json",
             "description": "A second, smaller demo dataset (plumbers/electricians/cleaners in London) to prove data sources can be swapped without any code changes."
         }
-    ]
+    ],
+    "faq": {
+        "mode": "untied",
+        "connection": null,
+        "table": null,
+        "mapping": null,
+        "writable": false
+    }
 }

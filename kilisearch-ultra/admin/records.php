@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../bootstrap.php';
+require_once __DIR__ . '/_chrome.php';
 
 if (!killi_admin_password_configured() || !killi_is_admin_authenticated()) {
     header('Location: connections.php');
@@ -95,6 +96,14 @@ if (killi_has_feature('crud')) {
         } elseif (!$notice) {
             $notice = ['type' => 'error', 'text' => 'Could not delete that record.'];
         }
+    } elseif ($do === 'set_layout' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        try {
+            $customSlots = is_array($_POST['custom_slots'] ?? null) ? $_POST['custom_slots'] : [];
+            killi_set_source_layout($sourceId, $_POST['layout'] ?? 'simple', $customSlots);
+            $notice = ['type' => 'success', 'text' => 'Result layout updated.'];
+        } catch (\InvalidArgumentException $e) {
+            $notice = ['type' => 'error', 'text' => $e->getMessage()];
+        }
     }
 
     if ($editing === null && isset($_GET['edit'])) {
@@ -113,51 +122,12 @@ if (killi_has_feature('crud')) {
 $taxonomy = killi_read_json(__DIR__ . '/../data/taxonomy.json');
 $sectorNames = array_column($taxonomy, 'sector');
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>KilliSearch Ultra — Records</title>
-<style>
-  body { font-family: -apple-system, Arial, sans-serif; background: #f5f6f8; color: #202124; margin: 0; padding: 24px; }
-  .wrap { max-width: 900px; margin: 0 auto; }
-  h1 { font-size: 20px; }
-  h2 { font-size: 15px; }
-  .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-  .notice { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
-  .notice.success { background: #e6f4ea; color: #137333; }
-  .notice.error { background: #fce8e6; color: #c5221f; }
-  .upsell { background: #fef8e8; border: 1px solid #e0b23d; border-radius: 10px; padding: 16px; font-size: 14px; }
-  label { display: block; font-size: 12px; color: #5f6368; margin-top: 10px; }
-  input, select, textarea { width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 6px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
-  textarea { font-family: ui-monospace, monospace; font-size: 12px; }
-  button { padding: 8px 14px; border: none; border-radius: 6px; background: #1a73e8; color: #fff; font-size: 14px; cursor: pointer; }
-  button.secondary { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; }
-  button.danger { background: #fff; color: #c5221f; border: 1px solid #c5221f; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-  table th, table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
-  a.link { color: #1a73e8; text-decoration: none; }
-  form.inline { display: inline; }
-  .nav a { font-size: 13px; color: #5f6368; margin-right: 14px; text-decoration: none; }
-  .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-  .toolbar form { display: flex; gap: 8px; }
-  .pager { display: flex; gap: 8px; margin-top: 12px; font-size: 13px; }
-  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
-  .checkbox-row input { width: auto; }
-</style>
-</head>
-<body>
-<div class="wrap">
-  <div style="display:flex;justify-content:space-between;align-items:baseline">
-    <h1>Records</h1>
-    <span class="nav">
-      <a href="connections.php">Connections</a>
-      <a href="backup.php">Backups</a>
-      <a href="faq.php">FAQ</a>
-    </span>
-  </div>
-  <p>Full create/read/update/delete over whichever data source you pick — the fourth pillar alongside Search, Conversation and Memory.</p>
+<?php
+killi_admin_head('Records');
+killi_admin_body_open('records');
+?>
+  <h1>Records</h1>
+  <p class="lead">Full create/read/update/delete over whichever data source you pick — the fourth pillar alongside Search, Conversation and Memory.</p>
 
   <?php if ($notice): ?>
     <div class="notice <?= $notice['type'] ?>"><?= htmlspecialchars($notice['text']) ?></div>
@@ -177,8 +147,48 @@ $sectorNames = array_column($taxonomy, 'sector');
       </select>
       <?php $selectedSource = array_values(array_filter($sources, fn($s) => $s['id'] === $sourceId))[0] ?? null; ?>
       <?php if (($selectedSource['type'] ?? 'json') === 'live_db'): ?>
-        <p style="font-size:12px;color:#5f6368;margin-top:8px">This source queries "<?= htmlspecialchars($selectedSource['table']) ?>" live via "<?= htmlspecialchars($selectedSource['connection']) ?>"<?= empty($selectedSource['writable']) ? ' — read-only, so add/edit/delete are disabled below.' : ' — writable: edits/deletes below write straight back to this table.' ?></p>
+        <p style="font-size:12px;color:var(--admin-muted);margin-top:8px">This source queries "<?= htmlspecialchars($selectedSource['table']) ?>" live via "<?= htmlspecialchars($selectedSource['connection']) ?>"<?= empty($selectedSource['writable']) ? ' — read-only, so add/edit/delete are disabled below.' : ' — writable: edits/deletes below write straight back to this table.' ?></p>
       <?php endif; ?>
+    </form>
+
+    <form method="post" action="?do=set_layout" style="margin-top:14px" id="layout-form">
+      <?= killi_csrf_field() ?>
+      <input type="hidden" name="source" value="<?= htmlspecialchars($sourceId) ?>">
+      <label>Result layout — how a record expands when a visitor taps "View"</label>
+      <?php
+        $currentLayout = killi_data_source_engine()->layoutFor($sourceId);
+        $currentSlots = killi_data_source_engine()->customSlotsFor($sourceId);
+        $slotLabels = [
+            'photos' => 'Photos — a photo strip',
+            'pricing' => 'Pricing — price/price range + stock status',
+            'rating' => 'Rating — star rating + review breakdown',
+            'hours' => 'Hours — today\'s hours / open status',
+            'items' => 'Items — menu items or variants, as a list',
+            'cta' => 'Call to action — an "order/book online" button',
+        ];
+      ?>
+      <select name="layout" id="layout-select" onchange="document.getElementById('layout-custom-slots').hidden = this.value !== 'custom'; if (this.value !== 'custom') this.form.submit();">
+        <option value="simple" <?= $currentLayout === 'simple' ? 'selected' : '' ?>>Simple — today's compact card only, nothing to expand</option>
+        <option value="business_profile" <?= $currentLayout === 'business_profile' ? 'selected' : '' ?>>Business Profile — photos, hours, map, reviews</option>
+        <option value="menu_catalog" <?= $currentLayout === 'menu_catalog' ? 'selected' : '' ?>>Menu &amp; Catalog — photo grid, price, stock, variants</option>
+        <option value="custom" <?= $currentLayout === 'custom' ? 'selected' : '' ?>>Custom — build your own from these slots</option>
+      </select>
+      <div id="layout-custom-slots" <?= $currentLayout === 'custom' ? '' : 'hidden' ?> style="margin-top:8px;padding:10px;background:#f5f6f8;border-radius:8px">
+        <?php foreach (KILLI_CUSTOM_SLOT_PALETTE as $slot): ?>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin-top:6px">
+            <input type="checkbox" name="custom_slots[]" value="<?= htmlspecialchars($slot) ?>" style="width:auto" <?= in_array($slot, $currentSlots, true) ? 'checked' : '' ?>>
+            <?= htmlspecialchars($slotLabels[$slot]) ?>
+          </label>
+        <?php endforeach; ?>
+        <button type="submit" style="margin-top:10px">Save custom layout</button>
+      </div>
+      <p style="font-size:12px;color:var(--admin-muted);margin-top:8px">
+        Fill in a layout's extra fields via "Additional fields" below, or import them in bulk — start from a sample:
+        <a class="link" href="../samples/business-profile.sample.json" download>business-profile.sample.json</a> ·
+        <a class="link" href="../samples/menu-catalog.sample.json" download>menu-catalog.sample.json</a>
+        (a custom layout's fields are the same ones — pricing/rating/hours/items/photos all draw from those two samples).
+        Any field a record doesn't have just doesn't render — nothing errors.
+      </p>
     </form>
   </div>
 
@@ -307,7 +317,9 @@ $sectorNames = array_column($taxonomy, 'sector');
     </div>
 
     <div class="card">
-      <p style="font-size:13px;color:#5f6368;margin-top:0"><?= $listing['total'] ?> record<?= $listing['total'] === 1 ? '' : 's' ?> in this source<?= $query !== '' ? ' matching "' . htmlspecialchars($query) . '"' : '' ?>.</p>
+      <p style="font-size:13px;color:var(--admin-muted);margin-top:0"><?= $listing['total'] ?> record<?= $listing['total'] === 1 ? '' : 's' ?> in this source<?= $query !== '' ? ' matching "' . htmlspecialchars($query) . '"' : '' ?>.</p>
+
+      <div class="admin-table-wrap">
       <table>
         <tr><th>Title</th><th>Sector / category</th><th>Status</th><th>Updated</th><th></th></tr>
         <?php foreach ($listing['records'] as $r): ?>
@@ -318,7 +330,7 @@ $sectorNames = array_column($taxonomy, 'sector');
           <td><?= htmlspecialchars(substr($r['updated_at'] ?? '', 0, 10)) ?></td>
           <td>
             <?php if ($isLiveSource): ?>
-              <span style="color:#5f6368;font-size:12px">read-only</span>
+              <span style="color:var(--admin-muted);font-size:12px">read-only</span>
             <?php else: ?>
             <a class="link" href="?source=<?= urlencode($sourceId) ?>&amp;edit=<?= urlencode($r['id']) ?>">Edit</a>
             &nbsp;
@@ -333,9 +345,43 @@ $sectorNames = array_column($taxonomy, 'sector');
         </tr>
         <?php endforeach; ?>
         <?php if (!$listing['records']): ?>
-        <tr><td colspan="5" style="color:#5f6368">No records found.</td></tr>
+        <tr><td colspan="5" style="color:var(--admin-muted)">No records found.</td></tr>
         <?php endif; ?>
       </table>
+      </div>
+
+      <!-- Mobile: a swipe-to-reveal card list instead of a shrunk table.
+           Swipe (or drag) a card left to reveal Edit/Delete — see
+           admin.js's initSwipeCards(). Desktop hides this via CSS. -->
+      <div class="admin-record-list">
+        <?php if (!$listing['records']): ?>
+          <p class="admin-empty">No records found.</p>
+        <?php endif; ?>
+        <?php foreach ($listing['records'] as $r): ?>
+        <div class="admin-swipe-card">
+          <?php if (!$isLiveSource): ?>
+          <div class="admin-swipe-actions">
+            <a class="admin-swipe-btn edit" href="?source=<?= urlencode($sourceId) ?>&amp;edit=<?= urlencode($r['id']) ?>">Edit</a>
+            <form method="post" action="?do=delete" onsubmit="return confirm('Delete this record?')">
+              <?= killi_csrf_field() ?>
+              <input type="hidden" name="source" value="<?= htmlspecialchars($sourceId) ?>">
+              <input type="hidden" name="id" value="<?= htmlspecialchars($r['id']) ?>">
+              <button type="submit" class="admin-swipe-btn delete">Delete</button>
+            </form>
+          </div>
+          <?php endif; ?>
+          <div class="admin-swipe-front">
+            <div class="admin-swipe-title"><?= htmlspecialchars($r['title'] ?? '') ?><?= !empty($r['verified']) ? ' <span class="role-pill" style="background:var(--admin-success-bg);color:var(--admin-success-ink);padding:2px 7px;border-radius:999px;font-size:10px">VERIFIED</span>' : '' ?></div>
+            <div class="admin-swipe-meta">
+              <?= htmlspecialchars(trim(($r['sector'] ?? '') . ' / ' . ($r['category'] ?? ''), ' /')) ?>
+              · <?= htmlspecialchars($r['status'] ?? '') ?>
+              · <?= htmlspecialchars(substr($r['updated_at'] ?? '', 0, 10)) ?>
+            </div>
+            <?php if ($isLiveSource): ?><div class="admin-swipe-meta">read-only</div><?php endif; ?>
+          </div>
+        </div>
+        <?php endforeach; ?>
+      </div>
       <?php $totalPages = max(1, (int) ceil($listing['total'] / $listing['perPage'])); ?>
       <?php if ($totalPages > 1): ?>
       <div class="pager">
@@ -357,6 +403,4 @@ $sectorNames = array_column($taxonomy, 'sector');
 
   <?php endif; ?>
   <?php endif; ?>
-</div>
-</body>
-</html>
+<?php killi_admin_body_close(); ?>

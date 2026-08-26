@@ -10,11 +10,105 @@
   var themeToggle = document.getElementById('killi-theme-toggle');
   var attachBtn = document.getElementById('killi-attach');
   var attachInput = document.getElementById('killi-attach-input');
+  var attachCameraPhoto = document.getElementById('killi-attach-camera-photo');
+  var attachCameraVideo = document.getElementById('killi-attach-camera-video');
+  var attachSheet = document.getElementById('killi-attach-sheet');
   var micBtn = document.getElementById('killi-mic');
   var branding = window.KILLI_BRANDING || {};
   var lastResults = [];
   var suggestTimer = null;
   var lastUserTick = null;
+  var lastUserMessage = '';
+  var sessionTurns = [];
+
+  // Saved businesses and recent searches persist across visits
+  // (localStorage); attachments shared in chat only live for this tab's
+  // session — there's nowhere durable to put them without real accounts.
+  var SAVED_KEY = 'killi_saved_records';
+  var RECENT_SEARCHES_KEY = 'killi_recent_searches';
+  var PROFILE_NAME_KEY = 'killi_profile_name';
+  var sessionMedia = [];
+  var taxonomyTreeCache = null;
+  var locationNamesCache = null;
+
+  // Fetched once per page load and cached — the Advanced search panel
+  // reopens often as the user tweaks filters and shouldn't re-fetch the
+  // whole taxonomy/location tree every time.
+  function fetchTaxonomyTree() {
+    if (taxonomyTreeCache) return Promise.resolve(taxonomyTreeCache);
+    return fetch(API_BASE + 'taxonomy.php')
+      .then(function (res) { return res.json(); })
+      .then(function (payload) {
+        taxonomyTreeCache = payload.success ? payload.data : [];
+        return taxonomyTreeCache;
+      })
+      .catch(function () { return []; });
+  }
+  function fetchLocationNames() {
+    if (locationNamesCache) return Promise.resolve(locationNamesCache);
+    return fetch(API_BASE + 'locations.php')
+      .then(function (res) { return res.json(); })
+      .then(function (payload) {
+        var names = [];
+        (payload.success ? payload.data : []).forEach(function (country) {
+          (country.states || []).forEach(function (state) {
+            (state.cities || []).forEach(function (city) {
+              (city.areas || []).forEach(function (area) { names.push(area.name); });
+            });
+          });
+        });
+        locationNamesCache = names;
+        return names;
+      })
+      .catch(function () { return []; });
+  }
+
+  function readJsonLS(key, fallback) {
+    try {
+      var raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+  function writeJsonLS(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage unavailable */ }
+  }
+  function getSaved() { return readJsonLS(SAVED_KEY, []); }
+  function isRecordSaved(record) {
+    var id = record.id != null ? record.id : record.title;
+    return getSaved().some(function (r) { return (r.id != null ? r.id : r.title) === id; });
+  }
+  function toggleSaved(record, btn) {
+    var id = record.id != null ? record.id : record.title;
+    var saved = getSaved();
+    var idx = saved.findIndex(function (r) { return (r.id != null ? r.id : r.title) === id; });
+    if (idx === -1) {
+      saved.unshift({ id: record.id, title: record.title, category: record.category, location: record.location, rating: record.rating, phone: record.phone, website: record.website, whatsapp: record.whatsapp });
+    } else {
+      saved.splice(idx, 1);
+    }
+    writeJsonLS(SAVED_KEY, saved);
+    if (btn) btn.classList.toggle('saved', idx === -1);
+    return idx === -1;
+  }
+  function buildSaveButton(record) {
+    var btn = el('button', 'killi-save-btn' + (isRecordSaved(record) ? ' saved' : ''), ICONS.heart);
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Save ' + record.title);
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleSaved(record, btn);
+    });
+    return btn;
+  }
+  function pushRecentSearch(query) {
+    query = (query || '').trim();
+    if (!query) return;
+    var list = readJsonLS(RECENT_SEARCHES_KEY, []).filter(function (q) { return q.toLowerCase() !== query.toLowerCase(); });
+    list.unshift(query);
+    writeJsonLS(RECENT_SEARCHES_KEY, list.slice(0, 8));
+  }
 
   function el(tag, className, html) {
     var node = document.createElement(tag);
@@ -27,41 +121,33 @@
     chat.scrollTop = chat.scrollHeight;
   }
 
-  var REACTION_EMOJI = ['😍', '👍', '😐', '👎'];
-
-  function buildReactionRow(replyText) {
-    var wrap = el('div', 'killi-reactions');
-    REACTION_EMOJI.forEach(function (emoji) {
-      var btn = el('button', 'killi-reaction', emoji);
-      btn.type = 'button';
-      btn.setAttribute('aria-label', 'React with ' + emoji);
-      btn.addEventListener('click', function () {
-        Array.prototype.forEach.call(wrap.querySelectorAll('.killi-reaction'), function (b) {
-          b.classList.remove('selected');
-        });
-        btn.classList.add('selected');
-        fetch(API_BASE + 'feedback.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ emoji: emoji, reply: replyText }),
-        }).catch(function () {});
-      });
-      wrap.appendChild(btn);
-    });
-    return wrap;
+  function formatTimestamp(date) {
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   }
 
-  /** withReaction adds an emoji-reaction row under this bubble — used for "final answer" AI replies, not breadcrumbs or mid-form questions. */
+  /**
+   * withReaction marks this bubble as a "final answer" AI reply (not a
+   * breadcrumb or mid-form question) — those are what get paired up for
+   * the end-of-conversation rating panel. There's no per-reply feedback
+   * control anymore: rating happens once, at the end of the session, via
+   * the star button this reveals — asking on every single reply was too
+   * much friction for how short most conversations are.
+   */
   function addBubble(role, text, withReaction) {
     var bubble = el('div', 'killi-bubble ' + role, escapeHtml(text));
+    var meta = el('div', 'killi-bubble-meta');
+    meta.appendChild(el('span', 'killi-timestamp', formatTimestamp(new Date())));
     if (role === 'user') {
       var tick = el('span', 'killi-tick', '&#10003;');
-      bubble.appendChild(tick);
+      meta.appendChild(tick);
       lastUserTick = tick;
+      lastUserMessage = text;
     }
+    bubble.appendChild(meta);
     chat.appendChild(bubble);
     if (role === 'ai' && withReaction) {
-      chat.appendChild(buildReactionRow(text));
+      sessionTurns.push({ query: lastUserMessage, reply: text });
+      maybeShowInlineRating();
     }
     scrollToBottom();
     return bubble;
@@ -97,15 +183,30 @@
       img.alt = file.filename || 'Attachment';
       img.className = 'killi-attachment-img';
       bubble.appendChild(img);
+    } else if (file.mime && file.mime.indexOf('video/') === 0) {
+      var video = document.createElement('video');
+      video.src = file.url;
+      video.controls = true;
+      video.className = 'killi-attachment-video';
+      bubble.appendChild(video);
+    } else if (file.mime && file.mime.indexOf('audio/') === 0) {
+      var audio = document.createElement('audio');
+      audio.src = file.url;
+      audio.controls = true;
+      audio.className = 'killi-attachment-audio';
+      bubble.appendChild(audio);
     } else {
-      var link = el('a', 'killi-attachment-file', '&#128196; ' + escapeHtml(file.filename || 'Attachment'));
+      var link = el('a', 'killi-attachment-file', ICONS.document + ' ' + escapeHtml(file.filename || 'Attachment'));
       link.href = file.url;
       link.target = '_blank';
       link.rel = 'noopener';
       bubble.appendChild(link);
     }
+    var meta = el('div', 'killi-bubble-meta');
+    meta.appendChild(el('span', 'killi-timestamp', formatTimestamp(new Date())));
     var tick = el('span', 'killi-tick', '&#10003;');
-    bubble.appendChild(tick);
+    meta.appendChild(tick);
+    bubble.appendChild(meta);
     lastUserTick = tick;
     chat.appendChild(bubble);
     scrollToBottom();
@@ -113,6 +214,7 @@
 
   /** Sends an already-uploaded file to the bot as its own turn — acknowledged by chat.php ahead of any form/intent handling. */
   function sendAttachment(file) {
+    sessionMedia.unshift(file);
     addAttachmentBubble(file);
     showTyping();
     return fetch(API_BASE + 'chat.php', {
@@ -226,7 +328,7 @@
 
   function starRating(rating) {
     if (!rating) return '';
-    return '&#9733; ' + Number(rating).toFixed(1);
+    return '<span class="killi-star-row-icon filled">' + ICONS.star + '</span> ' + Number(rating).toFixed(1);
   }
 
   function waLink(phone) {
@@ -245,42 +347,884 @@
       card.appendChild(thumb);
     }
 
+    // Every listing gets a View button now, regardless of layout — even a
+    // "simple" record with no rich fields still opens a (sparser) modal
+    // with at least its title/rating/actions, via buildBusinessProfileBody's
+    // graceful field-by-field degradation. The rating moves into the meta
+    // line so it's still visible without crowding the title.
     var top = el('div', 'killi-card-top');
     top.appendChild(el('div', 'killi-card-title', escapeHtml(record.title) + (record.verified ? '<span class="killi-badge">Verified</span>' : '')));
-    if (record.rating) top.appendChild(el('div', 'killi-card-rating', starRating(record.rating)));
+    var topActions = el('div', 'killi-card-top-actions');
+    topActions.appendChild(buildSaveButton(record));
+    topActions.appendChild(buildViewButton(record));
+    top.appendChild(topActions);
     card.appendChild(top);
 
-    var metaParts = [record.subcategory || record.category, record.location].filter(Boolean);
-    if (record._distance_km !== undefined) metaParts.push(record._distance_km + ' km away');
-    card.appendChild(el('div', 'killi-card-meta', escapeHtml(metaParts.join(' · '))));
+    var metaTextParts = [record.subcategory || record.category, record.location].filter(Boolean);
+    if (record._distance_km !== undefined) metaTextParts.push(record._distance_km + ' km away');
+    var metaHtml = escapeHtml(metaTextParts.join(' · '));
+    if (record.rating) metaHtml = starRating(record.rating) + (metaHtml ? ' · ' + metaHtml : '');
+    card.appendChild(el('div', 'killi-card-meta', metaHtml));
 
     if (record.source && record.source.name) {
       card.appendChild(el('div', 'killi-card-source', 'Source: ' + escapeHtml(record.source.name)));
     }
 
     var actions = el('div', 'killi-card-actions');
-    if (record.phone) {
-      var call = el('a', 'killi-action call', 'Call');
-      call.href = 'tel:' + record.phone;
-      actions.appendChild(call);
-    }
-    if (record.whatsapp) {
-      var wa = el('a', 'killi-action whatsapp', 'WhatsApp');
-      wa.href = waLink(record.whatsapp);
-      wa.target = '_blank';
-      wa.rel = 'noopener';
-      actions.appendChild(wa);
-    }
-    if (record.website) {
-      var site = el('a', 'killi-action website', 'Website');
-      site.href = record.website;
-      site.target = '_blank';
-      site.rel = 'noopener';
-      actions.appendChild(site);
-    }
+    [
+      ['', ICONS.phone, 'Call', record.phone ? 'tel:' + record.phone : null, false],
+      ['', ICONS.pin, 'Directions', mapsLink(record), true],
+      ['', ICONS.globe, 'Website', record.website || null, true],
+      [' whatsapp', ICONS.whatsapp, 'WhatsApp', record.whatsapp ? waLink(record.whatsapp) : null, true],
+    ].forEach(function (entry) {
+      if (!entry[3]) return;
+      var a = document.createElement('a');
+      a.className = 'killi-card-action-icon-wrap' + entry[0];
+      a.href = entry[3];
+      if (entry[4]) { a.target = '_blank'; a.rel = 'noopener'; }
+      a.innerHTML = '<span class="killi-card-action-icon">' + entry[1] + '</span><span class="killi-card-action-label">' + entry[2] + '</span>';
+      actions.appendChild(a);
+    });
     card.appendChild(actions);
 
     return card;
+  }
+
+  // ---------------------------------------------------------------------
+  // Result-detail layouts: "View" expands a record into a richer modal.
+  // Which layout applies is decided server-side per data source
+  // (DataSourceEngine::layoutFor(), stamped onto every record as
+  // record._layout) — never picked or built by markup here. Every slot
+  // below is optional: a record missing a field just skips that piece,
+  // it never errors. See kilisearch-ultra/samples/*.sample.json for the
+  // exact shape each layout expects.
+  // ---------------------------------------------------------------------
+
+  var ICONS = {
+    eye: '<svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+    phone: '<svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>',
+    pin: '<svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+    share: '<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
+    globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></svg>',
+    star: '<svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2Z"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>',
+    cart: '<svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1.4"/><circle cx="18" cy="21" r="1.4"/><path d="M2.5 3h2l2.6 12.6a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 8H6"/></svg>',
+    home: '<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>',
+    search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    heart: '<svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6Z"/></svg>',
+    user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>',
+    whatsapp: '<svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 21l1.9-5.7A8.4 8.4 0 1 1 21 11.5Z"/><path d="M8.5 9.8c.3 2.6 2.5 4.8 5.1 5.1"/></svg>',
+    filter: '<svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="18" r="2"/></svg>',
+    mic: '<svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>',
+    attach: '<svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.19 9.19a1.5 1.5 0 0 1-2.12-2.12l8.48-8.48"/></svg>',
+    camera: '<svg viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+    video: '<svg viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3Z"/></svg>',
+    folder: '<svg viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/></svg>',
+    moon: '<svg viewBox="0 0 24 24"><path d="M21 12.5A9 9 0 1 1 11.5 3a7 7 0 0 0 9.5 9.5Z"/></svg>',
+    sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="1.5" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22.5"/><line x1="4.2" y1="4.2" x2="6" y2="6"/><line x1="18" y1="18" x2="19.8" y2="19.8"/><line x1="1.5" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22.5" y2="12"/><line x1="4.2" y1="19.8" x2="6" y2="18"/><line x1="18" y1="6" x2="19.8" y2="4.2"/></svg>',
+    download: '<svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>',
+    send: '<svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><path d="M6 11l6-6 6 6"/></svg>',
+    document: '<svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v4h4"/></svg>',
+  };
+
+  /** A real 5-star row (filled up to the rounded rating), not one icon + a number — matches how every real business-profile card shows a rating. Returns markup, not a node, since callers build subline/tile HTML as strings. */
+  function starRowHtml(rating) {
+    var filled = Math.round(Number(rating) || 0);
+    var html = '';
+    for (var i = 1; i <= 5; i++) {
+      html += '<span class="killi-star-row-icon' + (i <= filled ? ' filled' : '') + '">' + ICONS.star + '</span>';
+    }
+    return '<span class="killi-star-row">' + html + '</span>';
+  }
+
+  function buildViewButton(record) {
+    var btn = el('button', 'killi-view-btn', ICONS.eye);
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'View full details for ' + record.title);
+    btn.addEventListener('click', function () { openRecordModal(record); });
+    return btn;
+  }
+
+  function mapsLink(record) {
+    if (record.address) return 'https://maps.google.com/?q=' + encodeURIComponent(record.address);
+    return null;
+  }
+
+  // "Menu" only makes sense for food/drink businesses — everyone else
+  // (HVAC, salons, garages...) gets the same items list labeled "Services"
+  // instead. Derived from the record's own category/sector, not a
+  // separate admin-set field — one less thing to configure per record,
+  // and it can't drift out of sync with what the business actually is.
+  var FOOD_CATEGORY_KEYWORDS = ['restaurant', 'bar', 'cafe', 'café', 'catering', 'food', 'drink', 'bakery', 'diner', 'bistro'];
+  function itemsLabel(record) {
+    var text = ((record.category || '') + ' ' + (record.sector || '') + ' ' + (record.subcategory || '')).toLowerCase();
+    for (var i = 0; i < FOOD_CATEGORY_KEYWORDS.length; i++) {
+      if (text.indexOf(FOOD_CATEGORY_KEYWORDS[i]) !== -1) return 'Menu';
+    }
+    return 'Services';
+  }
+
+  function buildMapThumb(record) {
+    var link = mapsLink(record);
+    if (!link) return null;
+    var a = document.createElement('a');
+    a.href = link;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.className = 'killi-map-thumb';
+    a.setAttribute('aria-label', 'Open directions to ' + record.title);
+    a.innerHTML = '<svg viewBox="0 0 72 72" aria-hidden="true">'
+      + '<rect width="72" height="72" fill="#e8eaed"/>'
+      + '<path d="M0 16h72M0 38h72M0 58h72" stroke="#d2d5da" stroke-width="2"/>'
+      + '<path d="M14 0v72M46 0v72M60 0v72" stroke="#d2d5da" stroke-width="2"/>'
+      + '<path d="M0 38h72" stroke="#c9dcf7" stroke-width="4"/>'
+      + '<rect x="20" y="20" width="12" height="12" fill="#dbe0e6"/>'
+      + '<rect x="50" y="44" width="10" height="10" fill="#dbe0e6"/>'
+      + '<path d="M36 22c-7.2 0-12 5.4-12 12 0 8 12 20 12 20s12-12 12-20c0-6.6-4.8-12-12-12Z" fill="#ea4335"/>'
+      + '<circle cx="36" cy="34" r="4.5" fill="#fff"/>'
+      + '</svg>';
+    return a;
+  }
+
+  // Same four actions, same order, as the card's action row — a listing
+  // shouldn't offer WhatsApp on the card and lose it once you tap View.
+  function buildActionRow(record) {
+    var row = el('div', 'killi-modal-actions');
+    var entries = [
+      ['phone', ICONS.phone, 'Call', record.phone ? 'tel:' + record.phone : null, false],
+      ['pin', ICONS.pin, 'Directions', mapsLink(record), true],
+      ['globe', ICONS.globe, 'Website', record.website || null, true],
+      ['whatsapp', ICONS.whatsapp, 'WhatsApp', record.whatsapp ? waLink(record.whatsapp) : null, true],
+    ];
+    entries.forEach(function (entry) {
+      var href = entry[3];
+      if (!href) return;
+      var a = document.createElement('a');
+      if (entry[0] === 'whatsapp') a.classList.add('whatsapp');
+      a.innerHTML = '<span class="killi-modal-action-icon">' + entry[1] + '</span><span class="killi-modal-action-label">' + entry[2] + '</span>';
+      a.href = href;
+      if (entry[4]) { a.target = '_blank'; a.rel = 'noopener'; }
+      row.appendChild(a);
+    });
+    return row;
+  }
+
+  function buildRatingBars(breakdown) {
+    if (!Array.isArray(breakdown) || !breakdown.length) return null;
+    var max = Math.max.apply(null, breakdown) || 1;
+    var wrap = el('div', 'killi-rating-bars');
+    breakdown.forEach(function (count) {
+      var bar = el('div', 'bar');
+      bar.style.height = Math.max(4, (count / max) * 100) + '%';
+      wrap.appendChild(bar);
+    });
+    return wrap;
+  }
+
+  /** Individual reviews (record.reviews: [{author, rating, date, text}]) — the star-breakdown bars above summarize the numbers, this is what an actual visitor reads. Every field is optional; a review missing text still shows its author/rating/date. */
+  function buildReviewsList(reviews) {
+    if (!Array.isArray(reviews) || !reviews.length) return null;
+    var list = el('div', 'killi-review-list');
+    reviews.forEach(function (rev) {
+      var card = el('div', 'killi-review-card');
+      var initial = (rev.author || '?').trim().charAt(0).toUpperCase();
+      card.appendChild(el('div', 'killi-review-avatar', escapeHtml(initial)));
+      var body = el('div', 'killi-review-body');
+      var metaLine = el('div', 'killi-review-meta-line');
+      metaLine.appendChild(el('span', 'killi-review-author', escapeHtml(rev.author || 'Anonymous')));
+      body.appendChild(metaLine);
+      var sub = el('div', 'killi-review-meta');
+      sub.innerHTML = (rev.rating ? starRowHtml(rev.rating) : '') + (rev.date ? ' <span>' + escapeHtml(rev.date) + '</span>' : '');
+      body.appendChild(sub);
+      if (rev.text) body.appendChild(el('p', 'killi-review-text', escapeHtml(rev.text)));
+      card.appendChild(body);
+      list.appendChild(card);
+    });
+    return list;
+  }
+
+  function buildPhotoStrip(photos) {
+    if (!Array.isArray(photos) || !photos.length) return null;
+    var strip = el('div', 'killi-photo-strip');
+    photos.slice(0, 6).forEach(function (src) {
+      var img = document.createElement('img');
+      img.src = src;
+      img.alt = '';
+      img.loading = 'lazy';
+      strip.appendChild(img);
+    });
+    return strip;
+  }
+
+  function buildTabs(tabNames, onSwitch) {
+    var tabs = el('div', 'killi-modal-tabs');
+    tabNames.forEach(function (name, i) {
+      var tab = el('button', 'killi-modal-tab' + (i === 0 ? ' current' : ''), escapeHtml(name));
+      tab.type = 'button';
+      tab.addEventListener('click', function () {
+        Array.prototype.forEach.call(tabs.querySelectorAll('.killi-modal-tab'), function (t) { t.classList.remove('current'); });
+        tab.classList.add('current');
+        onSwitch(name);
+      });
+      tabs.appendChild(tab);
+    });
+    return tabs;
+  }
+
+  function buildBusinessProfileBody(record) {
+    var body = document.createDocumentFragment();
+
+    var header = el('div', 'killi-modal-header');
+    header.appendChild(el('p', 'killi-modal-title', escapeHtml(record.title)));
+    if (record.rating) {
+      var ratingParts = [Number(record.rating).toFixed(1), starRowHtml(record.rating)];
+      if (record.review_count) ratingParts.push('(' + record.review_count + ')');
+      header.appendChild(el('p', 'killi-modal-subline', ratingParts.join(' ')));
+    }
+    // "<category> business in <location>" reads as one natural sentence,
+    // the way a real business-profile card describes itself — falls back
+    // gracefully to whichever half is actually available.
+    var categoryLocation = record.category && record.location ? record.category + ' business in ' + record.location
+      : (record.category || record.location || null);
+    var subline2Parts = [];
+    if (record.price_range) subline2Parts.push(escapeHtml(record.price_range));
+    if (categoryLocation) subline2Parts.push(escapeHtml(categoryLocation));
+    if (subline2Parts.length) header.appendChild(el('p', 'killi-modal-subline', subline2Parts.join(' · ')));
+    if (record.hours_today) {
+      header.appendChild(el('p', 'killi-modal-subline', '<span class="' + (record.is_open_now ? 'killi-modal-status-open' : '') + '">' + escapeHtml(record.hours_today) + '</span>'));
+    }
+    body.appendChild(header);
+
+    var itemsTabLabel = itemsLabel(record);
+    var sections = {};
+    body.appendChild(buildTabs(['Overview', 'Reviews', 'Photos', itemsTabLabel], function (name) {
+      Object.keys(sections).forEach(function (key) { sections[key].classList.toggle('current', key === name); });
+    }));
+
+    var overviewSection = el('div', 'killi-tab-section current');
+    var photoStrip = buildPhotoStrip(record.photos);
+    if (photoStrip) overviewSection.appendChild(photoStrip);
+    overviewSection.appendChild(buildActionRow(record));
+    if (record.description) {
+      var tagline = el('div', 'killi-modal-tagline');
+      tagline.innerHTML = '<span>' + escapeHtml(record.description) + '</span>' + ICONS.chevron;
+      overviewSection.appendChild(tagline);
+    }
+    if (record.order_online_url) {
+      var cta = document.createElement('a');
+      cta.className = 'killi-modal-cta';
+      cta.href = record.order_online_url;
+      cta.target = '_blank';
+      cta.rel = 'noopener';
+      cta.textContent = 'Order online';
+      overviewSection.appendChild(cta);
+    }
+    var infoGrid = el('div', 'killi-info-grid');
+    if (record.rating) {
+      var reviewTile = el('div', 'killi-info-tile killi-info-tile-full');
+      reviewTile.appendChild(el('div', 'killi-info-tile-label', 'Reviews'));
+      var ratingBig = el('div', 'killi-rating-big', Number(record.rating).toFixed(1) + ' ' + starRowHtml(record.rating));
+      reviewTile.appendChild(ratingBig);
+      var bars = buildRatingBars(record.rating_breakdown);
+      if (bars) reviewTile.appendChild(bars);
+      infoGrid.appendChild(reviewTile);
+    }
+    if (infoGrid.children.length) overviewSection.appendChild(infoGrid);
+    if (record.hours_today) {
+      overviewSection.appendChild(el('div', 'killi-modal-footer', '<span class="' + (record.is_open_now ? 'killi-modal-status-open' : '') + '">' + escapeHtml(record.hours_today) + '</span>'));
+    }
+    if (record.address) {
+      var locationCard = el('div', 'killi-modal-location');
+      var locationText = el('div', 'killi-modal-location-text');
+      locationText.innerHTML = '<strong>' + escapeHtml(record.title) + '</strong><br>' + escapeHtml(record.address);
+      locationCard.appendChild(locationText);
+      var mapThumb = buildMapThumb(record);
+      if (mapThumb) locationCard.appendChild(mapThumb);
+      overviewSection.appendChild(locationCard);
+    }
+    body.appendChild(overviewSection);
+
+    var reviewsSection = el('div', 'killi-tab-section');
+    if (record.rating) {
+      var reviewsHead = el('div', 'killi-info-tile');
+      reviewsHead.appendChild(el('div', 'killi-rating-big', Number(record.rating).toFixed(1) + ' ' + starRowHtml(record.rating) + (record.review_count ? ' <span style="font-size:13px;font-weight:400">(' + record.review_count + ')</span>' : '')));
+      var reviewsBars = buildRatingBars(record.rating_breakdown);
+      if (reviewsBars) reviewsHead.appendChild(reviewsBars);
+      reviewsSection.appendChild(reviewsHead);
+    } else {
+      reviewsSection.appendChild(el('p', 'killi-modal-footer', 'No reviews yet.'));
+    }
+    var reviewsList = buildReviewsList(record.reviews);
+    if (reviewsList) reviewsSection.appendChild(reviewsList);
+    body.appendChild(reviewsSection);
+
+    var photosSection = el('div', 'killi-tab-section');
+    var fullStrip = buildPhotoStrip(record.photos);
+    if (fullStrip) {
+      fullStrip.style.height = 'auto';
+      fullStrip.style.flexWrap = 'wrap';
+      Array.prototype.forEach.call(fullStrip.querySelectorAll('img'), function (img) {
+        img.style.width = 'calc(50% - 2px)';
+        img.style.height = '120px';
+      });
+      photosSection.appendChild(fullStrip);
+    } else {
+      photosSection.appendChild(el('p', 'killi-modal-footer', 'No photos yet.'));
+    }
+    body.appendChild(photosSection);
+
+    var menuSection = el('div', 'killi-tab-section');
+    if (Array.isArray(record.menu_items) && record.menu_items.length) {
+      var menuList = el('div', 'killi-item-list');
+      record.menu_items.forEach(function (item) {
+        var row = el('div', 'killi-item-row');
+        if (item.photo) {
+          var mi = document.createElement('img');
+          mi.src = item.photo;
+          mi.alt = '';
+          row.appendChild(mi);
+        } else {
+          row.appendChild(el('div', 'killi-item-row-fallback', ICONS.cart));
+        }
+        row.appendChild(el('div', '', '<div class="killi-item-row-title">' + escapeHtml(item.name || '') + '</div>'));
+        menuList.appendChild(row);
+      });
+      menuSection.appendChild(menuList);
+    } else {
+      menuSection.appendChild(el('p', 'killi-modal-footer', itemsTabLabel === 'Menu' ? 'No menu yet.' : 'No services listed yet.'));
+    }
+    body.appendChild(menuSection);
+
+    sections.Overview = overviewSection;
+    sections.Reviews = reviewsSection;
+    sections.Photos = photosSection;
+    sections[itemsTabLabel] = menuSection;
+
+    return body;
+  }
+
+  function buildMenuCatalogBody(record) {
+    var body = document.createDocumentFragment();
+
+    var header = el('div', 'killi-modal-header');
+    header.appendChild(el('p', 'killi-modal-title', escapeHtml(record.title)));
+    var sublineParts = [];
+    if (record.price) sublineParts.push('<strong>' + escapeHtml(String(record.price)) + '</strong>');
+    if (record.stock_status) sublineParts.push(escapeHtml(record.stock_status));
+    if (record.rating) sublineParts.push('<span class="killi-star">' + ICONS.star + '</span> ' + Number(record.rating).toFixed(1));
+    if (record.category) sublineParts.push(escapeHtml(record.category));
+    header.appendChild(el('p', 'killi-modal-subline', sublineParts.join(' · ')));
+    body.appendChild(header);
+
+    var photoStrip = buildPhotoStrip(record.photos);
+    if (photoStrip) body.appendChild(photoStrip);
+
+    if (record.description) {
+      var desc = el('p', 'killi-modal-footer', escapeHtml(record.description));
+      desc.style.display = 'block';
+      body.appendChild(desc);
+    }
+
+    if (Array.isArray(record.variants) && record.variants.length) {
+      var variantList = el('div', 'killi-item-list');
+      record.variants.forEach(function (variant) {
+        var row = el('div', 'killi-item-row');
+        row.appendChild(el('div', '', '<div class="killi-item-row-title">' + escapeHtml(variant.label || '') + '</div>' + (variant.extra_price ? '<div class="killi-item-row-sub">' + escapeHtml(variant.extra_price) + '</div>' : '')));
+        variantList.appendChild(row);
+      });
+      body.appendChild(variantList);
+    }
+
+    body.appendChild(buildActionRow(record));
+
+    return body;
+  }
+
+  // "Custom" layout: same 6 building blocks as the 2 fixed rich layouts,
+  // just admin-selected and always rendered in one fixed order (photos,
+  // pricing, rating, hours, items, cta) — recomposing existing renderer
+  // functions rather than any new per-admin rendering code. A slot with
+  // no matching field on the record is skipped, same as everywhere else.
+  var CUSTOM_SLOT_BUILDERS = {
+    photos: function (record) { return buildPhotoStrip(record.photos); },
+    pricing: function (record) {
+      var parts = [];
+      if (record.price) parts.push('<strong>' + escapeHtml(String(record.price)) + '</strong>');
+      else if (record.price_range) parts.push(escapeHtml(record.price_range));
+      if (record.stock_status) parts.push(escapeHtml(record.stock_status));
+      return parts.length ? el('p', 'killi-modal-subline', parts.join(' · ')) : null;
+    },
+    rating: function (record) {
+      if (!record.rating) return null;
+      var tile = el('div', 'killi-info-tile');
+      tile.appendChild(el('div', 'killi-rating-big', Number(record.rating).toFixed(1) + ' ' + ICONS.star + (record.review_count ? ' <span style="font-size:13px;font-weight:400">(' + record.review_count + ')</span>' : '')));
+      var bars = buildRatingBars(record.rating_breakdown);
+      if (bars) tile.appendChild(bars);
+      return tile;
+    },
+    hours: function (record) {
+      if (!record.hours_today) return null;
+      var p = el('p', 'killi-modal-footer', '<span class="' + (record.is_open_now ? 'killi-modal-status-open' : '') + '">' + escapeHtml(record.hours_today) + '</span>');
+      p.style.display = 'block';
+      return p;
+    },
+    items: function (record) {
+      var items = Array.isArray(record.menu_items) && record.menu_items.length ? record.menu_items
+        : (Array.isArray(record.variants) && record.variants.length ? record.variants : null);
+      if (!items) return null;
+      var list = el('div', 'killi-item-list');
+      items.forEach(function (item) {
+        var row = el('div', 'killi-item-row');
+        if (item.photo) {
+          var img = document.createElement('img');
+          img.src = item.photo;
+          img.alt = '';
+          row.appendChild(img);
+        }
+        row.appendChild(el('div', '', '<div class="killi-item-row-title">' + escapeHtml(item.name || item.label || '') + '</div>' + (item.extra_price ? '<div class="killi-item-row-sub">' + escapeHtml(item.extra_price) + '</div>' : '')));
+        list.appendChild(row);
+      });
+      return list;
+    },
+    cta: function (record) {
+      if (!record.order_online_url) return null;
+      var cta = document.createElement('a');
+      cta.className = 'killi-modal-cta';
+      cta.href = record.order_online_url;
+      cta.target = '_blank';
+      cta.rel = 'noopener';
+      cta.textContent = 'Order online';
+      return cta;
+    },
+  };
+
+  function buildCustomBody(record) {
+    var body = document.createDocumentFragment();
+
+    var header = el('div', 'killi-modal-header');
+    header.appendChild(el('p', 'killi-modal-title', escapeHtml(record.title)));
+    var headParts = [];
+    if (record.category) headParts.push(escapeHtml(record.category));
+    if (record.description) headParts.push(escapeHtml(record.description));
+    if (headParts.length) header.appendChild(el('p', 'killi-modal-subline', headParts.join(' · ')));
+    body.appendChild(header);
+
+    var slots = Array.isArray(record._customSlots) ? record._customSlots : [];
+    slots.forEach(function (slot) {
+      var builder = CUSTOM_SLOT_BUILDERS[slot];
+      if (!builder) return;
+      var node = builder(record);
+      if (node) body.appendChild(node);
+    });
+
+    body.appendChild(buildActionRow(record));
+
+    return body;
+  }
+
+  function openRecordModal(record) {
+    var overlay = el('div', 'killi-modal-overlay');
+    var modal = el('div', 'killi-modal');
+    var closeBtn = el('button', 'killi-modal-close', '&times;');
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', 'Close');
+    modal.appendChild(closeBtn);
+
+    var bodyBuilder = record._layout === 'menu_catalog' ? buildMenuCatalogBody
+      : record._layout === 'custom' ? buildCustomBody
+      : buildBusinessProfileBody;
+    modal.appendChild(bodyBuilder(record));
+
+    // Injected generically (rather than in each body-builder) so every
+    // layout gets a save toggle without three copies of the same code.
+    var modalHeader = modal.querySelector('.killi-modal-header');
+    if (modalHeader) {
+      var modalSaveBtn = buildSaveButton(record);
+      modalSaveBtn.classList.add('killi-modal-save-btn');
+      modalHeader.appendChild(modalSaveBtn);
+    }
+
+    // Keep the header/tabs fixed and move everything else into a
+    // scrolling wrapper — otherwise the modal's own height would follow
+    // whichever tab's content is tallest, resizing on every tab switch.
+    var scrollBody = el('div', 'killi-modal-body');
+    Array.prototype.slice.call(modal.children).forEach(function (child) {
+      if (child === closeBtn || child.classList.contains('killi-modal-header') || child.classList.contains('killi-modal-tabs')) return;
+      scrollBody.appendChild(child);
+    });
+    modal.appendChild(scrollBody);
+
+    overlay.appendChild(modal);
+    function close() { overlay.remove(); document.removeEventListener('keydown', onKey); }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', onKey);
+
+    document.body.appendChild(overlay);
+
+    // Lock the modal to a height that fits its content, measured once
+    // here (so it never resizes mid-switch) rather than a flat constant —
+    // a "Simple" record with almost nothing to show would otherwise sit
+    // inside the same tall box as a fully-populated one, all empty space
+    // below a few lines of content.
+    var tabSections = scrollBody.querySelectorAll('.killi-tab-section');
+    var contentHeight = 0;
+    if (tabSections.length) {
+      Array.prototype.forEach.call(tabSections, function (sec) {
+        var wasCurrent = sec.classList.contains('current');
+        sec.classList.add('current');
+        contentHeight = Math.max(contentHeight, sec.scrollHeight);
+        if (!wasCurrent) sec.classList.remove('current');
+      });
+    } else {
+      contentHeight = scrollBody.scrollHeight;
+    }
+    var header = modal.querySelector('.killi-modal-header');
+    var tabsBar = modal.querySelector('.killi-modal-tabs');
+    var chromeHeight = (header ? header.offsetHeight : 0) + (tabsBar ? tabsBar.offsetHeight : 0);
+    var desired = chromeHeight + contentHeight + 4;
+    var ceiling = Math.min(600, window.innerHeight * 0.88);
+    modal.style.height = Math.max(Math.min(desired, ceiling), 180) + 'px';
+
+    document.body.appendChild(overlay);
+  }
+
+  // A lighter-weight sibling of openRecordModal — same overlay/sheet shell,
+  // no tabs, for content that isn't a business record (Saved, Profile,
+  // Advanced search).
+  function openSimplePanel(title, bodyNode) {
+    var overlay = el('div', 'killi-modal-overlay');
+    var modal = el('div', 'killi-modal');
+    var closeBtn = el('button', 'killi-modal-close', '&times;');
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', 'Close');
+    modal.appendChild(closeBtn);
+
+    var header = el('div', 'killi-modal-header');
+    header.appendChild(el('p', 'killi-modal-title', escapeHtml(title)));
+    modal.appendChild(header);
+
+    var scrollBody = el('div', 'killi-modal-body');
+    scrollBody.appendChild(bodyNode);
+    modal.appendChild(scrollBody);
+
+    overlay.appendChild(modal);
+    function close() { overlay.remove(); document.removeEventListener('keydown', onKey); }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', onKey);
+
+    document.body.appendChild(overlay);
+
+    var ceiling = Math.min(600, window.innerHeight * 0.88);
+    var desired = header.offsetHeight + scrollBody.scrollHeight + 4;
+    modal.style.height = Math.max(Math.min(desired, ceiling), 180) + 'px';
+
+    return { close: close };
+  }
+
+  function panelSectionEl(title, node) {
+    var wrap = el('div', 'killi-panel-section');
+    wrap.appendChild(el('div', 'killi-panel-section-title', escapeHtml(title)));
+    wrap.appendChild(node);
+    return wrap;
+  }
+
+  // handle is a mutable {ref} the caller fills in with openSimplePanel's
+  // return value right after opening — this page needs to close itself
+  // (tapping a recent search) but doesn't exist yet at the time it's built.
+  function buildSavedTabBar(sections) {
+    var names = Object.keys(sections);
+    var bar = el('div', 'killi-panel-tabs');
+    names.forEach(function (name, i) {
+      var tab = el('button', 'killi-panel-tab' + (i === 0 ? ' current' : ''), name);
+      tab.type = 'button';
+      tab.addEventListener('click', function () {
+        Array.prototype.forEach.call(bar.querySelectorAll('.killi-panel-tab'), function (t) { t.classList.remove('current'); });
+        tab.classList.add('current');
+        names.forEach(function (n) { sections[n].classList.toggle('current', n === name); });
+      });
+      bar.appendChild(tab);
+    });
+    return bar;
+  }
+
+  function buildSavedPage(handle) {
+    var wrap = el('div', 'killi-panel');
+
+    var savedSection = el('div', 'killi-panel-tab-section current');
+    var saved = getSaved();
+    var savedList = el('div', 'killi-panel-list');
+    function renderSavedEmptyIfNone() {
+      if (!savedList.children.length) savedList.appendChild(el('p', 'killi-empty', 'Nothing saved yet — tap the heart on a listing to save it.'));
+    }
+    if (saved.length) {
+      saved.forEach(function (r) {
+        var row = el('div', 'killi-panel-row');
+        row.appendChild(el('div', '', '<div class="killi-panel-row-title">' + escapeHtml(r.title) + '</div><div class="killi-panel-row-sub">' + escapeHtml([r.category, r.location].filter(Boolean).join(' · ')) + '</div>'));
+        var unsaveBtn = el('button', 'killi-save-btn saved', ICONS.heart);
+        unsaveBtn.type = 'button';
+        unsaveBtn.setAttribute('aria-label', 'Remove ' + r.title + ' from saved');
+        unsaveBtn.addEventListener('click', function () {
+          toggleSaved(r);
+          row.remove();
+          renderSavedEmptyIfNone();
+        });
+        row.appendChild(unsaveBtn);
+        savedList.appendChild(row);
+      });
+    } else {
+      renderSavedEmptyIfNone();
+    }
+    savedSection.appendChild(panelSectionEl('Saved businesses', savedList));
+
+    var recent = readJsonLS(RECENT_SEARCHES_KEY, []);
+    var recentWrap = el('div', 'killi-chips killi-panel-chips');
+    if (recent.length) {
+      recent.forEach(function (q) {
+        var chip = el('button', 'killi-chip', escapeHtml(q));
+        chip.type = 'button';
+        chip.addEventListener('click', function () {
+          if (handle.ref) handle.ref.close();
+          input.value = q;
+          form.requestSubmit();
+        });
+        recentWrap.appendChild(chip);
+      });
+    } else {
+      recentWrap.appendChild(el('p', 'killi-empty', 'No recent searches yet.'));
+    }
+    savedSection.appendChild(panelSectionEl('Recent searches', recentWrap));
+
+    // Media tab: everything shared as an attachment this session — photos,
+    // files, and (once voice messages exist as a feature) voice notes.
+    // sessionMedia is in-memory only, so this tab is empty again on reload.
+    var mediaSection = el('div', 'killi-panel-tab-section');
+    var mediaWrap = el('div', 'killi-panel-media');
+    if (sessionMedia.length) {
+      sessionMedia.forEach(function (f) {
+        if (f.mime && f.mime.indexOf('image/') === 0) {
+          var img = document.createElement('img');
+          img.src = f.url;
+          img.alt = f.filename || '';
+          mediaWrap.appendChild(img);
+        } else if (f.mime && f.mime.indexOf('audio/') === 0) {
+          var audioRow = el('div', 'killi-panel-media-audio');
+          audioRow.appendChild(el('span', 'killi-panel-media-file', ICONS.mic));
+          var player = document.createElement('audio');
+          player.src = f.url;
+          player.controls = true;
+          audioRow.appendChild(player);
+          mediaWrap.appendChild(audioRow);
+        } else {
+          var link = el('a', 'killi-panel-media-file', ICONS.document + ' ' + escapeHtml(f.filename || 'file'));
+          link.href = f.url;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          mediaWrap.appendChild(link);
+        }
+      });
+    } else {
+      mediaWrap.appendChild(el('p', 'killi-empty', 'Photos, files, and other attachments you share in chat show up here (this session only).'));
+    }
+    mediaSection.appendChild(panelSectionEl('Shared this session', mediaWrap));
+
+    wrap.appendChild(buildSavedTabBar({ Saved: savedSection, Media: mediaSection }));
+    wrap.appendChild(savedSection);
+    wrap.appendChild(mediaSection);
+
+    return wrap;
+  }
+
+  function buildProfilePage() {
+    var wrap = el('div', 'killi-panel');
+
+    var name = readJsonLS(PROFILE_NAME_KEY, '');
+    var head = el('div', 'killi-profile-head');
+    var avatar = el('div', 'killi-profile-avatar', escapeHtml((name || 'G').charAt(0).toUpperCase()));
+    head.appendChild(avatar);
+    var nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'killi-panel-input killi-profile-name-input';
+    nameInput.value = name;
+    nameInput.placeholder = 'Your name';
+    nameInput.addEventListener('change', function () {
+      var v = nameInput.value.trim();
+      writeJsonLS(PROFILE_NAME_KEY, v);
+      avatar.textContent = (v || 'G').charAt(0).toUpperCase();
+    });
+    head.appendChild(nameInput);
+    wrap.appendChild(head);
+
+    var stats = el('div', 'killi-profile-stats');
+    stats.appendChild(el('div', 'killi-profile-stat', '<strong>' + readJsonLS(RECENT_SEARCHES_KEY, []).length + '</strong><span>Searches</span>'));
+    stats.appendChild(el('div', 'killi-profile-stat', '<strong>' + getSaved().length + '</strong><span>Saved</span>'));
+    wrap.appendChild(stats);
+
+    var clearBtn = el('button', 'killi-panel-clear-btn', 'Clear saved data on this device');
+    clearBtn.type = 'button';
+    clearBtn.addEventListener('click', function () {
+      writeJsonLS(SAVED_KEY, []);
+      writeJsonLS(RECENT_SEARCHES_KEY, []);
+      writeJsonLS(PROFILE_NAME_KEY, '');
+      addBubble('ai', 'Cleared your saved data on this device.');
+    });
+    wrap.appendChild(clearBtn);
+
+    return wrap;
+  }
+
+  // Structured filters (sector/location) hit search.php directly, same as
+  // the chip/near-me path; minimum rating and open-now aren't server-side
+  // filters (SearchEngine only supports category/sector/location/verified)
+  // so they're applied client-side on the response — the same pattern
+  // "Verified only"/"Highest rated" already use on lastResults below.
+  function runAdvancedSearch(filters, minRating, openNow) {
+    var summary = [filters.category || filters.sector, filters.location, minRating ? minRating + '+ stars' : null, openNow ? 'open now' : null].filter(Boolean).join(', ') || 'all businesses';
+    addBubble('user', 'Advanced search: ' + summary);
+
+    var params = new URLSearchParams({ q: filters.category || filters.sector || filters.location || 'businesses', limit: '20' });
+    if (filters.sector) params.set('sector', filters.sector);
+    if (filters.category) params.set('category', filters.category);
+    if (filters.location) params.set('location', filters.location);
+
+    showTyping();
+    fetch(API_BASE + 'search.php?' + params.toString())
+      .then(function (res) { return res.json(); })
+      .then(function (payload) {
+        hideTyping();
+        markDelivered();
+        if (!payload.success) {
+          addBubble('ai', payload.error && payload.error.message ? payload.error.message : 'Something went wrong.');
+          return;
+        }
+        var results = payload.data;
+        if (minRating) results = results.filter(function (r) { return (r.rating || 0) >= minRating; });
+        if (openNow) results = results.filter(function (r) { return r.is_open_now; });
+        lastResults = results;
+        addBubble('ai', results.length ? 'Found ' + results.length + ' match' + (results.length === 1 ? '' : 'es') + ':' : 'No matches for those filters — try widening them.', true);
+        renderResults(results);
+      })
+      .catch(function () {
+        hideTyping();
+        addBubble('ai', 'I’m having trouble reaching the search service. Please try again.');
+      });
+  }
+
+  // Wires a text input to a filtered dropdown of `names`, matched by
+  // substring — same idea as the main search box's suggestion list, but
+  // scoped to this one panel field instead of the shared #killi-suggestions.
+  function attachAutocomplete(inputEl, namesPromise) {
+    var box = el('div', 'killi-panel-autocomplete');
+    box.hidden = true;
+    inputEl.insertAdjacentElement('afterend', box);
+    var allNames = [];
+    namesPromise.then(function (names) { allNames = names; });
+
+    function render() {
+      var q = inputEl.value.trim().toLowerCase();
+      box.innerHTML = '';
+      if (!q) { box.hidden = true; return; }
+      var matches = allNames.filter(function (n) { return n.toLowerCase().indexOf(q) !== -1; }).slice(0, 6);
+      if (!matches.length) { box.hidden = true; return; }
+      matches.forEach(function (n) {
+        var item = el('div', 'killi-panel-autocomplete-item', escapeHtml(n));
+        item.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          inputEl.value = n;
+          box.hidden = true;
+        });
+        box.appendChild(item);
+      });
+      box.hidden = false;
+    }
+    inputEl.addEventListener('input', render);
+    inputEl.addEventListener('blur', function () { setTimeout(function () { box.hidden = true; }, 100); });
+  }
+
+  function buildAdvancedSearchPanel(handle) {
+    var wrap = el('div', 'killi-panel killi-advanced-search');
+
+    var sectorSel = document.createElement('select');
+    sectorSel.className = 'killi-panel-select';
+    sectorSel.appendChild(new Option('Any', ''));
+    Array.prototype.forEach.call(document.querySelectorAll('#killi-chips .killi-chip[data-sector]'), function (chip) {
+      var v = chip.getAttribute('data-sector');
+      sectorSel.appendChild(new Option(v, v));
+    });
+    wrap.appendChild(panelSectionEl('Main categories', sectorSel));
+
+    // Populated once the full taxonomy loads — the chip-derived list above
+    // covers only the sectors with a quick chip, but every sector has a
+    // full category breakdown underneath it.
+    fetchTaxonomyTree().then(function (tree) {
+      var bySector = {};
+      tree.forEach(function (node) {
+        bySector[node.sector] = node;
+        if (!sectorSel.querySelector('option[value="' + node.sector.replace(/"/g, '') + '"]')) {
+          sectorSel.appendChild(new Option(node.sector, node.sector));
+        }
+      });
+      sectorSel._taxonomy = bySector;
+    });
+
+    var categorySel = document.createElement('select');
+    categorySel.className = 'killi-panel-select';
+    categorySel.appendChild(new Option('Any', ''));
+    var categorySection = panelSectionEl('Categories', categorySel);
+    categorySection.hidden = true;
+    wrap.appendChild(categorySection);
+
+    sectorSel.addEventListener('change', function () {
+      categorySel.innerHTML = '';
+      categorySel.appendChild(new Option('Any', ''));
+      var node = sectorSel._taxonomy && sectorSel._taxonomy[sectorSel.value];
+      if (sectorSel.value && node) {
+        (node.categories || []).forEach(function (c) {
+          categorySel.appendChild(new Option('— ' + c.category, c.category));
+        });
+        categorySection.hidden = false;
+      } else {
+        categorySection.hidden = true;
+      }
+    });
+
+    var locationInput = document.createElement('input');
+    locationInput.type = 'text';
+    locationInput.className = 'killi-panel-input';
+    locationInput.placeholder = 'e.g. Lekki, Victoria Island';
+    locationInput.autocomplete = 'off';
+    wrap.appendChild(panelSectionEl('Location', locationInput));
+    attachAutocomplete(locationInput, fetchLocationNames());
+
+    var ratingSel = document.createElement('select');
+    ratingSel.className = 'killi-panel-select';
+    [['Any rating', ''], ['4.5+ stars', '4.5'], ['4+ stars', '4'], ['3+ stars', '3']].forEach(function (o) {
+      ratingSel.appendChild(new Option(o[0], o[1]));
+    });
+    wrap.appendChild(panelSectionEl('Minimum rating', ratingSel));
+
+    var openNowLabel = el('label', 'killi-panel-checkbox');
+    var openNowCheck = document.createElement('input');
+    openNowCheck.type = 'checkbox';
+    openNowLabel.appendChild(openNowCheck);
+    openNowLabel.appendChild(document.createTextNode(' Open now only'));
+    wrap.appendChild(openNowLabel);
+
+    var submitBtn = el('button', 'killi-panel-submit-btn', 'Search');
+    submitBtn.type = 'button';
+    submitBtn.addEventListener('click', function () {
+      var filters = { sector: sectorSel.value, category: categorySel.value, location: locationInput.value.trim() };
+      var minRating = ratingSel.value ? Number(ratingSel.value) : 0;
+      var openNow = openNowCheck.checked;
+      if (handle.ref) handle.ref.close();
+      runAdvancedSearch(filters, minRating, openNow);
+    });
+    wrap.appendChild(submitBtn);
+
+    return wrap;
   }
 
   function renderResults(records) {
@@ -455,7 +1399,25 @@
           renderResults(data.results);
         }
 
-        if (data.total > 1) {
+        // A negative-reading message gets real next steps, not just the
+        // empathy line already baked into data.reply server-side — same
+        // idea as offer_ticket below, just triggered by tone instead of
+        // a zero-result search.
+        if (data.sentiment && data.sentiment.label === 'negative') {
+          addQuickReplies([
+            {
+              label: 'Raise a request',
+              onClick: function () {
+                addBubble('user', 'Raise a request');
+                runChat('raise a request');
+              },
+            },
+            {
+              label: 'Try again',
+              onClick: function () { input.focus(); },
+            },
+          ]);
+        } else if (data.total > 1) {
           addQuickReplies(buildQuickReplies(message, {}));
         } else if (data.offer_ticket) {
           addQuickReplies([{
@@ -480,6 +1442,7 @@
     hideSuggestions();
     addBubble('user', query);
     input.value = '';
+    pushRecentSearch(query);
     runChat(query);
   }
 
@@ -541,36 +1504,147 @@
     hideSuggestions();
   });
 
-  // File attachment: pick a file, upload it, then send it to the bot as
-  // its own turn (see sendAttachment). Validation (type/size) is enforced
-  // server-side in api/upload.php; the accept="" attribute is just a UI hint.
-  if (attachBtn && attachInput) {
-    attachBtn.addEventListener('click', function () { attachInput.click(); });
+  // File attachment: pick a file (photo library, camera, or camera video),
+  // upload it, then send it to the bot as its own turn (see sendAttachment).
+  // Validation (type/size) is enforced server-side in api/upload.php; the
+  // accept/capture attributes are just UI hints.
+  // kind is an optional client-side hint ('voice') — an audio-only WebM
+  // recording is indistinguishable from a video WebM to finfo's mime
+  // sniffing server-side, so the client (which knows for certain it just
+  // recorded a voice note) overrides the render hint here rather than
+  // trusting the detected mime for that one case.
+  function uploadAttachment(file, kind) {
+    if (!file) return;
+    var formData = new FormData();
+    formData.append('file', file);
+    attachBtn.disabled = true;
 
-    attachInput.addEventListener('change', function () {
-      var file = attachInput.files[0];
-      if (!file) return;
+    fetch(API_BASE + 'upload.php', { method: 'POST', body: formData })
+      .then(function (res) { return res.json(); })
+      .then(function (payload) {
+        attachBtn.disabled = false;
+        if (!payload.success) {
+          addBubble('ai', payload.error && payload.error.message ? payload.error.message : 'Could not upload that file.');
+          return;
+        }
+        if (kind === 'voice' && payload.data) payload.data.mime = 'audio/webm';
+        sendAttachment(payload.data);
+      })
+      .catch(function () {
+        attachBtn.disabled = false;
+        addBubble('ai', 'I’m having trouble uploading that file. Please try again.');
+      });
+  }
 
-      var formData = new FormData();
-      formData.append('file', file);
-      attachBtn.disabled = true;
+  if (attachBtn && attachInput && attachSheet) {
+    attachBtn.addEventListener('click', function () { attachSheet.hidden = false; });
 
-      fetch(API_BASE + 'upload.php', { method: 'POST', body: formData })
-        .then(function (res) { return res.json(); })
-        .then(function (payload) {
-          attachBtn.disabled = false;
-          attachInput.value = '';
-          if (!payload.success) {
-            addBubble('ai', payload.error && payload.error.message ? payload.error.message : 'Could not upload that file.');
-            return;
-          }
-          sendAttachment(payload.data);
-        })
-        .catch(function () {
-          attachBtn.disabled = false;
-          addBubble('ai', 'I’m having trouble uploading that file. Please try again.');
-        });
+    attachSheet.addEventListener('click', function (e) {
+      if (e.target === attachSheet) attachSheet.hidden = true;
     });
+
+    var cancelAttach = document.getElementById('killi-attach-cancel');
+    if (cancelAttach) cancelAttach.addEventListener('click', function () { attachSheet.hidden = true; });
+
+    Array.prototype.forEach.call(attachSheet.querySelectorAll('.killi-attach-option[data-target]'), function (btn) {
+      btn.addEventListener('click', function () {
+        attachSheet.hidden = true;
+        var target = document.getElementById(btn.getAttribute('data-target'));
+        if (target) target.click();
+      });
+    });
+
+    [attachInput, attachCameraPhoto, attachCameraVideo].forEach(function (fileInput) {
+      if (!fileInput) return;
+      fileInput.addEventListener('change', function () {
+        var file = fileInput.files[0];
+        fileInput.value = '';
+        uploadAttachment(file);
+      });
+    });
+
+    // Voice notes: MediaRecorder, feature-detected — separate from the
+    // mic button below, which is speech-to-text into the search box, not
+    // a message you send. Recording replaces the searchbar in place
+    // (same row) with a live timer and stop/cancel controls, WhatsApp-
+    // style, rather than a modal, so the rest of the chat stays visible.
+    var voiceBtn = document.getElementById('killi-attach-voice');
+    var voiceBar = document.getElementById('killi-voice-record-bar');
+    var voiceTimerEl = document.getElementById('killi-voice-timer');
+    var voiceStopBtn = document.getElementById('killi-voice-stop');
+    var voiceCancelBtn = document.getElementById('killi-voice-cancel');
+    var canRecordVoice = voiceBtn && voiceBar && navigator.mediaDevices && window.MediaRecorder;
+    if (voiceBtn && !canRecordVoice) voiceBtn.hidden = true;
+
+    if (canRecordVoice) {
+      var voiceRecorder = null;
+      var voiceStream = null;
+      var voiceChunks = [];
+      var voiceStartedAt = 0;
+      var voiceTimerHandle = null;
+
+      function formatVoiceDuration(ms) {
+        var totalSeconds = Math.floor(ms / 1000);
+        var m = Math.floor(totalSeconds / 60);
+        var s = totalSeconds % 60;
+        return m + ':' + (s < 10 ? '0' : '') + s;
+      }
+
+      function stopVoiceStream() {
+        if (voiceStream) voiceStream.getTracks().forEach(function (t) { t.stop(); });
+        voiceStream = null;
+        voiceRecorder = null;
+        clearInterval(voiceTimerHandle);
+        voiceBar.hidden = true;
+        form.hidden = false;
+      }
+
+      function startVoiceRecording() {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(function (stream) {
+            voiceStream = stream;
+            voiceChunks = [];
+            voiceRecorder = new MediaRecorder(stream);
+            voiceRecorder.addEventListener('dataavailable', function (e) {
+              if (e.data && e.data.size > 0) voiceChunks.push(e.data);
+            });
+            voiceRecorder.addEventListener('stop', function () {
+              var wasCancelled = voiceRecorder._cancelled;
+              var blob = new Blob(voiceChunks, { type: voiceRecorder.mimeType || 'audio/webm' });
+              stopVoiceStream();
+              if (!wasCancelled && blob.size > 0) {
+                var ext = (blob.type.split('/')[1] || 'webm').split(';')[0];
+                uploadAttachment(new File([blob], 'voice-note.' + ext, { type: blob.type }), 'voice');
+              }
+            });
+            voiceRecorder.start();
+            voiceStartedAt = Date.now();
+            form.hidden = true;
+            voiceBar.hidden = false;
+            voiceTimerEl.textContent = '0:00';
+            voiceTimerHandle = setInterval(function () {
+              voiceTimerEl.textContent = formatVoiceDuration(Date.now() - voiceStartedAt);
+            }, 500);
+          })
+          .catch(function () {
+            addBubble('ai', 'I couldn’t access your microphone — please allow microphone access and try again.');
+          });
+      }
+
+      voiceBtn.addEventListener('click', function () {
+        attachSheet.hidden = true;
+        startVoiceRecording();
+      });
+      voiceStopBtn.addEventListener('click', function () {
+        if (voiceRecorder && voiceRecorder.state !== 'inactive') voiceRecorder.stop();
+      });
+      voiceCancelBtn.addEventListener('click', function () {
+        if (voiceRecorder && voiceRecorder.state !== 'inactive') {
+          voiceRecorder._cancelled = true;
+          voiceRecorder.stop();
+        }
+      });
+    }
   }
 
   // Voice input: Web Speech API, feature-detected. Fills the input rather
@@ -629,7 +1703,7 @@
     } else {
       document.documentElement.removeAttribute('data-theme');
     }
-    if (themeToggle) themeToggle.textContent = isDarkActive() ? '☀️' : '🌙';
+    if (themeToggle) themeToggle.innerHTML = isDarkActive() ? ICONS.sun : ICONS.moon;
   }
 
   if (themeToggle) {
@@ -640,6 +1714,114 @@
       applyTheme(next);
     });
   }
+
+  // Rate this conversation: shown inline in the chat feed itself — as a
+  // card appended after the first real exchange — rather than a floating
+  // panel triggered by a header icon. No reliable signal exists for "the
+  // user is done" in a stateless page, so it appears once there's at
+  // least one finished exchange worth rating, and stays put like any
+  // other message rather than needing to be summoned.
+  var inlineRatingShown = false;
+  function maybeShowInlineRating() {
+    if (inlineRatingShown) return;
+    inlineRatingShown = true;
+    chat.appendChild(buildInlineRatingCard());
+    scrollToBottom();
+  }
+
+  function buildInlineRatingCard() {
+    var card = el('div', 'killi-inline-rate');
+    card.appendChild(el('div', 'killi-inline-rate-title', 'How did this conversation go?'));
+
+    var starsWrap = el('div', 'killi-rate-stars');
+    var stars = [];
+    for (var i = 1; i <= 5; i++) {
+      var star = el('button', 'killi-star', ICONS.star);
+      star.type = 'button';
+      star.setAttribute('data-value', i);
+      star.setAttribute('aria-label', i + ' star' + (i === 1 ? '' : 's'));
+      starsWrap.appendChild(star);
+      stars.push(star);
+    }
+    card.appendChild(starsWrap);
+
+    var comment = document.createElement('textarea');
+    comment.className = 'killi-rate-comment';
+    comment.placeholder = 'Anything we should know? (optional)';
+    comment.rows = 2;
+    card.appendChild(comment);
+
+    var actions = el('div', 'killi-rate-actions');
+    var cancelBtn = el('button', 'killi-rate-cancel', 'Dismiss');
+    cancelBtn.type = 'button';
+    var submitBtn = el('button', 'killi-rate-submit', 'Submit');
+    submitBtn.type = 'button';
+    submitBtn.disabled = true;
+    actions.appendChild(cancelBtn);
+    actions.appendChild(submitBtn);
+    card.appendChild(actions);
+
+    var selected = 0;
+    function paintStars() {
+      stars.forEach(function (star) {
+        star.classList.toggle('filled', Number(star.getAttribute('data-value')) <= selected);
+      });
+      submitBtn.disabled = selected === 0;
+    }
+    stars.forEach(function (star) {
+      star.addEventListener('click', function () {
+        selected = Number(star.getAttribute('data-value'));
+        paintStars();
+      });
+    });
+
+    cancelBtn.addEventListener('click', function () { card.remove(); });
+
+    submitBtn.addEventListener('click', function () {
+      if (selected === 0) return;
+      submitBtn.disabled = true;
+      fetch(API_BASE + 'session_feedback.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating: selected, comment: comment.value, turns: sessionTurns }),
+      }).then(function () {
+        card.innerHTML = '';
+        card.appendChild(el('div', 'killi-rate-thanks', 'Thanks for the feedback!'));
+      }).catch(function () {
+        submitBtn.disabled = false;
+      });
+    });
+
+    return card;
+  }
+
+  // Bottom icon nav — Home/Search are real actions; Saved and Profile
+  // open real panels backed by localStorage (no accounts yet, so nothing
+  // syncs beyond this browser).
+  (function () {
+    var nav = document.getElementById('killi-bottom-nav');
+    if (!nav) return;
+    var navItems = nav.querySelectorAll('.killi-nav-item');
+    nav.addEventListener('click', function (e) {
+      var btn = e.target.closest('.killi-nav-item');
+      if (!btn) return;
+      Array.prototype.forEach.call(navItems, function (item) { item.classList.toggle('active', item === btn); });
+      var target = btn.getAttribute('data-nav');
+      if (target === 'home') {
+        chat.scrollTop = 0;
+      } else if (target === 'search') {
+        input.focus();
+      } else if (target === 'filters') {
+        var searchHandle = {};
+        searchHandle.ref = openSimplePanel('Advanced search', buildAdvancedSearchPanel(searchHandle));
+      } else if (target === 'saved') {
+        var savedHandle = {};
+        savedHandle.ref = openSimplePanel('Saved', buildSavedPage(savedHandle));
+      } else if (target === 'profile') {
+        openSimplePanel('Profile', buildProfilePage());
+      }
+    });
+  })();
 
   addBubble('ai', branding.welcome_message || 'Hi, what are you looking for today?');
 

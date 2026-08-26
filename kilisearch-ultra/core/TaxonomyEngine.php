@@ -23,11 +23,23 @@ class TaxonomyEngine
     {
         foreach ($this->tree as $sectorNode) {
             $sector = $sectorNode['sector'];
-            $this->index[mb_strtolower($sector)] = ['sector' => $sector, 'category' => null, 'subcategory' => null];
+            $sectorEntry = ['sector' => $sector, 'category' => null, 'subcategory' => null];
+            $this->index[mb_strtolower($sector)] = $sectorEntry;
+            // Aliases are everyday words for a sector/category that never
+            // appear in the taxonomy names themselves — "cars" for
+            // Automotive, "clinic" for Healthcare — same mechanism
+            // LocationEngine already uses for area aliases like "vi".
+            foreach ($sectorNode['aliases'] ?? [] as $alias) {
+                $this->index[mb_strtolower($alias)] = $sectorEntry;
+            }
 
             foreach ($sectorNode['categories'] ?? [] as $categoryNode) {
                 $category = $categoryNode['category'];
-                $this->index[mb_strtolower($category)] = ['sector' => $sector, 'category' => $category, 'subcategory' => null];
+                $categoryEntry = ['sector' => $sector, 'category' => $category, 'subcategory' => null];
+                $this->index[mb_strtolower($category)] = $categoryEntry;
+                foreach ($categoryNode['aliases'] ?? [] as $alias) {
+                    $this->index[mb_strtolower($alias)] = $categoryEntry;
+                }
 
                 foreach ($categoryNode['subcategories'] ?? [] as $subcategory) {
                     $this->index[mb_strtolower($subcategory)] = [
@@ -46,7 +58,11 @@ class TaxonomyEngine
      */
     public function extractTaxonomy(string $query): ?array
     {
-        $normalized = ' ' . mb_strtolower(preg_replace('/[^a-z0-9\s]/u', ' ', $query)) . ' ';
+        // Strip punctuation with a Unicode letter/number class (not a-z0-9)
+        // so it doesn't matter that this runs before mb_strtolower() below —
+        // an [^a-z0-9] class here would silently drop every capital letter
+        // first, breaking any query typed with capitals at all.
+        $normalized = ' ' . mb_strtolower(preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $query)) . ' ';
 
         $matched = null;
         $matchedPhrase = '';

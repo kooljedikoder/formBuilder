@@ -6,7 +6,8 @@ killi_require_app_auth_json();
 header('Content-Type: application/json');
 killi_require_feature_json('attachments');
 
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB — images/PDF
+const MAX_VIDEO_UPLOAD_BYTES = 25 * 1024 * 1024; // 25MB — camera video clips run larger
 
 // Extension is derived from the *detected* MIME type below, never from the
 // client-supplied filename or Content-Type — prevents extension spoofing
@@ -18,7 +19,15 @@ const ALLOWED_UPLOAD_TYPES = [
     'image/gif' => 'gif',
     'image/webp' => 'webp',
     'application/pdf' => 'pdf',
+    'video/mp4' => 'mp4',
+    'video/quicktime' => 'mov',
+    'video/webm' => 'webm',
+    'audio/webm' => 'webm',
+    'audio/mp4' => 'm4a',
+    'audio/mpeg' => 'mp3',
+    'audio/ogg' => 'ogg',
 ];
+const VIDEO_UPLOAD_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
 
 if (empty($_FILES['file']['tmp_name']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
     http_response_code(422);
@@ -32,11 +41,13 @@ if (empty($_FILES['file']['tmp_name']) || $_FILES['file']['error'] !== UPLOAD_ER
 $tmpPath = $_FILES['file']['tmp_name'];
 $size = (int) $_FILES['file']['size'];
 
-if ($size > MAX_UPLOAD_BYTES) {
+// An early ceiling at the larger (video) limit, so an oversized upload is
+// rejected before spending a finfo() call on it either way.
+if ($size > MAX_VIDEO_UPLOAD_BYTES) {
     http_response_code(422);
     echo json_encode([
         'success' => false,
-        'error' => ['code' => 'FILE_TOO_LARGE', 'message' => 'File exceeds the 5MB limit.'],
+        'error' => ['code' => 'FILE_TOO_LARGE', 'message' => 'File exceeds the 25MB limit.'],
     ]);
     exit;
 }
@@ -50,7 +61,17 @@ if (!isset(ALLOWED_UPLOAD_TYPES[$detectedMime])) {
     http_response_code(422);
     echo json_encode([
         'success' => false,
-        'error' => ['code' => 'UNSUPPORTED_TYPE', 'message' => 'Only JPG, PNG, GIF, WEBP and PDF files are supported.'],
+        'error' => ['code' => 'UNSUPPORTED_TYPE', 'message' => 'Only JPG, PNG, GIF, WEBP, PDF, MP4, MOV, WEBM and voice-note audio files are supported.'],
+    ]);
+    exit;
+}
+
+$isVideo = in_array($detectedMime, VIDEO_UPLOAD_TYPES, true);
+if (!$isVideo && $size > MAX_UPLOAD_BYTES) {
+    http_response_code(422);
+    echo json_encode([
+        'success' => false,
+        'error' => ['code' => 'FILE_TOO_LARGE', 'message' => 'File exceeds the 5MB limit.'],
     ]);
     exit;
 }

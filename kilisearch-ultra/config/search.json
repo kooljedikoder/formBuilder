@@ -1,6 +1,6 @@
 {
   "synonyms": {
-    "mechanic": ["auto repair", "car repair", "garage", "car service", "auto electrician"],
+    "mechanic": ["auto repair", "car repair", "garage", "car service", "auto electrician", "car", "cars", "vehicle", "vehicles"],
     "restaurant": ["eatery", "dining", "food"],
     "pharmacy": ["chemist", "drugstore", "medicine shop"],
     "salon": ["hair salon", "beauty parlour", "spa"],

@@ -16,6 +16,7 @@ require_once __DIR__ . '/core/EntitlementManager.php';
 require_once __DIR__ . '/core/LicenseManager.php';
 require_once __DIR__ . '/core/CrudEngine.php';
 require_once __DIR__ . '/core/DbAdapter.php';
+require_once __DIR__ . '/core/SentimentEngine.php';
 
 use Killi\Adapters\JsonAdapter;
 use Killi\Core\SearchEngine;
@@ -32,6 +33,7 @@ use Killi\Core\EntitlementManager;
 use Killi\Core\LicenseManager;
 use Killi\Core\CrudEngine;
 use Killi\Core\DbAdapter;
+use Killi\Core\SentimentEngine;
 use Killi\Adapters\StorageInterface;
 
 /** Reads a JSON config file, returning [] if it doesn't exist or is invalid. */
@@ -682,6 +684,48 @@ function killi_set_active_data_source(string $id): void
 }
 
 /**
+ * The fixed palette a "custom" layout composes from — the same 6 pieces
+ * the 2 fixed rich layouts already render with, just admin-selectable and
+ * reorderable instead of pre-arranged. Recognized by both
+ * killi_set_source_layout()'s validation and killi.js's buildCustomBody().
+ * Deliberately not open-ended: adding a 7th slot means adding one entry
+ * here plus one renderer function, never admin-authored markup.
+ */
+const KILLI_CUSTOM_SLOT_PALETTE = ['photos', 'pricing', 'rating', 'hours', 'items', 'cta'];
+
+/** Sets a source's result-detail layout — one of the 2 fixed rich layouts, "simple", or "custom" with an ordered slot selection. See DataSourceEngine::layoutFor(). */
+function killi_set_source_layout(string $sourceId, string $layout, array $customSlots = []): void
+{
+    if (!in_array($layout, ['simple', 'business_profile', 'menu_catalog', 'custom'], true)) {
+        throw new \InvalidArgumentException('Unknown layout.');
+    }
+
+    // Iterate the palette (not $customSlots) so the render order is always
+    // the fixed canonical one, regardless of what order the form submitted
+    // the checked slots in.
+    $customSlots = array_values(array_intersect(KILLI_CUSTOM_SLOT_PALETTE, $customSlots));
+
+    $path = __DIR__ . '/config/data_sources.json';
+    $config = killi_read_json($path);
+    // Note: iterating "$config['sources'] ?? [] as &$source" would silently
+    // fail to persist — ?? produces a temporary, so a by-reference foreach
+    // over it never mutates the real array. Guard emptiness separately instead.
+    if (!empty($config['sources'])) {
+        foreach ($config['sources'] as &$source) {
+            if ($source['id'] === $sourceId) {
+                $source['layout'] = $layout;
+                if ($layout === 'custom') {
+                    $source['custom_slots'] = $customSlots;
+                }
+                break;
+            }
+        }
+        unset($source);
+    }
+    file_put_contents($path, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/**
  * Publishes newly-imported rows as a brand-new, independently switchable
  * data source rather than merging them into whatever's currently active
  * — the "auto-detect schema, let the user confirm the mapping, then save
@@ -758,6 +802,61 @@ function killi_publish_live_source(string $name, string $connectionName, string 
     return $newSource;
 }
 
+/**
+ * Ties the FAQ table to the same connection as the active data source —
+ * a single database backing Search/CRUD/Memory, no separate FAQ
+ * credential to maintain. $mapping needs at minimum "id" and "question"/
+ * "answer" columns; see DbAdapter for how canonical fields reverse-map.
+ */
+function killi_set_faq_source(string $connectionName, string $table, array $mapping, bool $writable = false): void
+{
+    $path = __DIR__ . '/config/data_sources.json';
+    $config = killi_read_json($path);
+    $config['faq'] = [
+        'mode' => 'tied',
+        'connection' => $connectionName,
+        'table' => $table,
+        'mapping' => $mapping,
+        'writable' => $writable,
+    ];
+    file_put_contents($path, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/** Switches the FAQ table back to its own dedicated local store. The last tied connection/table/mapping are kept (not cleared) so re-tying later doesn't require re-entering them. */
+function killi_untie_faq_source(): void
+{
+    $path = __DIR__ . '/config/data_sources.json';
+    $config = killi_read_json($path);
+    $config['faq']['mode'] = 'untied';
+    file_put_contents($path, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/**
+ * Storage for the Memory pillar's FAQ table — local JSON ("untied", the
+ * default) or a table under whichever connection the active data source
+ * uses ("tied") — its own table, reached via the same named connection
+ * profile, resolved independently of which source Search/CRUD currently
+ * has active. Falls back to the local store if "tied" is selected but no
+ * connection/table has been chosen yet (nothing to tie to).
+ */
+function killi_faq_storage(): StorageInterface
+{
+    $faqConfig = killi_data_source_engine()->faqConfig();
+
+    if (($faqConfig['mode'] ?? 'untied') === 'tied' && !empty($faqConfig['connection']) && !empty($faqConfig['table'])) {
+        return new DbAdapter(
+            killi_connection_manager(),
+            $faqConfig['connection'],
+            $faqConfig['table'],
+            $faqConfig['mapping'] ?? [],
+            null,
+            !empty($faqConfig['writable'])
+        );
+    }
+
+    return new JsonAdapter(__DIR__ . '/data/faq.json');
+}
+
 function killi_search_engine(): SearchEngine
 {
     static $engine = null;
@@ -789,6 +888,33 @@ function killi_taxonomy_engine(): TaxonomyEngine
     return $engine;
 }
 
+function killi_sentiment_engine(): SentimentEngine
+{
+    static $engine = null;
+    if ($engine === null) {
+        $engine = new SentimentEngine(killi_read_json(__DIR__ . '/config/sentiment.json'));
+    }
+
+    return $engine;
+}
+
+/**
+ * Softens a reply when the message it's answering read as negative —
+ * prepends a short empathy line from config/conversation.json's
+ * "empathy_negative" intent rather than changing the underlying reply
+ * logic. A no-op for neutral/positive sentiment.
+ */
+function killi_apply_sentiment_prefix(string $reply, array $sentiment): string
+{
+    if (($sentiment['label'] ?? 'neutral') !== 'negative') {
+        return $reply;
+    }
+
+    $prefix = killi_conversation_engine()->respond('empathy_negative');
+
+    return $prefix !== '' ? $prefix . ' ' . $reply : $reply;
+}
+
 function killi_source_registry(): SourceRegistry
 {
     static $registry = null;
@@ -818,12 +944,29 @@ function killi_extract_context(string $query): array
     ];
 }
 
+/**
+ * $records here always come from whichever ONE data source is currently
+ * active — search queries a single source per request (switching between
+ * them is what the "multi_source" feature controls, not merging them) —
+ * so the result-detail layout is resolved once for the whole batch from
+ * the active source, not per record. record['source_id'] is a different
+ * id space (SourceRegistry provenance, e.g. "src-xyz") and isn't the
+ * DataSourceEngine id DataSourceEngine::layoutFor() expects.
+ */
 function killi_resolve_sources(array $records): array
 {
     $registry = killi_source_registry();
+    $engine = killi_data_source_engine();
+    $activeId = $engine->activeId();
+    $layout = $activeId !== null ? $engine->layoutFor($activeId) : 'simple';
+    $customSlots = ($layout === 'custom' && $activeId !== null) ? $engine->customSlotsFor($activeId) : [];
 
-    return array_map(function ($record) use ($registry) {
+    return array_map(function ($record) use ($registry, $layout, $customSlots) {
         $record['source'] = $registry->resolve($record['source_id'] ?? null);
+        $record['_layout'] = $layout;
+        if ($layout === 'custom') {
+            $record['_customSlots'] = $customSlots;
+        }
         return $record;
     }, $records);
 }
@@ -878,27 +1021,35 @@ function killi_memory_engine(): MemoryEngine
 {
     static $engine = null;
     if ($engine === null) {
-        $engine = new MemoryEngine(killi_read_json(__DIR__ . '/data/faq.json'));
+        $engine = new MemoryEngine(killi_faq_storage()->all());
     }
 
     return $engine;
 }
 
-/** Bumps a recalled memory entry's hit_count — lets an admin see which stored answers get reused most. */
+/**
+ * Bumps a recalled memory entry's hit_count — lets an admin see which
+ * stored answers get reused most. For a tied source, the count only
+ * actually persists if "hit_count" itself is one of the mapped columns
+ * (unmapped fields are silently dropped by DbAdapter, same as any other
+ * write) — recall still works either way, this is purely a nice-to-have.
+ * A read-only tied source drops the write entirely via the caught exception.
+ */
 function killi_memory_record_hit(string $faqId): void
 {
-    $path = __DIR__ . '/data/faq.json';
-    $entries = killi_read_json($path);
-
-    foreach ($entries as &$entry) {
-        if ($entry['id'] === $faqId) {
-            $entry['hit_count'] = ($entry['hit_count'] ?? 0) + 1;
-            break;
-        }
+    $storage = killi_faq_storage();
+    $entry = $storage->find($faqId);
+    if ($entry === null) {
+        return;
     }
-    unset($entry);
 
-    file_put_contents($path, json_encode($entries, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    $entry['hit_count'] = ($entry['hit_count'] ?? 0) + 1;
+
+    try {
+        $storage->save($entry);
+    } catch (\RuntimeException $e) {
+        // Tied to a read-only live source — recall still works, the hit count just can't persist.
+    }
 }
 
 /**
@@ -937,6 +1088,47 @@ function killi_memory_remember_query(string $query): void
     }
 
     file_put_contents($path, json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    killi_bump_daily_query_count();
+}
+
+/**
+ * A separate, minimal running tally of total searches per calendar day
+ * (UTC), independent of the per-query dedup above — that file tracks
+ * "how often has THIS query been asked," never a timeline, so it can't
+ * answer "is search volume trending up." Kept as its own small file
+ * rather than reshaping query_log.json's array-of-entries shape, which
+ * admin/faq.php already reads directly.
+ */
+function killi_bump_daily_query_count(): void
+{
+    $path = __DIR__ . '/data/query_daily.json';
+    $daily = killi_read_json($path);
+    if (!is_array($daily) || array_is_list($daily)) {
+        $daily = [];
+    }
+    $today = gmdate('Y-m-d');
+    $daily[$today] = ($daily[$today] ?? 0) + 1;
+    // Keep the file from growing forever — a rolling 90-day window is more
+    // than enough for any sparkline this admin will ever want.
+    $cutoff = gmdate('Y-m-d', strtotime('-90 days'));
+    foreach (array_keys($daily) as $day) {
+        if ($day < $cutoff) {
+            unset($daily[$day]);
+        }
+    }
+    file_put_contents($path, json_encode($daily, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/** @return array<string,int> the last $days days (oldest first), UTC, zero-filled for days with no searches. */
+function killi_daily_query_counts(int $days = 14): array
+{
+    $daily = killi_read_json(__DIR__ . '/data/query_daily.json');
+    $series = [];
+    for ($i = $days - 1; $i >= 0; $i--) {
+        $day = gmdate('Y-m-d', strtotime("-{$i} days"));
+        $series[$day] = (int) ($daily[$day] ?? 0);
+    }
+    return $series;
 }
 
 /** Records an emoji reaction to a specific AI reply — append-only, same shape as query logging. */
@@ -949,6 +1141,38 @@ function killi_record_feedback(string $emoji, string $reply, array $context = []
         'emoji' => $emoji,
         'reply' => $reply,
         'context' => $context,
+        'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
+    ];
+
+    file_put_contents($path, json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/**
+ * Records an end-of-conversation rating (1-5 stars + optional comment) with
+ * the transcript it's rated against — one entry per submitted rating,
+ * append-only, same shape family as killi_record_feedback() but at the
+ * conversation level rather than a single reply. $turns is capped to the
+ * last 20 exchanges and each string to 500 characters, since this comes
+ * straight from an unauthenticated visitor's browser.
+ */
+function killi_record_session_rating(int $rating, string $comment, array $turns): void
+{
+    $path = __DIR__ . '/data/session_feedback.json';
+    $log = killi_read_json($path);
+
+    $cleanTurns = [];
+    foreach (array_slice($turns, -20) as $turn) {
+        $cleanTurns[] = [
+            'query' => mb_substr((string) ($turn['query'] ?? ''), 0, 500),
+            'reply' => mb_substr((string) ($turn['reply'] ?? ''), 0, 500),
+        ];
+    }
+
+    $log[] = [
+        'id' => 'sf-' . (count($log) + 1),
+        'rating' => max(1, min(5, $rating)),
+        'comment' => mb_substr($comment, 0, 1000),
+        'turns' => $cleanTurns,
         'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
     ];
 

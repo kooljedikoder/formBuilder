@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 require_once __DIR__ . '/../core/SchemaDetector.php';
+require_once __DIR__ . '/_chrome.php';
 
 use Killi\Core\SchemaDetector;
 
@@ -34,21 +35,21 @@ if (!killi_admin_password_configured()) {
         }
     }
     ?>
-    <!doctype html><html><head><meta charset="utf-8"><title>Set up admin access</title>
-    <style>body{font-family:-apple-system,Arial,sans-serif;background:#f5f6f8;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-    .card{background:#fff;border-radius:10px;padding:24px;max-width:340px;width:90%}
-    input{width:100%;padding:10px;border:1px solid #d0d0d0;border-radius:6px;margin-top:8px;box-sizing:border-box}
-    button{width:100%;margin-top:14px;padding:10px;border:none;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer}
-    .notice{padding:8px 12px;border-radius:6px;margin-top:12px;font-size:13px;background:#fce8e6;color:#c5221f}</style>
+    <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Set up admin access</title>
+    <link rel="stylesheet" href="../assets/css/admin.css">
+    <style>body{display:flex;align-items:center;justify-content:center;height:100vh;padding:20px;box-sizing:border-box}
+    .card{max-width:340px;width:100%;margin:0;box-shadow:var(--admin-shadow-lg)}
+    input{margin-top:8px}
+    button{width:100%;margin-top:14px}</style>
     </head><body><form class="card" method="post" action="?do=admin_setup">
       <?= killi_csrf_field() ?>
       <h2 style="margin-top:0">Set up admin access</h2>
-      <p style="font-size:13px;color:#5f6368">No admin account exists yet. Create the first one now — this page cannot be used until you do.</p>
+      <p class="lead" style="margin-top:0">No admin account exists yet. Create the first one now — this page cannot be used until you do.</p>
       <input name="username" placeholder="Username" value="admin" required autofocus>
       <input type="password" name="password" placeholder="Password (8+ characters)" required>
       <input type="password" name="password_confirm" placeholder="Confirm password" required>
       <button type="submit">Create admin &amp; continue</button>
-      <?php if ($notice): ?><div class="notice"><?= htmlspecialchars($notice['text']) ?></div><?php endif; ?>
+      <?php if ($notice): ?><div class="notice error"><?= htmlspecialchars($notice['text']) ?></div><?php endif; ?>
     </form></body></html>
     <?php
     exit;
@@ -82,20 +83,19 @@ if ($do === 'admin_logout') {
 if (!killi_is_admin_authenticated()) {
     $lockedFor = killi_admin_login_locked(killi_client_ip());
     ?>
-    <!doctype html><html><head><meta charset="utf-8"><title>Admin login</title>
-    <style>body{font-family:-apple-system,Arial,sans-serif;background:#f5f6f8;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-    .card{background:#fff;border-radius:10px;padding:24px;max-width:320px;width:90%}
-    input{width:100%;padding:10px;border:1px solid #d0d0d0;border-radius:6px;margin-top:8px;box-sizing:border-box}
-    button{width:100%;margin-top:14px;padding:10px;border:none;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer}
-    button:disabled{opacity:0.5;cursor:not-allowed}
-    .notice{padding:8px 12px;border-radius:6px;margin-top:12px;font-size:13px;background:#fce8e6;color:#c5221f}</style>
+    <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Admin login</title>
+    <link rel="stylesheet" href="../assets/css/admin.css">
+    <style>body{display:flex;align-items:center;justify-content:center;height:100vh;padding:20px;box-sizing:border-box}
+    .card{max-width:320px;width:100%;margin:0;box-shadow:var(--admin-shadow-lg)}
+    input{margin-top:8px}
+    button{width:100%;margin-top:14px}</style>
     </head><body><form class="card" method="post" action="?do=admin_login">
       <?= killi_csrf_field() ?>
       <h2 style="margin-top:0">Admin login</h2>
       <input name="username" placeholder="Username" required autofocus <?= $lockedFor > 0 ? 'disabled' : '' ?>>
       <input type="password" name="password" placeholder="Password" required <?= $lockedFor > 0 ? 'disabled' : '' ?>>
       <button type="submit" <?= $lockedFor > 0 ? 'disabled' : '' ?>>Log in</button>
-      <?php if ($notice): ?><div class="notice"><?= htmlspecialchars($notice['text']) ?></div><?php endif; ?>
+      <?php if ($notice): ?><div class="notice error"><?= htmlspecialchars($notice['text']) ?></div><?php endif; ?>
     </form></body></html>
     <?php
     exit;
@@ -103,6 +103,7 @@ if (!killi_is_admin_authenticated()) {
 
 $manager = killi_connection_manager();
 $preview = null;
+$faqPreview = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !killi_verify_csrf($_POST['csrf'] ?? '')) {
     $notice = ['type' => 'error', 'text' => 'Form expired — please reload and try again.'];
@@ -112,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !killi_verify_csrf($_POST['csrf'] ?
 // Install-level controls — managing other admins, licensing, app access, and
 // database connections — are owner-only. Editors get records/FAQ/backup-create
 // (gated separately, below/elsewhere) but not these.
-$ownerOnlyActions = ['set_app_password', 'add_admin', 'delete_admin', 'set_default_package', 'activate_license', 'save', 'test', 'preview', 'publish'];
+$ownerOnlyActions = ['set_app_password', 'add_admin', 'delete_admin', 'set_default_package', 'activate_license', 'save', 'test', 'preview', 'publish', 'faq_preview', 'faq_save', 'faq_untie'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($do, $ownerOnlyActions, true) && !killi_is_admin_owner()) {
     $notice = ['type' => 'error', 'text' => 'Only an owner-level admin can do that.'];
     $do = '';
@@ -171,7 +172,7 @@ if ($do === 'set_app_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 } elseif ($do === 'activate_license' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = killi_activate_license(trim($_POST['license_key'] ?? ''));
     $notice = ['type' => $result['success'] ? 'success' : 'error', 'text' => $result['success'] ? 'License activated — unlocked the "' . $result['package'] . '" package.' : $result['message']];
-} elseif (in_array($do, ['save', 'test', 'preview', 'publish'], true) && !killi_has_feature('db_connections')) {
+} elseif (in_array($do, ['save', 'test', 'preview', 'publish', 'faq_preview', 'faq_save'], true) && !killi_has_feature('db_connections')) {
     $notice = ['type' => 'error', 'text' => 'Database connections are an Ultra feature. Activate an Ultra license key above to unlock them.'];
 } elseif ($do === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
@@ -227,7 +228,41 @@ if ($do === 'set_app_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (\Throwable $e) {
         $notice = ['type' => 'error', 'text' => $e->getMessage()];
     }
+} elseif ($do === 'faq_preview' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $connName = $_POST['connection'] ?? '';
+    $table = $_POST['table'] ?? '';
+    try {
+        $rows = $manager->fetchRows($connName, $table, 5);
+        $faqPreview = [
+            'connection' => $connName,
+            'table' => $table,
+            'columns' => empty($rows) ? [] : array_keys($rows[0]),
+        ];
+    } catch (\Throwable $e) {
+        $notice = ['type' => 'error', 'text' => $e->getMessage()];
+    }
+} elseif ($do === 'faq_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $connName = $_POST['connection'] ?? '';
+    $table = $_POST['table'] ?? '';
+    $idCol = trim($_POST['id_column'] ?? '');
+    $qCol = trim($_POST['question_column'] ?? '');
+    $aCol = trim($_POST['answer_column'] ?? '');
+    if ($connName === '' || $table === '' || $idCol === '' || $qCol === '' || $aCol === '') {
+        $notice = ['type' => 'error', 'text' => 'Connection, table, and all three column choices are required.'];
+    } elseif (count(array_unique([$idCol, $qCol, $aCol])) < 3) {
+        $notice = ['type' => 'error', 'text' => 'ID, question, and answer must each be a different column.'];
+    } else {
+        // Mapping convention is column => canonical field, matching SchemaDetector::applyMapping().
+        killi_set_faq_source($connName, $table, [$idCol => 'id', $qCol => 'question', $aCol => 'answer'], !empty($_POST['writable']));
+        $notice = ['type' => 'success', 'text' => 'FAQ is now tied to "' . $table . '" via the "' . $connName . '" connection.'];
+    }
+} elseif ($do === 'faq_untie' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    killi_untie_faq_source();
+    $notice = ['type' => 'success', 'text' => 'FAQ untied — back to its own dedicated local store.'];
 }
+
+$faqConfig = killi_data_source_engine()->faqConfig();
+$faqTied = ($faqConfig['mode'] ?? 'untied') === 'tied';
 
 $profiles = array_map(fn($name) => $manager->profile($name), $manager->profileNames());
 $tablesByProfile = [];
@@ -239,45 +274,16 @@ foreach ($profiles as $profile) {
     }
 }
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>KilliSearch Ultra — Connections</title>
+<?php
+killi_admin_head('Connections');
+killi_admin_body_open('connections');
+?>
 <style>
-  body { font-family: -apple-system, Arial, sans-serif; background: #f5f6f8; color: #202124; margin: 0; padding: 24px; }
-  .wrap { max-width: 780px; margin: 0 auto; }
-  h1 { font-size: 20px; }
-  h2 { font-size: 15px; margin-top: 32px; }
-  .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-  .notice { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
-  .notice.success { background: #e6f4ea; color: #137333; }
-  .notice.error { background: #fce8e6; color: #c5221f; }
-  label { display: block; font-size: 12px; color: #5f6368; margin-top: 10px; }
-  input, select { width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
-  button { margin-top: 12px; padding: 8px 14px; border: none; border-radius: 6px; background: #1a73e8; color: #fff; font-size: 14px; cursor: pointer; }
-  button.secondary { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; }
-  .profile-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+  .profile-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--admin-border); }
   .profile-row:last-child { border-bottom: none; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-  table th, table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #f0f0f0; }
-  code { background: #f0f0f0; padding: 2px 5px; border-radius: 4px; }
-  form.inline { display: inline; }
 </style>
-</head>
-<body>
-<div class="wrap">
-  <div style="display:flex;justify-content:space-between;align-items:baseline">
-    <h1>Data Source Connections</h1>
-    <span style="font-size:13px">
-      <a href="records.php" style="color:#5f6368;margin-right:14px">Records</a>
-      <a href="backup.php" style="color:#5f6368;margin-right:14px">Backups</a>
-      <a href="faq.php" style="color:#5f6368;margin-right:14px">FAQ</a>
-      <a href="setup.php" style="color:#5f6368;margin-right:14px">Re-run setup wizard</a>
-      <a href="?do=admin_logout" style="color:#5f6368">Log out</a>
-    </span>
-  </div>
-  <p>Credentials live in <code>.env</code> only — never in <code>config/data_sources.json</code>, never sent back to this page after saving.</p>
+  <h1>Data Source Connections</h1>
+  <p class="lead">Credentials live in <code>.env</code> only — never in <code>config/data_sources.json</code>, never sent back to this page after saving. <a class="link" href="setup.php">Re-run the setup wizard</a></p>
 
   <?php if ($notice): ?>
     <div class="notice <?= $notice['type'] ?>"><?= htmlspecialchars($notice['text']) ?></div>
@@ -286,7 +292,7 @@ foreach ($profiles as $profile) {
   <?php $packagesConfig = killi_read_json(__DIR__ . '/../config/packages.json'); ?>
   <div class="card">
     <h2 style="margin-top:0">Licensing / packages</h2>
-    <p style="font-size:13px;color:#5f6368">Used when Killi can't see a host application's identity (no <code>$_SESSION['killi_host_user']</code>) — e.g. running fully standalone, or before a real host-app integration exists. See <code>examples/host-app-demo.php</code> for how a host app assigns a package per-user instead.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Used when Killi can't see a host application's identity (no <code>$_SESSION['killi_host_user']</code>) — e.g. running fully standalone, or before a real host-app integration exists. See <code>examples/host-app-demo.php</code> for how a host app assigns a package per-user instead.</p>
     <table>
       <tr><th>Package</th><th>Features</th></tr>
       <?php foreach ($packagesConfig['packages'] ?? [] as $pkg): ?>
@@ -309,7 +315,7 @@ foreach ($profiles as $profile) {
     </form>
 
     <h2>Activate a license key</h2>
-    <p style="font-size:13px;color:#5f6368">Enter the license key for this installation to unlock the package it's licensed for — simplest way to move off the free/Basic tier, no dropdown-picking required.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Enter the license key for this installation to unlock the package it's licensed for — simplest way to move off the free/Basic tier, no dropdown-picking required.</p>
     <?php $activeKey = killi_active_license_key(); ?>
     <p style="font-size:13px">Currently activated: <?= $activeKey ? '<code>' . htmlspecialchars($activeKey) . '</code>' : '<em>none</em>' ?></p>
     <form method="post" action="?do=activate_license">
@@ -318,13 +324,13 @@ foreach ($profiles as $profile) {
       <button type="submit">Activate</button>
     </form>
     <?php else: ?>
-    <p style="font-size:13px;color:#5f6368">Owner-only — ask an owner-level admin to change licensing.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Owner-only — ask an owner-level admin to change licensing.</p>
     <?php endif; ?>
   </div>
 
   <div class="card">
     <h2 style="margin-top:0">App access</h2>
-    <p style="font-size:13px;color:#5f6368">Optional — off by default so the customer-facing app stays zero-friction. Turn this on to require a shared password before anyone can use it.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Optional — off by default so the customer-facing app stays zero-friction. Turn this on to require a shared password before anyone can use it.</p>
     <p style="font-size:13px">Status: <?= killi_app_password_configured() ? '<strong style="color:#137333">password required</strong>' : '<strong>open, no password</strong>' ?></p>
     <?php if (killi_is_admin_owner()): ?>
     <form method="post" action="?do=set_app_password">
@@ -334,13 +340,13 @@ foreach ($profiles as $profile) {
       <button type="submit">Save</button>
     </form>
     <?php else: ?>
-    <p style="font-size:13px;color:#5f6368">Owner-only — ask an owner-level admin to change this.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Owner-only — ask an owner-level admin to change this.</p>
     <?php endif; ?>
   </div>
 
   <div class="card">
     <h2 style="margin-top:0">Admin accounts</h2>
-    <p style="font-size:13px;color:#5f6368">Logged in as <strong><?= htmlspecialchars((string) killi_current_admin_username()) ?></strong> (<?= htmlspecialchars((string) killi_current_admin_role()) ?>). <strong>Owners</strong> can manage admins, licensing, app access and database connections; <strong>editors</strong> get Records/FAQ/backup-create only. Every create/edit/delete on the <a href="records.php">Records</a> page is attributed to whichever account made it.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Logged in as <strong><?= htmlspecialchars((string) killi_current_admin_username()) ?></strong> (<?= htmlspecialchars((string) killi_current_admin_role()) ?>). <strong>Owners</strong> can manage admins, licensing, app access and database connections; <strong>editors</strong> get Records/FAQ/backup-create only. Every create/edit/delete on the <a href="records.php">Records</a> page is attributed to whichever account made it.</p>
     <table>
       <tr><th>Username</th><th>Role</th><th>Created</th><?php if (killi_is_admin_owner()): ?><th></th><?php endif; ?></tr>
       <?php foreach (killi_admins() as $a): ?>
@@ -392,12 +398,12 @@ foreach ($profiles as $profile) {
   <?php if (!killi_has_feature('db_connections')): ?>
   <div class="card">
     <h2 style="margin-top:0">Database connections</h2>
-    <p style="font-size:13px;color:#5f6368">Connecting a MySQL/PostgreSQL database (cached snapshot or live query) is an Ultra feature. Activate an Ultra license key above to unlock it.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Connecting a MySQL/PostgreSQL database (cached snapshot or live query) is an Ultra feature. Activate an Ultra license key above to unlock it.</p>
   </div>
   <?php elseif (!killi_is_admin_owner()): ?>
   <div class="card">
     <h2 style="margin-top:0">Database connections</h2>
-    <p style="font-size:13px;color:#5f6368">Owner-only — ask an owner-level admin to manage database connections.</p>
+    <p style="font-size:13px;color:var(--admin-muted)">Owner-only — ask an owner-level admin to manage database connections.</p>
   </div>
   <?php else: ?>
   <div class="card">
@@ -432,6 +438,14 @@ foreach ($profiles as $profile) {
                   <input type="hidden" name="table" value="<?= htmlspecialchars($table) ?>">
                   <button type="submit" class="secondary">Detect &amp; preview</button>
                 </form>
+                <?php if (killi_has_feature('memory')): ?>
+                <form class="inline" method="post" action="?do=faq_preview">
+                  <?= killi_csrf_field() ?>
+                  <input type="hidden" name="connection" value="<?= htmlspecialchars($profile['name']) ?>">
+                  <input type="hidden" name="table" value="<?= htmlspecialchars($table) ?>">
+                  <button type="submit" class="secondary">Use for FAQ</button>
+                </form>
+                <?php endif; ?>
               </td>
             </tr>
           <?php endforeach; ?>
@@ -439,6 +453,55 @@ foreach ($profiles as $profile) {
       <?php endif; ?>
     <?php endforeach; ?>
   </div>
+
+  <?php if (killi_has_feature('memory')): ?>
+  <div class="card" id="faq-source">
+    <h2 style="margin-top:0">FAQ source</h2>
+    <?php if ($faqTied): ?>
+      <p style="font-size:13px">
+        <strong>Tied</strong> — reading/writing the "<?= htmlspecialchars($faqConfig['table'] ?? '') ?>" table
+        via the "<?= htmlspecialchars($faqConfig['connection'] ?? '') ?>" connection.
+        <?= !empty($faqConfig['writable']) ? 'Promoting a question writes a real row into that table.' : 'Read-only — promoting a question needs a writable tie.' ?>
+      </p>
+      <form method="post" action="?do=faq_untie">
+        <?= killi_csrf_field() ?>
+        <button type="submit" class="secondary">Untie — go back to the local FAQ store</button>
+      </form>
+    <?php else: ?>
+      <p style="font-size:13px;color:var(--admin-muted)">
+        <strong>Untied</strong> — FAQ has its own dedicated local store, independent of whatever powers Search/CRUD.
+        Pick a table above with "Use for FAQ" to tie it to the same connection your active data source uses instead — one database serving every pillar, no separate FAQ credential to maintain.
+      </p>
+    <?php endif; ?>
+
+    <?php if ($faqPreview): ?>
+      <?php if (empty($faqPreview['columns'])): ?>
+        <p style="font-size:13px;color:#c5221f">That table returned no rows to detect columns from — add at least one row first.</p>
+      <?php else: ?>
+      <form method="post" action="?do=faq_save">
+        <?= killi_csrf_field() ?>
+        <input type="hidden" name="connection" value="<?= htmlspecialchars($faqPreview['connection']) ?>">
+        <input type="hidden" name="table" value="<?= htmlspecialchars($faqPreview['table']) ?>">
+        <p style="font-size:13px">Columns detected on "<?= htmlspecialchars($faqPreview['table']) ?>" — pick which one is which:</p>
+        <label>ID column</label>
+        <select name="id_column" required>
+          <?php foreach ($faqPreview['columns'] as $col): ?><option value="<?= htmlspecialchars($col) ?>"><?= htmlspecialchars($col) ?></option><?php endforeach; ?>
+        </select>
+        <label>Question column</label>
+        <select name="question_column" required>
+          <?php foreach ($faqPreview['columns'] as $col): ?><option value="<?= htmlspecialchars($col) ?>"><?= htmlspecialchars($col) ?></option><?php endforeach; ?>
+        </select>
+        <label>Answer column</label>
+        <select name="answer_column" required>
+          <?php foreach ($faqPreview['columns'] as $col): ?><option value="<?= htmlspecialchars($col) ?>"><?= htmlspecialchars($col) ?></option><?php endforeach; ?>
+        </select>
+        <label><input type="checkbox" name="writable" value="1" style="width:auto;display:inline"> Also let promoting a question write a real row into this table</label>
+        <button type="submit">Tie FAQ to this table</button>
+      </form>
+      <?php endif; ?>
+    <?php endif; ?>
+  </div>
+  <?php endif; ?>
 
   <div class="card">
     <h2 style="margin-top:0">Add a connection</h2>
@@ -494,6 +557,4 @@ foreach ($profiles as $profile) {
   </div>
   <?php endif; ?>
   <?php endif; ?>
-</div>
-</body>
-</html>
+<?php killi_admin_body_close(); ?>

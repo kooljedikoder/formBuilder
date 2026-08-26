@@ -31,6 +31,15 @@
       "responses": []
     },
     {
+      "id": "empathy_negative",
+      "patterns": [],
+      "responses": [
+        "Sorry this hasn't been smooth — let me help sort it out.",
+        "I hear you — let's get this fixed.",
+        "That sounds frustrating, I'll do my best to help right away."
+      ]
+    },
+    {
       "id": "find_service",
       "patterns": [],
       "responses": {
