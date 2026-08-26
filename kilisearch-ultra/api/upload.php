@@ -22,6 +22,10 @@ const ALLOWED_UPLOAD_TYPES = [
     'video/mp4' => 'mp4',
     'video/quicktime' => 'mov',
     'video/webm' => 'webm',
+    'audio/webm' => 'webm',
+    'audio/mp4' => 'm4a',
+    'audio/mpeg' => 'mp3',
+    'audio/ogg' => 'ogg',
 ];
 const VIDEO_UPLOAD_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
 
@@ -57,7 +61,7 @@ if (!isset(ALLOWED_UPLOAD_TYPES[$detectedMime])) {
     http_response_code(422);
     echo json_encode([
         'success' => false,
-        'error' => ['code' => 'UNSUPPORTED_TYPE', 'message' => 'Only JPG, PNG, GIF, WEBP, PDF, MP4, MOV and WEBM files are supported.'],
+        'error' => ['code' => 'UNSUPPORTED_TYPE', 'message' => 'Only JPG, PNG, GIF, WEBP, PDF, MP4, MOV, WEBM and voice-note audio files are supported.'],
     ]);
     exit;
 }

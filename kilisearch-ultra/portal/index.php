@@ -140,6 +140,15 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
     >
     <button type="submit" class="killi-send" aria-label="Search"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><path d="M6 11l6-6 6 6"/></svg></button>
   </form>
+  <?php if ($hasAttachments): ?>
+  <div class="killi-voice-record-bar" id="killi-voice-record-bar" hidden>
+    <button type="button" class="killi-voice-cancel" id="killi-voice-cancel" aria-label="Cancel recording">&times;</button>
+    <span class="killi-voice-dot"></span>
+    <span class="killi-voice-timer" id="killi-voice-timer">0:00</span>
+    <span class="killi-voice-hint">Recording voice note&hellip;</span>
+    <button type="button" class="killi-voice-stop" id="killi-voice-stop" aria-label="Stop and send"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+  </div>
+  <?php endif; ?>
   <div id="killi-suggestions" class="killi-suggestions" hidden></div>
   <?php if (!$hasWhiteLabel): ?>
   <div class="killi-attribution">Powered by Killi</div>
@@ -172,6 +181,7 @@ $isEmbedded = ($_GET['embed'] ?? '') === '1';
       <button type="button" class="killi-attach-option" data-target="killi-attach-camera-photo"><svg viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg> Take Photo</button>
       <button type="button" class="killi-attach-option" data-target="killi-attach-camera-video"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3Z"/></svg> Record Video</button>
       <button type="button" class="killi-attach-option" data-target="killi-attach-input"><svg viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/></svg> Choose File</button>
+      <button type="button" class="killi-attach-option" id="killi-attach-voice"><svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg> Voice Note</button>
       <button type="button" class="killi-attach-option killi-attach-cancel" id="killi-attach-cancel">Cancel</button>
     </div>
   </div>

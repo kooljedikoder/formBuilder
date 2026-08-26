@@ -189,6 +189,12 @@
       video.controls = true;
       video.className = 'killi-attachment-video';
       bubble.appendChild(video);
+    } else if (file.mime && file.mime.indexOf('audio/') === 0) {
+      var audio = document.createElement('audio');
+      audio.src = file.url;
+      audio.controls = true;
+      audio.className = 'killi-attachment-audio';
+      bubble.appendChild(audio);
     } else {
       var link = el('a', 'killi-attachment-file', ICONS.document + ' ' + escapeHtml(file.filename || 'Attachment'));
       link.href = file.url;
@@ -444,15 +450,6 @@
     return null;
   }
 
-  function shareRecord(record) {
-    var shareData = { title: record.title, text: record.title, url: record.website || window.location.href };
-    if (navigator.share) {
-      navigator.share(shareData).catch(function () {});
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(shareData.url).catch(function () {});
-    }
-  }
-
   // "Menu" only makes sense for food/drink businesses — everyone else
   // (HVAC, salons, garages...) gets the same items list labeled "Services"
   // instead. Derived from the record's own category/sector, not a
@@ -489,26 +486,24 @@
     return a;
   }
 
+  // Same four actions, same order, as the card's action row — a listing
+  // shouldn't offer WhatsApp on the card and lose it once you tap View.
   function buildActionRow(record) {
     var row = el('div', 'killi-modal-actions');
     var entries = [
       ['phone', ICONS.phone, 'Call', record.phone ? 'tel:' + record.phone : null, false],
       ['pin', ICONS.pin, 'Directions', mapsLink(record), true],
       ['globe', ICONS.globe, 'Website', record.website || null, true],
-      ['share', ICONS.share, 'Share', '#', false],
+      ['whatsapp', ICONS.whatsapp, 'WhatsApp', record.whatsapp ? waLink(record.whatsapp) : null, true],
     ];
     entries.forEach(function (entry) {
       var href = entry[3];
       if (!href) return;
       var a = document.createElement('a');
+      if (entry[0] === 'whatsapp') a.classList.add('whatsapp');
       a.innerHTML = '<span class="killi-modal-action-icon">' + entry[1] + '</span><span class="killi-modal-action-label">' + entry[2] + '</span>';
-      if (entry[0] === 'share') {
-        a.href = '#';
-        a.addEventListener('click', function (e) { e.preventDefault(); shareRecord(record); });
-      } else {
-        a.href = href;
-        if (entry[4]) { a.target = '_blank'; a.rel = 'noopener'; }
-      }
+      a.href = href;
+      if (entry[4]) { a.target = '_blank'; a.rel = 'noopener'; }
       row.appendChild(a);
     });
     return row;
@@ -1015,6 +1010,14 @@
           img.src = f.url;
           img.alt = f.filename || '';
           mediaWrap.appendChild(img);
+        } else if (f.mime && f.mime.indexOf('audio/') === 0) {
+          var audioRow = el('div', 'killi-panel-media-audio');
+          audioRow.appendChild(el('span', 'killi-panel-media-file', ICONS.mic));
+          var player = document.createElement('audio');
+          player.src = f.url;
+          player.controls = true;
+          audioRow.appendChild(player);
+          mediaWrap.appendChild(audioRow);
         } else {
           var link = el('a', 'killi-panel-media-file', ICONS.document + ' ' + escapeHtml(f.filename || 'file'));
           link.href = f.url;
@@ -1487,7 +1490,12 @@
   // upload it, then send it to the bot as its own turn (see sendAttachment).
   // Validation (type/size) is enforced server-side in api/upload.php; the
   // accept/capture attributes are just UI hints.
-  function uploadAttachment(file) {
+  // kind is an optional client-side hint ('voice') — an audio-only WebM
+  // recording is indistinguishable from a video WebM to finfo's mime
+  // sniffing server-side, so the client (which knows for certain it just
+  // recorded a voice note) overrides the render hint here rather than
+  // trusting the detected mime for that one case.
+  function uploadAttachment(file, kind) {
     if (!file) return;
     var formData = new FormData();
     formData.append('file', file);
@@ -1501,6 +1509,7 @@
           addBubble('ai', payload.error && payload.error.message ? payload.error.message : 'Could not upload that file.');
           return;
         }
+        if (kind === 'voice' && payload.data) payload.data.mime = 'audio/webm';
         sendAttachment(payload.data);
       })
       .catch(function () {
@@ -1535,6 +1544,89 @@
         uploadAttachment(file);
       });
     });
+
+    // Voice notes: MediaRecorder, feature-detected — separate from the
+    // mic button below, which is speech-to-text into the search box, not
+    // a message you send. Recording replaces the searchbar in place
+    // (same row) with a live timer and stop/cancel controls, WhatsApp-
+    // style, rather than a modal, so the rest of the chat stays visible.
+    var voiceBtn = document.getElementById('killi-attach-voice');
+    var voiceBar = document.getElementById('killi-voice-record-bar');
+    var voiceTimerEl = document.getElementById('killi-voice-timer');
+    var voiceStopBtn = document.getElementById('killi-voice-stop');
+    var voiceCancelBtn = document.getElementById('killi-voice-cancel');
+    var canRecordVoice = voiceBtn && voiceBar && navigator.mediaDevices && window.MediaRecorder;
+    if (voiceBtn && !canRecordVoice) voiceBtn.hidden = true;
+
+    if (canRecordVoice) {
+      var voiceRecorder = null;
+      var voiceStream = null;
+      var voiceChunks = [];
+      var voiceStartedAt = 0;
+      var voiceTimerHandle = null;
+
+      function formatVoiceDuration(ms) {
+        var totalSeconds = Math.floor(ms / 1000);
+        var m = Math.floor(totalSeconds / 60);
+        var s = totalSeconds % 60;
+        return m + ':' + (s < 10 ? '0' : '') + s;
+      }
+
+      function stopVoiceStream() {
+        if (voiceStream) voiceStream.getTracks().forEach(function (t) { t.stop(); });
+        voiceStream = null;
+        voiceRecorder = null;
+        clearInterval(voiceTimerHandle);
+        voiceBar.hidden = true;
+        form.hidden = false;
+      }
+
+      function startVoiceRecording() {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(function (stream) {
+            voiceStream = stream;
+            voiceChunks = [];
+            voiceRecorder = new MediaRecorder(stream);
+            voiceRecorder.addEventListener('dataavailable', function (e) {
+              if (e.data && e.data.size > 0) voiceChunks.push(e.data);
+            });
+            voiceRecorder.addEventListener('stop', function () {
+              var wasCancelled = voiceRecorder._cancelled;
+              var blob = new Blob(voiceChunks, { type: voiceRecorder.mimeType || 'audio/webm' });
+              stopVoiceStream();
+              if (!wasCancelled && blob.size > 0) {
+                var ext = (blob.type.split('/')[1] || 'webm').split(';')[0];
+                uploadAttachment(new File([blob], 'voice-note.' + ext, { type: blob.type }), 'voice');
+              }
+            });
+            voiceRecorder.start();
+            voiceStartedAt = Date.now();
+            form.hidden = true;
+            voiceBar.hidden = false;
+            voiceTimerEl.textContent = '0:00';
+            voiceTimerHandle = setInterval(function () {
+              voiceTimerEl.textContent = formatVoiceDuration(Date.now() - voiceStartedAt);
+            }, 500);
+          })
+          .catch(function () {
+            addBubble('ai', 'I couldn’t access your microphone — please allow microphone access and try again.');
+          });
+      }
+
+      voiceBtn.addEventListener('click', function () {
+        attachSheet.hidden = true;
+        startVoiceRecording();
+      });
+      voiceStopBtn.addEventListener('click', function () {
+        if (voiceRecorder && voiceRecorder.state !== 'inactive') voiceRecorder.stop();
+      });
+      voiceCancelBtn.addEventListener('click', function () {
+        if (voiceRecorder && voiceRecorder.state !== 'inactive') {
+          voiceRecorder._cancelled = true;
+          voiceRecorder.stop();
+        }
+      });
+    }
   }
 
   // Voice input: Web Speech API, feature-detected. Fills the input rather

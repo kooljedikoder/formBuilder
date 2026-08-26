@@ -1615,3 +1615,67 @@ directly in the chat feed. Re-verified the identical flow in the
 standalone artifact via headless Chromium, plus a dark-mode screenshot.
 Zero console/page errors throughout. Test config/data mutations
 reverted before committing.
+
+## Voice notes, action-row consistency, and confirming the emoji sweep is project-wide
+
+- **Project-wide emoji audit.** Re-swept every `.php`/`.js` file (not just
+  the portal chat widget) for both literal emoji characters and numeric
+  HTML entities in the emoji ranges. Found nothing left — the admin
+  panel's own dark-mode toggle (`admin/_chrome.php` + `assets/js/admin.js`)
+  already used outline SVGs before this project touched it. Only
+  `&#10003;` (a plain checkmark, used for delivery ticks) remains, kept
+  deliberately as documented last round.
+- **Modal action row now matches the card exactly.** The record modal's
+  action row was showing `Call / Directions / Website / Share` while the
+  card showed `Call / Directions / Website / WhatsApp` — the same
+  listing offered WhatsApp on the card and lost it the moment you tapped
+  View. `buildActionRow()` now uses the identical four actions in the
+  identical order as the card, and the now-unused `shareRecord()`
+  helper was removed rather than left dead.
+- **Voice notes**: a real "Voice Note" option in the attach sheet
+  (alongside Take Photo/Record Video/Choose File), recorded via
+  `MediaRecorder` and sent through the existing upload pipeline — not a
+  separate feature bolted on, the same `uploadAttachment()` →
+  `sendAttachment()` path every other attachment already uses. Tapping
+  it replaces the searchbar in place (same row, so nothing else shifts)
+  with a live recording bar: pulsing dot, running timer, cancel (×), and
+  a stop button. Stopping uploads the clip and it appears as a real
+  `<audio controls>` bubble; cancelling discards it and releases the mic
+  stream. `api/upload.php`'s allow-list gained `audio/webm`, `audio/mp4`,
+  `audio/mpeg`, and `audio/ogg`.
+  - One real bug caught by testing: `finfo` sniffs an audio-only WebM
+    recording as `video/webm` server-side (the container format is
+    genuinely ambiguous without deeper inspection), which would have
+    rendered every voice note as a silent-looking video player. Fixed by
+    having `uploadAttachment()` accept an optional `'voice'` kind hint —
+    the client knows for certain what it just recorded, so it overrides
+    the render hint after upload rather than trusting the sniffed mime
+    for that one case.
+  - The existing `#killi-mic` button is untouched — it's speech-to-text
+    into the search box (Web Speech API), a different feature from
+    recording and sending an audio message. Deliberately did not build
+    this earlier when first asked, reasoning that a phone's own keyboard
+    already has dictation built in so a second speech-to-text control
+    would be redundant clutter — that reasoning still holds for the
+    *search* mic. Voice notes are different: an audio message *sent* as
+    its own attachment, which no on-device keyboard feature covers.
+  - Saved page's Media tab gained a proper inline audio-player row for
+    voice notes (was falling through to a generic file-link before).
+- Mirrored into `chat-demo.html`: the modal/card action-row fix is
+  identical, and voice notes are recorded for real (this demo is
+  already fully client-side, so there's no reason to fake it) — a blob
+  URL plays back directly in an `<audio>` bubble, no upload endpoint
+  needed.
+
+Verified against a real running server (fake-microphone Chromium):
+card and modal both list `["Call","Directions","Website","WhatsApp"]`;
+tapping Voice Note hides the searchbar and shows the recording bar with
+a live timer; stopping restores the searchbar and posts a working
+`<audio controls>` bubble; the Saved page's Media tab shows the same
+clip with a working player. Caught and fixed the video/webm mime
+mis-detection bug via this same test run. Re-verified the identical
+flow in the standalone artifact via headless Chromium (with the demo's
+own real recording, not a fake), plus a dark-mode screenshot. Zero
+console/page errors throughout. Test uploads and config mutations
+(`storage/uploads/*.webm` is gitignored regardless) cleaned up before
+committing.
