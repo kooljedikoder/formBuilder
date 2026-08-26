@@ -1,83 +1,95 @@
 [
   {
     "sector": "Automotive",
+    "aliases": ["car", "cars", "vehicle", "vehicles", "auto"],
     "categories": [
-      { "category": "Vehicle Repair", "subcategories": ["Mechanic", "Auto Electrical", "Air Conditioning", "Body Work"] },
-      { "category": "Vehicle Sales", "subcategories": ["New Cars", "Used Cars"] },
-      { "category": "Vehicle Parts", "subcategories": ["Spare Parts", "Tyres"] }
+      { "category": "Vehicle Repair", "aliases": ["car repair", "auto repair", "garage", "mechanic shop"], "subcategories": ["Mechanic", "Auto Electrical", "Air Conditioning", "Body Work"] },
+      { "category": "Vehicle Sales", "aliases": ["car dealer", "car dealership", "buy a car"], "subcategories": ["New Cars", "Used Cars"] },
+      { "category": "Vehicle Parts", "aliases": ["spare parts", "auto parts", "car parts"], "subcategories": ["Spare Parts", "Tyres"] }
     ]
   },
   {
     "sector": "Hospitality",
+    "aliases": ["food", "eat", "eating out", "places to stay"],
     "categories": [
-      { "category": "Restaurants", "subcategories": ["Seafood", "Fast Food", "Fine Dining"] },
-      { "category": "Hotels", "subcategories": ["Budget", "Luxury"] },
-      { "category": "Bars", "subcategories": ["Lounge", "Pub"] }
+      { "category": "Restaurants", "aliases": ["food", "eatery", "dining", "place to eat"], "subcategories": ["Seafood", "Fast Food", "Fine Dining"] },
+      { "category": "Hotels", "aliases": ["place to stay", "accommodation", "lodging"], "subcategories": ["Budget", "Luxury"] },
+      { "category": "Bars", "aliases": ["drinks", "nightlife", "club"], "subcategories": ["Lounge", "Pub"] }
     ]
   },
   {
     "sector": "Healthcare",
+    "aliases": ["doctor", "medical", "health"],
     "categories": [
-      { "category": "Pharmacies", "subcategories": ["24-Hour Pharmacy", "Retail Pharmacy"] },
-      { "category": "Clinics", "subcategories": ["General", "Dental"] },
-      { "category": "Hospitals", "subcategories": ["Private", "Public"] }
+      { "category": "Pharmacies", "aliases": ["chemist", "drugstore", "medicine shop"], "subcategories": ["24-Hour Pharmacy", "Retail Pharmacy"] },
+      { "category": "Clinics", "aliases": ["clinic", "doctor", "checkup"], "subcategories": ["General", "Dental"] },
+      { "category": "Hospitals", "aliases": ["hospital", "emergency room", "er"], "subcategories": ["Private", "Public"] }
     ]
   },
   {
     "sector": "Beauty & Wellness",
+    "aliases": ["beauty", "hair", "nails", "spa"],
     "categories": [
-      { "category": "Salons", "subcategories": ["Hair", "Nails", "Spa"] }
+      { "category": "Salons", "aliases": ["hair salon", "beauty parlour", "hairdresser", "barber"], "subcategories": ["Hair", "Nails", "Spa"] }
     ]
   },
   {
     "sector": "Professional Services",
+    "aliases": ["lawyer", "legal", "accountant"],
     "categories": [
-      { "category": "Legal", "subcategories": ["Consultation", "Litigation"] }
+      { "category": "Legal", "aliases": ["lawyer", "attorney", "solicitor", "legal advice"], "subcategories": ["Consultation", "Litigation"] }
     ]
   },
   {
     "sector": "Education",
+    "aliases": ["school", "tutor", "learning"],
     "categories": [
-      { "category": "Schools", "subcategories": ["Nursery & Primary", "Secondary"] }
+      { "category": "Schools", "aliases": ["school", "academy", "nursery"], "subcategories": ["Nursery & Primary", "Secondary"] }
     ]
   },
   {
     "sector": "Real Estate",
+    "aliases": ["property", "house", "apartment", "rent", "landlord"],
     "categories": [
-      { "category": "Agencies", "subcategories": ["Sales & Rentals", "Property Management"] }
+      { "category": "Agencies", "aliases": ["real estate agent", "property agent", "letting agent"], "subcategories": ["Sales & Rentals", "Property Management"] }
     ]
   },
   {
     "sector": "Fitness",
+    "aliases": ["workout", "exercise", "gym"],
     "categories": [
-      { "category": "Gyms", "subcategories": ["24-Hour Gym", "Personal Training"] }
+      { "category": "Gyms", "aliases": ["gym", "fitness centre", "workout", "personal training"], "subcategories": ["24-Hour Gym", "Personal Training"] }
     ]
   },
   {
     "sector": "Retail",
+    "aliases": ["shop", "shopping", "store"],
     "categories": [
-      { "category": "Bookstores", "subcategories": ["Bookstore & Cafe"] }
+      { "category": "Bookstores", "aliases": ["books", "bookshop"], "subcategories": ["Bookstore & Cafe"] }
     ]
   },
   {
     "sector": "Events",
+    "aliases": ["party", "wedding", "celebration"],
     "categories": [
-      { "category": "Catering", "subcategories": ["Weddings & Corporate"] }
+      { "category": "Catering", "aliases": ["caterer", "party food", "event food"], "subcategories": ["Weddings & Corporate"] }
     ]
   },
   {
     "sector": "Technology",
+    "aliases": ["tech", "computer", "phone", "gadget"],
     "categories": [
-      { "category": "Gadget Repair", "subcategories": ["Phone Repair", "Laptop Repair"] },
-      { "category": "IT Services", "subcategories": ["Networking", "Software"] }
+      { "category": "Gadget Repair", "aliases": ["phone repair", "screen replacement", "device repair"], "subcategories": ["Phone Repair", "Laptop Repair"] },
+      { "category": "IT Services", "aliases": ["it support", "networking", "computer repair"], "subcategories": ["Networking", "Software"] }
     ]
   },
   {
     "sector": "Home Services",
+    "aliases": ["home repair", "handyman", "house"],
     "categories": [
-      { "category": "Cleaning", "subcategories": ["Residential", "Office"] },
-      { "category": "Plumbing", "subcategories": ["Emergency Repair", "Installation"] },
-      { "category": "Electrical", "subcategories": ["Wiring", "Appliance Repair"] }
+      { "category": "Cleaning", "aliases": ["cleaner", "housekeeping", "fumigation"], "subcategories": ["Residential", "Office"] },
+      { "category": "Plumbing", "aliases": ["plumber", "leaking pipe", "burst pipe"], "subcategories": ["Emergency Repair", "Installation"] },
+      { "category": "Electrical", "aliases": ["electrician", "wiring", "power issue"], "subcategories": ["Wiring", "Appliance Repair"] }
     ]
   }
 ]

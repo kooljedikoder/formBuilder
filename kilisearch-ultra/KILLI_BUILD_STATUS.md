@@ -1679,3 +1679,51 @@ own real recording, not a fake), plus a dark-mode screenshot. Zero
 console/page errors throughout. Test uploads and config mutations
 (`storage/uploads/*.webm` is gitignored regardless) cleaned up before
 committing.
+
+## Taxonomy aliases — "cars" now resolves to Automotive
+
+A real gap, found by testing: searching "cars" returned results with no
+indication the app understood it as an Automotive query — because
+`TaxonomyEngine::extractTaxonomy()` only matched the literal taxonomy
+names ("Automotive", "Vehicle Repair", ...), and "cars" isn't literally
+any of those. There was no synonym layer feeding sector/category
+detection, only the separate `SearchEngine` synonym config used for
+result *ranking*.
+
+Fixed by giving `TaxonomyEngine` an alias mechanism identical to the one
+`LocationEngine` already has for area names ("vi" → Victoria Island):
+`data/taxonomy.json` sector and category nodes can now carry an
+`"aliases"` array, indexed the same way as the canonical name. "cars",
+"car", "vehicle", "vehicles" now resolve to sector=Automotive; every
+other sector/category got a similarly modest, sensible alias list
+(clinic→Healthcare, gym→Fitness, lawyer→Legal, property→Real Estate,
+etc.). This is what feeds `killi_extract_context()`, which is what
+already drives the "Sector: X" breadcrumb bubble shown before the
+answer — so the fix surfaces through UI that already existed, no new
+UI needed. Also added the same words to `config/search.json`'s
+existing synonym config so free-text ranking benefits too.
+
+This was in response to a direct question about whether an offline NLP
+library (word-relation/synonym libraries, sentiment analysis) belonged
+here. Answered inline rather than in this file: a curated alias
+dictionary is the right-sized, dependency-free, deterministic answer
+for a closed vocabulary like business categories — matches what
+`LocationEngine` already does and what the project's `ConversationEngine`
+docblock already commits to (rule-based, no AI/LLM). Full NLP libraries
+(spaCy/NLTK/word2vec) are Python-only or heavyweight and would be
+solving a much bigger problem than this one. Sentiment analysis on user
+input is a separate, real feature (a small offline lexicon-based scorer
+would fit the same philosophy) — not built here since it wasn't what
+the immediate complaint needed; flagged as a future ask if wanted.
+
+Mirrored into `chat-demo.html`: its parallel `SECTOR_KEYWORDS` map
+already had "car" but was missing the plural "cars" (the exact word
+that surfaced the bug) and "vehicle"/"vehicles" — added.
+
+Verified against a real running server: `api/search.php?q=cars` returns
+`"detected":{"sector":"Automotive"}` and correctly ranked Automotive
+results; in the live chat UI this renders as a "Sector: Automotive"
+bubble before the answer, exactly the confirmation that was missing.
+Re-verified the identical "cars" → "Sector: Automotive" behavior in the
+standalone artifact via headless Chromium. Test config/data mutations
+reverted before committing.
