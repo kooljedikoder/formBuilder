@@ -1,0 +1,1629 @@
+<!--
+  Source file for the "Killi — Live Chat Preview" stakeholder demo,
+  published as a Claude Artifact (self-contained, no build step, no
+  backend — client-side mock data instead of api/*.php). Current
+  published URL: https://claude.ai/code/artifact/58e3ffd5-2275-4f59-847d-4981ca1f27d7
+
+  This mirrors portal/index.php + assets/js/killi.js's structure and
+  behavior. Any UI change made to the real portal chat should be ported
+  here too (see CLAUDE.md → "Any UI change also belongs in
+  chat-demo.html"), then republished: open this file with the Artifact
+  tool, pass the URL above so it updates in place rather than minting a
+  new link.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Killi — Live Chat Preview</title>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+
+:root {
+  --killi-surface: #ffffff;
+  --killi-border: #e0e0e0;
+  --killi-muted: #5f6368;
+  --killi-primary: #1a73e8;
+  --killi-secondary: #0f9d58;
+  --killi-chat-header: #1a73e8;
+  --killi-user-bubble: #1a73e8;
+  --killi-ai-bubble: #ffffff;
+  --killi-bg: #ffffff;
+  --killi-text: #202124;
+  --killi-chat-bg: #f8f9fa;
+  --demo-page-bg: #eef1f5;
+  --demo-ink-faint: #7b8290;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --killi-bg: #16181c;
+    --killi-text: #e8eaed;
+    --killi-chat-bg: #0f1113;
+    --killi-ai-bubble: #24262b;
+    --killi-surface: #24262b;
+    --killi-border: #3c3f44;
+    --killi-muted: #9aa0a6;
+    --demo-page-bg: #101215;
+    --demo-ink-faint: #82899a;
+  }
+}
+:root[data-theme="dark"] {
+  --killi-bg: #16181c;
+  --killi-text: #e8eaed;
+  --killi-chat-bg: #0f1113;
+  --killi-ai-bubble: #24262b;
+  --killi-surface: #24262b;
+  --killi-border: #3c3f44;
+  --killi-muted: #9aa0a6;
+  --demo-page-bg: #101215;
+  --demo-ink-faint: #82899a;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--demo-page-bg);
+  color: var(--killi-text, #202124);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.demo-topbar { width: 100%; text-align: center; padding: 14px 16px 10px; }
+.demo-eyebrow { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--killi-primary); margin: 0 0 4px; }
+.demo-title { font-size: 15px; font-weight: 700; margin: 0; }
+.demo-sub { font-size: 12.5px; color: var(--demo-ink-faint); margin: 4px 0 0; max-width: 46ch; margin-left: auto; margin-right: auto; }
+
+.phone-shell {
+  /* A fixed height (not vh-based) so the preview reads the same size
+     everywhere it's viewed — side panel, full tab, or shared link —
+     rather than resizing itself to whatever viewport happens to host it.
+     Chat content scrolls inside via #killi-chat; this box never grows. */
+  width: 100%;
+  max-width: 400px;
+  height: 700px;
+  margin: 6px 0 20px;
+  border-radius: 28px;
+  border: 8px solid #14161a;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  overflow: hidden;
+  position: relative;
+  background: var(--killi-bg);
+  flex-shrink: 0;
+}
+@media (max-height: 620px) {
+  .phone-shell { height: calc(100vh - 40px); }
+}
+:root:not([data-theme="light"]) .phone-shell { border-color: #3a3d42; }
+.phone-notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 90px; height: 18px; background: #14161a; border-radius: 0 0 12px 12px; z-index: 30; }
+:root:not([data-theme="light"]) .phone-notch { background: #3a3d42; }
+
+/* ---- real killi.css, copied verbatim from assets/css/killi.css ---- */
+.killi-app { display: flex; flex-direction: column; height: 100%; max-width: 720px; margin: 0 auto; position: relative; }
+.killi-header { background: var(--killi-chat-header, #1a73e8); color: #fff; padding: 14px 16px; padding-top: max(20px, env(safe-area-inset-top)); font-weight: 600; font-size: 17px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; }
+.killi-theme-toggle { background: rgba(255,255,255,0.15); border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; font-size: 15px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.killi-theme-toggle:active { background: rgba(255,255,255,0.3); }
+.killi-theme-toggle svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.killi-chat { flex: 1; overflow-y: auto; padding: 12px; background: var(--killi-chat-bg, #f8f9fa); display: flex; flex-direction: column; gap: 10px; }
+@keyframes killi-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.killi-bubble-meta { display: flex; align-items: center; gap: 5px; margin-top: 3px; font-size: 11px; opacity: 0.65; }
+.killi-bubble.user .killi-bubble-meta { justify-content: flex-end; }
+.killi-bubble.ai .killi-bubble-meta { justify-content: flex-start; }
+.killi-timestamp { white-space: nowrap; }
+.killi-tick { letter-spacing: -1px; }
+.killi-inline-rate { align-self: stretch; background: var(--killi-ai-bubble, #fff); color: var(--killi-text, #202124); border: 1px solid var(--killi-border, #e0e0e0); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; animation: killi-rise 0.2s ease; }
+.killi-inline-rate-title { font-size: 13.5px; font-weight: 700; }
+.killi-rate-stars { display: flex; gap: 4px; }
+.killi-star { border: none; background: transparent; cursor: pointer; padding: 2px; color: var(--killi-border, #d6d8db); display: flex; }
+.killi-star svg { width: 22px; height: 22px; fill: currentColor; }
+.killi-star.filled { color: #f5b400; }
+.killi-rate-comment { width: 100%; border: 1px solid rgba(127,127,127,0.3); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 12.5px; resize: none; background: transparent; color: inherit; box-sizing: border-box; }
+.killi-rate-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.killi-rate-cancel, .killi-rate-submit { border: none; border-radius: 7px; padding: 6px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.killi-rate-cancel { background: transparent; color: inherit; opacity: 0.7; }
+.killi-rate-submit { background: var(--killi-primary, #1a73e8); color: #fff; }
+.killi-rate-submit:disabled { opacity: 0.4; cursor: default; }
+.killi-rate-thanks { text-align: center; font-size: 12.5px; color: var(--killi-primary, #1a73e8); font-weight: 600; }
+.killi-bubble, .killi-quick-replies, .killi-results { animation: killi-rise 0.22s ease-out; }
+.killi-bubble { max-width: 85%; padding: 10px 14px; border-radius: 16px; line-height: 1.4; font-size: 14.5px; white-space: pre-wrap; }
+.killi-tick.delivered { color: #8ecfff; opacity: 1; }
+.killi-typing span { display: inline-block; width: 6px; height: 6px; margin: 0 2px; border-radius: 50%; background: #9aa0a6; animation: killi-bounce 1s infinite ease-in-out; }
+.killi-typing span:nth-child(2) { animation-delay: 0.15s; }
+.killi-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes killi-bounce { 0%,80%,100% { transform: translateY(0); opacity: 0.5; } 40% { transform: translateY(-4px); opacity: 1; } }
+.killi-bubble.user { align-self: flex-end; background: var(--killi-user-bubble, #1a73e8); color: #fff; border-bottom-right-radius: 4px; }
+.killi-bubble.ai { align-self: flex-start; background: var(--killi-ai-bubble, #fff); border: 1px solid var(--killi-border, #e0e0e0); border-bottom-left-radius: 4px; }
+.killi-quick-replies { display: flex; flex-wrap: wrap; gap: 8px; align-self: flex-start; max-width: 100%; }
+.killi-quick-reply { border: 1px solid var(--killi-primary, #1a73e8); color: var(--killi-primary, #1a73e8); background: var(--killi-surface, #fff); border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+.killi-results { display: flex; flex-direction: column; gap: 10px; align-self: flex-start; width: 100%; }
+.killi-card { background: var(--killi-surface, #fff); border: 1px solid var(--killi-border, #e0e0e0); border-radius: 12px; padding: 12px 14px; overflow: hidden; }
+.killi-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.killi-card-title { font-weight: 600; font-size: 14.5px; }
+.killi-card-top-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.killi-save-btn { width: 24px; height: 24px; box-sizing: border-box; border: 1px solid var(--killi-border, #d0d0d0); background: var(--killi-surface, #fafafa); color: var(--killi-muted, #9aa0a6); border-radius: 50%; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.killi-save-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.killi-save-btn.saved { color: #e0245e; border-color: #e0245e; }
+.killi-save-btn.saved svg { fill: currentColor; }
+.killi-modal-save-btn { position: absolute; top: 12px; right: 46px; z-index: 2; }
+.killi-card-rating { font-size: 13px; color: #f2a600; white-space: nowrap; }
+.killi-card-meta { font-size: 12.5px; color: var(--killi-muted, #5f6368); margin: 4px 0 8px; }
+.killi-badge { display: inline-block; font-size: 11px; background: var(--killi-secondary, #0f9d58); color: #fff; border-radius: 4px; padding: 1px 6px; margin-left: 6px; }
+.killi-card-actions { display: flex; gap: 4px; }
+.killi-card-action-icon-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: var(--killi-primary, #1a73e8); }
+.killi-card-action-icon { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--killi-primary, #1a73e8); display: flex; align-items: center; justify-content: center; }
+.killi-card-action-icon svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.killi-card-action-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; }
+.killi-card-action-icon-wrap.whatsapp { color: #128c3e; }
+.killi-card-action-icon-wrap.whatsapp .killi-card-action-icon { border-color: #25d366; }
+.killi-view-btn { width: 24px; height: 24px; box-sizing: border-box; border: 1px solid var(--killi-border, #d0d0d0); background: var(--killi-surface, #fafafa); color: var(--killi-text, #202124); border-radius: 50%; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.killi-view-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.killi-modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; justify-content: center; z-index: 40; }
+.killi-modal { background: var(--killi-bg, #fff); color: var(--killi-text, #202124); width: 100%; height: 78%; display: flex; flex-direction: column; overflow: hidden; position: relative; border-radius: 16px 16px 0 0; animation: killi-modal-up 0.2s ease; }
+.killi-modal-body { flex: 1; overflow-y: auto; }
+@keyframes killi-modal-up { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.killi-modal-close { position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; border-radius: 50%; border: none; background: rgba(0,0,0,0.06); color: var(--killi-text, #202124); font-size: 15px; cursor: pointer; z-index: 2; }
+.killi-modal-header { padding: 16px 84px 10px 18px; flex-shrink: 0; }
+.killi-modal-title { font-size: 18px; font-weight: 700; margin: 0; }
+.killi-modal-subline { font-size: 12.5px; color: var(--killi-muted, #5f6368); margin-top: 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.killi-modal-subline .killi-star-ico { color: #f2a600; display: inline-flex; }
+.killi-modal-subline .killi-star-ico svg { width: 12px; height: 12px; fill: currentColor; }
+.killi-modal-status-open { color: var(--killi-secondary, #0f9d58); font-weight: 600; }
+.killi-modal-tabs { display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; flex-shrink: 0; }
+.killi-modal-tab { flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 6px 13px; border-radius: 999px; border: 1px solid var(--killi-border, #d0d0d0); background: transparent; color: var(--killi-muted, #5f6368); cursor: pointer; }
+.killi-modal-tab.current { background: var(--killi-primary, #1a73e8); color: #fff; border-color: transparent; }
+.killi-photo-strip { display: flex; gap: 3px; overflow-x: auto; height: 140px; }
+.killi-photo-strip img { flex-shrink: 0; height: 100%; object-fit: cover; }
+.killi-photo-strip img:first-child { width: 78%; }
+.killi-photo-strip img:not(:first-child) { width: 45%; }
+.killi-modal-actions { display: grid; grid-template-columns: repeat(4,1fr); gap: 4px; padding: 14px 18px 6px; text-align: center; }
+.killi-modal-actions a { text-decoration: none; color: var(--killi-primary, #1a73e8); }
+.killi-modal-action-icon { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--killi-primary, #1a73e8); display: flex; align-items: center; justify-content: center; margin: 0 auto 4px; }
+.killi-modal-action-icon svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.killi-modal-action-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+.killi-modal-actions a.whatsapp { color: #128c3e; }
+.killi-modal-actions a.whatsapp .killi-modal-action-icon { border-color: #25d366; }
+.killi-modal-cta { display: block; margin: 6px 18px 14px; text-align: center; border: 1px solid var(--killi-primary, #1a73e8); color: var(--killi-primary, #1a73e8); border-radius: 999px; padding: 10px; font-size: 13px; font-weight: 700; text-decoration: none; }
+.killi-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 18px 16px; align-items: start; }
+.killi-info-tile-full { grid-column: 1 / -1; }
+.killi-info-tile { background: var(--killi-chat-bg, #f8f9fa); border-radius: 10px; padding: 10px 12px; }
+.killi-info-tile-label { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+.killi-menu-thumbs { display: flex; gap: 5px; }
+.killi-menu-thumbs img { width: 44px; height: 44px; flex: 0 0 auto; border-radius: 6px; object-fit: cover; }
+.killi-rating-big { font-size: 19px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+.killi-rating-big svg { width: 15px; height: 15px; fill: #f2a600; }
+.killi-rating-bars { display: flex; align-items: flex-end; gap: 3px; height: 30px; margin-top: 6px; }
+.killi-rating-bars .bar { flex: 1; background: #f2a600; border-radius: 2px 2px 0 0; min-height: 2px; }
+.killi-modal-footer { padding: 4px 18px 18px; font-size: 12px; color: var(--killi-muted, #5f6368); display: flex; justify-content: space-between; gap: 10px; }
+.killi-modal-location { display: flex; align-items: center; gap: 12px; padding: 10px 18px 18px; }
+.killi-modal-location-text { flex: 1; font-size: 13px; color: var(--killi-text, #202124); line-height: 1.5; }
+.killi-modal-location-text strong { font-size: 13.5px; }
+.killi-map-thumb { flex-shrink: 0; width: 64px; height: 64px; border-radius: 10px; overflow: hidden; display: block; border: 1px solid var(--killi-border, #d0d0d0); }
+.killi-map-thumb svg { width: 100%; height: 100%; display: block; }
+.killi-star-row { display: inline-flex; gap: 1px; }
+.killi-star-row-icon { display: inline-flex; }
+.killi-star-row-icon svg { width: 13px; height: 13px; fill: var(--killi-border, #d6d8db); }
+.killi-star-row-icon.filled svg { fill: #f2a600; }
+.killi-rating-big .killi-star-row-icon svg { width: 15px; height: 15px; }
+.killi-modal-tagline { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; margin: 0 18px 4px; border-top: 1px solid var(--killi-border, #e0e0e0); border-bottom: 1px solid var(--killi-border, #e0e0e0); font-size: 13.5px; }
+.killi-modal-tagline svg { width: 16px; height: 16px; stroke: var(--killi-muted, #5f6368); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.killi-review-list { padding: 4px 0 8px; }
+.killi-review-card { display: flex; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--killi-border, #e0e0e0); }
+.killi-review-avatar { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: var(--killi-primary, #1a73e8); color: #fff; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.killi-review-body { flex: 1; min-width: 0; }
+.killi-review-author { font-size: 13.5px; font-weight: 600; }
+.killi-review-meta { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--killi-muted, #5f6368); margin-top: 2px; }
+.killi-review-meta .killi-star-row-icon svg { width: 11px; height: 11px; }
+.killi-review-text { font-size: 13px; margin: 6px 0 0; line-height: 1.45; }
+.killi-panel { padding: 4px 0 18px; }
+.killi-panel-tabs { display: flex; padding: 0 18px; border-bottom: 1px solid var(--killi-border, #e0e0e0); }
+.killi-panel-tab { flex: 1; border: none; background: none; padding: 12px 0; font-size: 13px; font-weight: 700; color: var(--killi-muted, #5f6368); cursor: pointer; border-bottom: 2px solid transparent; }
+.killi-panel-tab.current { color: var(--killi-primary, #1a73e8); border-bottom-color: var(--killi-primary, #1a73e8); }
+.killi-panel-tab-section { display: none; }
+.killi-panel-tab-section.current { display: block; }
+.killi-panel-section { padding: 14px 18px; border-top: 1px solid var(--killi-border, #e0e0e0); position: relative; }
+.killi-panel-section:first-child { border-top: none; }
+.killi-panel-section-title { font-size: 12.5px; font-weight: 700; margin-bottom: 8px; }
+.killi-panel-list { display: flex; flex-direction: column; gap: 8px; }
+.killi-panel-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--killi-chat-bg, #f8f9fa); border-radius: 10px; padding: 10px 12px; }
+.killi-panel-row-title { font-size: 13.5px; font-weight: 600; }
+.killi-panel-row-sub { font-size: 12px; color: var(--killi-muted, #5f6368); margin-top: 2px; }
+.killi-panel-chips { padding: 0; }
+.killi-panel-media { display: flex; flex-wrap: wrap; gap: 6px; }
+.killi-panel-media img { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; }
+.killi-panel-media-file { font-size: 13px; color: var(--killi-primary, #1a73e8); display: flex; align-items: center; gap: 5px; }
+.killi-panel-media-file svg, .killi-inline-icon svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; vertical-align: -2px; }
+.killi-panel-media-audio { display: flex; align-items: center; gap: 8px; width: 100%; }
+.killi-panel-media-audio .killi-panel-media-file { flex-shrink: 0; }
+.killi-panel-media-audio audio { flex: 1; min-width: 0; height: 32px; }
+.killi-inline-icon { display: inline-flex; }
+
+.killi-profile-head { display: flex; align-items: center; gap: 12px; padding: 16px 18px 6px; }
+.killi-profile-avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--killi-primary, #1a73e8); color: #fff; font-size: 22px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.killi-profile-name-input { flex: 1; min-width: 0; }
+.killi-profile-stats { display: flex; gap: 10px; padding: 12px 18px; }
+.killi-profile-stat { flex: 1; background: var(--killi-chat-bg, #f8f9fa); border-radius: 10px; padding: 10px; text-align: center; }
+.killi-profile-stat strong { display: block; font-size: 19px; font-weight: 700; }
+.killi-profile-stat span { font-size: 11.5px; color: var(--killi-muted, #5f6368); }
+.killi-panel-clear-btn { display: block; margin: 6px 18px 0; width: calc(100% - 36px); border: 1px solid var(--killi-border, #d0d0d0); background: none; color: var(--killi-muted, #5f6368); border-radius: 999px; padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+.killi-panel-select, .killi-panel-input { width: 100%; border: 1px solid var(--killi-border, #d0d0d0); background: var(--killi-surface, #fff); color: var(--killi-text, #202124); border-radius: 8px; padding: 9px 11px; font-size: 14px; box-sizing: border-box; }
+.killi-panel-checkbox { display: flex; align-items: center; gap: 8px; padding: 4px 18px 14px; font-size: 13.5px; }
+.killi-panel-autocomplete { position: absolute; left: 18px; right: 18px; top: 100%; margin-top: -1px; background: var(--killi-surface, #fff); border: 1px solid var(--killi-border, #d0d0d0); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); z-index: 5; overflow: hidden; }
+.killi-panel-autocomplete-item { padding: 9px 11px; font-size: 13.5px; cursor: pointer; }
+.killi-panel-autocomplete-item:hover { background: var(--killi-chat-bg, #f8f9fa); }
+.killi-panel-submit-btn { display: block; margin: 4px 18px 0; width: calc(100% - 36px); border: none; background: var(--killi-primary, #1a73e8); color: #fff; border-radius: 999px; padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+.killi-tab-section { display: none; }
+.killi-tab-section.current { display: block; }
+.killi-chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 12px; flex-shrink: 0; background: var(--killi-bg, #fff); border-top: 1px solid var(--killi-border, #eee); }
+.killi-chip { flex-shrink: 0; border: 1px solid var(--killi-border, #d0d0d0); background: var(--killi-surface, #fff); color: var(--killi-text, #202124); border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+.killi-searchbar { display: flex; gap: 7px; padding: 10px 12px; padding-bottom: max(14px, env(safe-area-inset-bottom)); flex-shrink: 0; background: var(--killi-bg, #fff); border-top: 1px solid var(--killi-border, #eee); position: relative; }
+.killi-searchbar[hidden] { display: none; }
+.killi-voice-record-bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; padding-bottom: max(10px, env(safe-area-inset-bottom)); flex-shrink: 0; background: var(--killi-bg, #fff); border-top: 1px solid var(--killi-border, #eee); }
+.killi-voice-record-bar[hidden] { display: none; }
+.killi-voice-cancel { border: none; background: none; color: var(--killi-muted, #5f6368); font-size: 20px; line-height: 1; cursor: pointer; padding: 4px; flex-shrink: 0; }
+.killi-voice-dot { width: 10px; height: 10px; border-radius: 50%; background: #e53935; flex-shrink: 0; animation: killi-pulse 1s infinite ease-in-out; }
+.killi-voice-timer { font-weight: 700; font-size: 13.5px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.killi-voice-hint { flex: 1; color: var(--killi-muted, #5f6368); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.killi-voice-stop { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--killi-primary, #1a73e8); color: #fff; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.killi-voice-stop svg { width: 15px; height: 15px; fill: currentColor; }
+.killi-attachment-audio { width: 200px; max-width: 100%; }
+.killi-input { flex: 1; border: 1px solid var(--killi-border, #d0d0d0); background: var(--killi-surface, #fff); color: var(--killi-text, #202124); border-radius: 999px; padding: 11px 15px; font-size: 14.5px; outline: none; min-width: 0; }
+.killi-input:focus { border-color: var(--killi-primary, #1a73e8); }
+.killi-icon-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--killi-border, #d0d0d0); background: var(--killi-surface, #fff); color: var(--killi-text, #202124); font-size: 16px; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.killi-icon-btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.killi-icon-btn:active { background: rgba(127,127,127,0.15); }
+.killi-icon-btn.listening { background: #fdecea; border-color: #e53935; color: #e53935; animation: killi-pulse 1s infinite ease-in-out; }
+@keyframes killi-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(229,57,53,0.4); } 50% { box-shadow: 0 0 0 6px rgba(229,57,53,0.15); } }
+.killi-attachment-img { max-width: 180px; max-height: 180px; border-radius: 12px; display: block; }
+.killi-attachment-video { max-width: 200px; max-height: 200px; border-radius: 12px; display: block; }
+
+.killi-attach-sheet { position: absolute; inset: 0; z-index: 40; background: rgba(0,0,0,0.35); display: flex; align-items: flex-end; justify-content: center; }
+.killi-attach-sheet[hidden] { display: none; }
+.killi-attach-sheet-card { background: var(--killi-surface, #fff); border-radius: 16px 16px 0 0; width: 100%; padding: 8px 8px 14px; box-shadow: 0 8px 28px rgba(0,0,0,0.2); animation: killi-rise 0.18s ease; }
+.killi-attach-option { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; color: var(--killi-text, #202124); font-size: 15px; padding: 12px 14px; border-radius: 10px; cursor: pointer; }
+.killi-attach-option svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.killi-attach-option:active { background: rgba(127,127,127,0.12); }
+.killi-attach-cancel { margin-top: 4px; border-top: 1px solid var(--killi-border, #e0e0e0); padding-top: 12px; color: var(--killi-muted, #5f6368); font-weight: 600; }
+.killi-send { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--killi-primary, #1a73e8); color: #fff; font-size: 17px; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.killi-send svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.killi-attribution { text-align: center; font-size: 10.5px; letter-spacing: 0.02em; color: var(--killi-muted, #5f6368); padding: 5px 12px; flex-shrink: 0; background: var(--killi-bg, #fff); }
+.killi-empty { font-size: 13.5px; color: var(--killi-muted, #5f6368); }
+.killi-item-row-fallback { width: 48px; height: 48px; border-radius: 8px; flex-shrink: 0; background: var(--killi-chat-bg, #f8f9fa); display: flex; align-items: center; justify-content: center; }
+.killi-item-row-fallback svg { width: 20px; height: 20px; stroke: var(--killi-muted, #5f6368); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.killi-bottom-nav { display: flex; flex-shrink: 0; background: var(--killi-surface, #fff); border-top: 1px solid var(--killi-border, #e0e0e0); padding: 6px 4px max(6px, env(safe-area-inset-bottom)); }
+.killi-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: none; cursor: pointer; font-family: inherit; color: var(--killi-muted, #5f6368); padding: 5px 4px; border-radius: 10px; }
+.killi-nav-icon svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.killi-nav-label { font-size: 10.5px; font-weight: 600; }
+.killi-nav-item.active { color: var(--killi-primary, #1a73e8); }
+
+.demo-footnote { font-size: 11.5px; color: var(--demo-ink-faint); text-align: center; max-width: 380px; padding: 0 16px 20px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.001ms !important; } }
+</style>
+</head>
+<body>
+
+<div class="demo-topbar">
+  <p class="demo-eyebrow">Live preview</p>
+  <p class="demo-title">Killi — watch it, then try it yourself</p>
+  <p class="demo-sub">Plays a real conversation once, then the input stays open — type anything.</p>
+</div>
+
+<div class="phone-shell">
+  <div class="phone-notch"></div>
+  <div id="killi-app" class="killi-app">
+    <header class="killi-header">
+      <div>Killi</div>
+      <div style="display:flex;gap:8px">
+        <button id="killi-theme-toggle" class="killi-theme-toggle" type="button" aria-label="Toggle dark mode"><svg viewBox="0 0 24 24"><path d="M21 12.5A9 9 0 1 1 11.5 3a7 7 0 0 0 9.5 9.5Z"/></svg></button>
+      </div>
+    </header>
+    <div class="killi-chat" id="killi-chat"></div>
+    <div class="killi-chips" id="killi-chips">
+      <button class="killi-chip" data-chip="Automotive">Automotive</button>
+      <button class="killi-chip" data-chip="Hospitality">Hospitality</button>
+      <button class="killi-chip" data-chip="Healthcare">Healthcare</button>
+    </div>
+    <form class="killi-searchbar" id="killi-searchbar" autocomplete="off">
+      <button type="button" id="killi-attach" class="killi-icon-btn" aria-label="Attach a file"><svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.19 9.19a1.5 1.5 0 0 1-2.12-2.12l8.48-8.48"/></svg></button>
+      <button type="button" id="killi-mic" class="killi-icon-btn" aria-label="Speak your search"><svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg></button>
+      <input type="search" id="killi-input" class="killi-input" placeholder="Search..." aria-label="Search">
+      <button type="submit" class="killi-send" aria-label="Send"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><path d="M6 11l6-6 6 6"/></svg></button>
+    </form>
+    <div class="killi-voice-record-bar" id="killi-voice-record-bar" hidden>
+      <button type="button" class="killi-voice-cancel" id="killi-voice-cancel" aria-label="Cancel recording">&times;</button>
+      <span class="killi-voice-dot"></span>
+      <span class="killi-voice-timer" id="killi-voice-timer">0:00</span>
+      <span class="killi-voice-hint">Recording voice note&hellip;</span>
+      <button type="button" class="killi-voice-stop" id="killi-voice-stop" aria-label="Stop and send"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+    </div>
+    <div class="killi-attribution">Powered by Killi</div>
+    <nav class="killi-bottom-nav" id="killi-bottom-nav">
+      <button type="button" class="killi-nav-item active" data-nav="home">
+        <span class="killi-nav-icon"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg></span>
+        <span class="killi-nav-label">Home</span>
+      </button>
+      <button type="button" class="killi-nav-item" data-nav="search">
+        <span class="killi-nav-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+        <span class="killi-nav-label">Search</span>
+      </button>
+      <button type="button" class="killi-nav-item" data-nav="filters">
+        <span class="killi-nav-icon"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="18" r="2"/></svg></span>
+        <span class="killi-nav-label">Filters</span>
+      </button>
+      <button type="button" class="killi-nav-item" data-nav="saved">
+        <span class="killi-nav-icon"><svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6Z"/></svg></span>
+        <span class="killi-nav-label">Saved</span>
+      </button>
+      <button type="button" class="killi-nav-item" data-nav="profile">
+        <span class="killi-nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg></span>
+        <span class="killi-nav-label">Profile</span>
+      </button>
+    </nav>
+  </div>
+  <div class="killi-attach-sheet" id="killi-attach-sheet" hidden>
+    <div class="killi-attach-sheet-card">
+      <button type="button" class="killi-attach-option" data-kind="photo"><svg viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg> Take Photo</button>
+      <button type="button" class="killi-attach-option" data-kind="video"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3Z"/></svg> Record Video</button>
+      <button type="button" class="killi-attach-option" data-kind="file"><svg viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/></svg> Choose File</button>
+      <button type="button" class="killi-attach-option" id="killi-attach-voice"><svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg> Voice Note</button>
+      <button type="button" class="killi-attach-option killi-attach-cancel" id="killi-attach-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<p class="demo-footnote">Runs entirely in your browser against a small sample dataset — no server, no real search backend. The real app talks to your actual data the same way, just live.</p>
+
+<script>
+(function () {
+  var chat = document.getElementById('killi-chat');
+  var form = document.getElementById('killi-searchbar');
+  var input = document.getElementById('killi-input');
+  var chips = document.getElementById('killi-chips');
+  var themeToggle = document.getElementById('killi-theme-toggle');
+  var attachBtn = document.getElementById('killi-attach');
+  var micBtn = document.getElementById('killi-mic');
+  var lastUserMessage = '';
+  var sessionTurns = [];
+  var lastListing = null;
+
+  var SAVED_KEY = 'killi_demo_saved_records';
+  var RECENT_SEARCHES_KEY = 'killi_demo_recent_searches';
+  var PROFILE_NAME_KEY = 'killi_demo_profile_name';
+  var sessionMedia = [];
+
+  function readJsonLS(key, fallback) {
+    try {
+      var raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+  function writeJsonLS(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage unavailable */ }
+  }
+  function getSaved() { return readJsonLS(SAVED_KEY, []); }
+  function isRecordSaved(listing) {
+    var id = listing.id != null ? listing.id : listing.title;
+    return getSaved().some(function (r) { return (r.id != null ? r.id : r.title) === id; });
+  }
+  function toggleSaved(listing, btn) {
+    var id = listing.id != null ? listing.id : listing.title;
+    var saved = getSaved();
+    var idx = saved.findIndex(function (r) { return (r.id != null ? r.id : r.title) === id; });
+    if (idx === -1) {
+      saved.unshift({ id: listing.id, title: listing.title, category: listing.category, location: listing.location, rating: listing.rating, phone: listing.phone, website: listing.website, whatsapp: listing.whatsapp });
+    } else {
+      saved.splice(idx, 1);
+    }
+    writeJsonLS(SAVED_KEY, saved);
+    if (btn) btn.classList.toggle('saved', idx === -1);
+    return idx === -1;
+  }
+  function buildSaveButton(listing) {
+    var btn = el('button', 'killi-save-btn' + (isRecordSaved(listing) ? ' saved' : ''), ICONS.heart);
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Save ' + listing.title);
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleSaved(listing, btn);
+    });
+    return btn;
+  }
+  function pushRecentSearch(query) {
+    query = (query || '').trim();
+    if (!query) return;
+    var list = readJsonLS(RECENT_SEARCHES_KEY, []).filter(function (q) { return q.toLowerCase() !== query.toLowerCase(); });
+    list.unshift(query);
+    writeJsonLS(RECENT_SEARCHES_KEY, list.slice(0, 8));
+  }
+
+  function el(tag, className, html) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (html !== undefined) node.innerHTML = html;
+    return node;
+  }
+  function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s == null ? '' : String(s);
+    return d.innerHTML;
+  }
+  function scrollToBottom() { chat.scrollTop = chat.scrollHeight; }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function starRating(r) { return !r ? '' : '<span class="killi-star-row-icon filled">' + ICONS.star + '</span> ' + Number(r).toFixed(1); }
+  function waLink(phone) { return 'https://wa.me/' + String(phone).replace(/[^0-9]/g, ''); }
+
+  var ICONS = {
+    eye: '<svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+    phone: '<svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>',
+    pin: '<svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+    share: '<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
+    globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></svg>',
+    star: '<svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2Z"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>',
+    cart: '<svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1.4"/><circle cx="18" cy="21" r="1.4"/><path d="M2.5 3h2l2.6 12.6a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 8H6"/></svg>',
+    home: '<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>',
+    search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    heart: '<svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6Z"/></svg>',
+    user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>',
+    whatsapp: '<svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 21l1.9-5.7A8.4 8.4 0 1 1 21 11.5Z"/><path d="M8.5 9.8c.3 2.6 2.5 4.8 5.1 5.1"/></svg>',
+    filter: '<svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="18" r="2"/></svg>',
+    camera: '<svg viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+    video: '<svg viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3Z"/></svg>',
+    document: '<svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v4h4"/></svg>',
+    mic: '<svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>',
+  };
+
+  function starRowHtml(rating) {
+    var filled = Math.round(Number(rating) || 0);
+    var html = '';
+    for (var i = 1; i <= 5; i++) {
+      html += '<span class="killi-star-row-icon' + (i <= filled ? ' filled' : '') + '">' + ICONS.star + '</span>';
+    }
+    return '<span class="killi-star-row">' + html + '</span>';
+  }
+
+  // Self-contained placeholder photos (no external image hosts — this file
+  // stands alone with no network calls at all).
+  function placeholderPhoto(label, hue) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">' +
+      '<rect width="400" height="300" fill="hsl(' + hue + ',38%,88%)"/>' +
+      '<rect width="400" height="300" fill="hsl(' + hue + ',45%,55%)" opacity="0.18"/>' +
+      '<text x="200" y="158" font-family="Arial,sans-serif" font-size="22" fill="hsl(' + hue + ',30%,32%)" text-anchor="middle">' + label + '</text>' +
+      '</svg>';
+    return 'data:image/svg+xml,' + encodeURIComponent(svg);
+  }
+
+  // ---- Mock data (same shape/flavor used throughout this build) ----
+  var MOCK_LISTINGS = [
+    { id: 1, title: 'Lekki Auto Clinic', category: 'Vehicle Repair', sector: 'Automotive', location: 'Victoria Island', address: '14 Admiralty Way, Lekki Phase 1', rating: 4.8, phone: '+2348012340001', whatsapp: '+2348012340001',
+      description: 'Full car care, done right — Lekki’s trusted workshop since 2014.',
+      hours_today: 'Sat 9am–4pm, closed Sundays', is_open_now: true, review_count: 187, rating_breakdown: [4, 5, 8, 17, 153],
+      photos: [placeholderPhoto('Workshop floor', 210), placeholderPhoto('Service bay', 34), placeholderPhoto('Diagnostics rig', 150)],
+      menu_items: [{ name: 'Full Service', photo: placeholderPhoto('Full Service', 210) }, { name: 'Brake Check', photo: placeholderPhoto('Brake Check', 34) }, { name: 'Engine Diagnostics', photo: placeholderPhoto('Engine Diagnostics', 150) }],
+      reviews: [
+        { author: 'Segun K.', rating: 5, date: '2 weeks ago', text: 'Fixed my brakes same day, fair price and no upselling.' },
+        { author: 'Ngozi I.', rating: 5, date: '1 month ago', text: 'Been coming here for years. Always honest about what actually needs doing.' },
+        { author: 'Tunde O.', rating: 4, date: '2 months ago', text: 'Good work, a bit of a wait on a Saturday but worth it.' }
+      ],
+      website: '#' },
+    { id: 2, title: 'VI Motor Works', category: 'Vehicle Repair', sector: 'Automotive', location: 'Victoria Island', address: '9 Kofo Abayomi Street, Victoria Island', rating: 4.6, phone: '+2348012340002',
+      description: 'Honest diagnostics, fair prices — VI’s neighborhood mechanic.', review_count: 94, rating_breakdown: [1, 2, 6, 20, 65],
+      photos: [placeholderPhoto('Front desk', 205), placeholderPhoto('Lift bay', 40), placeholderPhoto('Tools wall', 190)],
+      menu_items: [{ name: 'Diagnostics', photo: placeholderPhoto('Diagnostics', 205) }, { name: 'Oil Change', photo: placeholderPhoto('Oil Change', 40) }, { name: 'Tyre Service', photo: placeholderPhoto('Tyre Service', 190) }],
+      reviews: [
+        { author: 'Bola M.', rating: 5, date: '3 weeks ago', text: 'Diagnosed a fault two other places missed. Recommend.' },
+        { author: 'Emeka U.', rating: 4, date: '1 month ago', text: 'Reasonable pricing, straightforward service.' },
+        { author: 'Aisha B.', rating: 5, date: '2 months ago', text: 'Quick turnaround, kept me updated the whole time.' }
+      ] },
+    { id: 3, title: "Femi's Garage", category: 'Vehicle Repair', sector: 'Automotive', location: 'Lekki', address: '22 Freedom Way, Lekki Phase 1', rating: 4.4, phone: '+2348012340003',
+      review_count: 41, rating_breakdown: [1, 2, 4, 12, 22],
+      photos: [placeholderPhoto('Garage yard', 25), placeholderPhoto('Workbench', 200), placeholderPhoto('Spare parts', 60)],
+      menu_items: [{ name: 'Engine Repair', photo: placeholderPhoto('Engine Repair', 25) }, { name: 'Suspension Check', photo: placeholderPhoto('Suspension Check', 200) }, { name: 'Battery Replacement', photo: placeholderPhoto('Battery Replacement', 60) }],
+      reviews: [
+        { author: 'Yusuf K.', rating: 4, date: '1 week ago', text: 'Solid neighbourhood garage, gets the job done.' },
+        { author: 'Chioma A.', rating: 4, date: '3 weeks ago', text: 'Fair price on a suspension fix. Would return.' },
+        { author: 'Ifeoma N.', rating: 5, date: '2 months ago', text: 'Femi himself talked me through the repair, no jargon.' }
+      ] },
+    { id: 4, title: 'Chisom Kitchen', category: 'Restaurant', sector: 'Hospitality', location: 'Ikoyi', address: '5 Bourdillon Road, Ikoyi', rating: 4.7, phone: '+2348012340004',
+      description: 'Home-style Nigerian cooking, made fresh daily.', review_count: 132, rating_breakdown: [2, 3, 6, 24, 97],
+      photos: [placeholderPhoto('Dining room', 28), placeholderPhoto('Jollof pot', 12), placeholderPhoto('Grill station', 340)],
+      menu_items: [{ name: 'Jollof Rice & Chicken', photo: placeholderPhoto('Jollof Rice', 28) }, { name: 'Suya Platter', photo: placeholderPhoto('Suya Platter', 12) }, { name: 'Pepper Soup', photo: placeholderPhoto('Pepper Soup', 340) }],
+      reviews: [
+        { author: 'Chioma A.', rating: 5, date: '4 days ago', text: 'Tastes exactly like home cooking. Jollof is the best in Ikoyi.' },
+        { author: 'Tunde O.', rating: 5, date: '2 weeks ago', text: 'Suya platter is generous and the pepper soup has real kick.' },
+        { author: 'Aisha B.', rating: 4, date: '1 month ago', text: 'Great food, gets busy at lunch so go early.' }
+      ] },
+    { id: 5, title: 'Golden Gate Hotel', category: 'Hotel', sector: 'Hospitality', location: 'Victoria Island', address: '31 Ozumba Mbadiwe Avenue, Victoria Island', rating: 4.5, phone: '+2348012340005',
+      description: 'Comfortable rooms, warm service, steps from the waterfront.', review_count: 58, rating_breakdown: [1, 1, 5, 18, 33],
+      photos: [placeholderPhoto('Lobby', 205), placeholderPhoto('Standard room', 45), placeholderPhoto('Waterfront view', 195)],
+      menu_items: [{ name: 'Standard Room', photo: placeholderPhoto('Standard Room', 205) }, { name: 'Deluxe Suite', photo: placeholderPhoto('Deluxe Suite', 45) }, { name: 'Airport Pickup', photo: placeholderPhoto('Airport Pickup', 195) }],
+      reviews: [
+        { author: 'Ngozi I.', rating: 5, date: '1 week ago', text: 'Clean, quiet, and staff arranged airport pickup with no fuss.' },
+        { author: 'Emeka U.', rating: 4, date: '3 weeks ago', text: 'Good value for VI. Room could use a slightly firmer bed.' },
+        { author: 'Segun K.', rating: 5, date: '1 month ago', text: 'Loved the waterfront view from the deluxe suite.' }
+      ] },
+    { id: 6, title: 'Ikoyi Dental Care', category: 'Dentist', sector: 'Healthcare', location: 'Ikoyi', address: '17 Awolowo Road, Ikoyi', rating: 4.9, phone: '+2348012340006',
+      description: 'Gentle, modern dentistry for the whole family.', review_count: 76, rating_breakdown: [0, 1, 2, 8, 65],
+      photos: [placeholderPhoto('Waiting area', 190), placeholderPhoto('Treatment room', 205), placeholderPhoto('Reception', 30)],
+      menu_items: [{ name: 'Teeth Cleaning', photo: placeholderPhoto('Teeth Cleaning', 190) }, { name: 'Whitening', photo: placeholderPhoto('Whitening', 205) }, { name: 'Root Canal', photo: placeholderPhoto('Root Canal', 30) }],
+      reviews: [
+        { author: 'Ifeoma N.', rating: 5, date: '5 days ago', text: 'Gentlest dentist I have been to. Great with anxious patients.' },
+        { author: 'Yusuf K.', rating: 5, date: '2 weeks ago', text: 'Root canal was painless, followed up the next day too.' },
+        { author: 'Bola M.', rating: 5, date: '1 month ago', text: 'Modern equipment, very clean, friendly front desk.' }
+      ] },
+  ];
+  var MOCK_FAQ = [
+    { question: 'do you accept returns', answer: 'Yes, within 30 days with a receipt.' },
+    { question: 'how do i contact a business', answer: 'Tap Call or WhatsApp on any result card to reach them directly.' },
+    { question: 'is there a delivery fee', answer: 'That depends on the business — ask about a specific listing.' },
+  ];
+  var LOCATION_ALIASES = { vi: 'Victoria Island', 'victoria island': 'Victoria Island', lekki: 'Lekki', ikoyi: 'Ikoyi' };
+  var SECTOR_KEYWORDS = { mechanic: 'Automotive', garage: 'Automotive', auto: 'Automotive', car: 'Automotive', cars: 'Automotive', vehicle: 'Automotive', vehicles: 'Automotive', hotel: 'Hospitality', restaurant: 'Hospitality', food: 'Hospitality', dentist: 'Healthcare', doctor: 'Healthcare', clinic: 'Healthcare' };
+
+  // Small offline lexicon-based sentiment scorer, same idea as the real
+  // product's core/SentimentEngine.php + config/sentiment.json — no ML
+  // runtime, just enough signal to notice "this is useless" and soften
+  // the reply rather than answering as if nothing was wrong.
+  var SENTIMENT_LEXICON = {
+    positive: ['great', 'good', 'excellent', 'awesome', 'amazing', 'love', 'loved', 'perfect', 'thanks', 'thank', 'appreciate', 'helpful', 'easy', 'fast', 'quick', 'nice', 'wonderful', 'fantastic', 'best', 'happy', 'pleased', 'satisfied', 'brilliant', 'cool', 'super', 'works', 'worked', 'working', 'smooth', 'friendly', 'kind', 'exactly', 'glad', 'helped', 'resolved', 'fixed', 'reliable'],
+    negative: ['terrible', 'horrible', 'awful', 'bad', 'worst', 'hate', 'hated', 'annoying', 'annoyed', 'useless', 'broken', 'frustrated', 'frustrating', 'angry', 'upset', 'disappointed', 'disappointing', 'waste', 'slow', 'rude', 'ridiculous', 'unacceptable', 'sucks', 'garbage', 'junk', 'scam', 'wrong', 'confusing', 'confused', 'lost', 'stuck', 'problem', 'issue', 'complaint', 'poor', 'difficult', 'fail', 'failed', 'failure', 'ignored', 'delay', 'delayed', 'unhelpful', 'unresponsive', 'unreliable', 'misleading', 'pathetic'],
+    negators: ['not', 'no', 'never', "n't", 'without', 'hardly', 'barely'],
+  };
+  var SENTIMENT_FUZZY_MAX_DISTANCE = 1;
+  var SENTIMENT_FUZZY_MIN_LENGTH = 3;
+  var EMPATHY_RESPONSES = [
+    "Sorry this hasn't been smooth — let me help sort it out.",
+    "I hear you — let's get this fixed.",
+    "That sounds frustrating, I'll do my best to help right away.",
+  ];
+  var sentimentLexiconIndex = null;
+  function buildSentimentLexiconIndex() {
+    if (sentimentLexiconIndex) return sentimentLexiconIndex;
+    sentimentLexiconIndex = [];
+    SENTIMENT_LEXICON.negators.forEach(function (w) { sentimentLexiconIndex.push([w, 'negator']); });
+    SENTIMENT_LEXICON.positive.forEach(function (w) { sentimentLexiconIndex.push([w, 'positive']); });
+    SENTIMENT_LEXICON.negative.forEach(function (w) { sentimentLexiconIndex.push([w, 'negative']); });
+    return sentimentLexiconIndex;
+  }
+  // Small edit-distance check — same technique the real product uses
+  // (Levenshtein) so a typo like "niot" still resolves to "not" instead
+  // of silently reading as neutral.
+  function levenshtein(a, b) {
+    var m = a.length, n = b.length;
+    var d = [];
+    for (var i = 0; i <= m; i++) d.push([i]);
+    for (var j = 0; j <= n; j++) d[0][j] = j;
+    for (i = 1; i <= m; i++) {
+      for (j = 1; j <= n; j++) {
+        d[i][j] = a[i - 1] === b[j - 1] ? d[i - 1][j - 1] : 1 + Math.min(d[i - 1][j], d[i][j - 1], d[i - 1][j - 1]);
+      }
+    }
+    return d[m][n];
+  }
+  function classifySentimentToken(token) {
+    if (SENTIMENT_LEXICON.negators.indexOf(token) !== -1) return 'negator';
+    if (SENTIMENT_LEXICON.positive.indexOf(token) !== -1) return 'positive';
+    if (SENTIMENT_LEXICON.negative.indexOf(token) !== -1) return 'negative';
+    if (token.length < SENTIMENT_FUZZY_MIN_LENGTH || !/^[a-z]+$/.test(token)) return null;
+    var index = buildSentimentLexiconIndex();
+    for (var i = 0; i < index.length; i++) {
+      var word = index[i][0];
+      if (Math.abs(word.length - token.length) <= SENTIMENT_FUZZY_MAX_DISTANCE && levenshtein(token, word) <= SENTIMENT_FUZZY_MAX_DISTANCE) {
+        return index[i][1];
+      }
+    }
+    return null;
+  }
+  function analyzeSentiment(text) {
+    var tokens = text.toLowerCase().replace(/[^a-z'\s]/g, ' ').split(/\s+/).filter(Boolean);
+    var score = 0, negateNext = false;
+    tokens.forEach(function (t) {
+      var category = classifySentimentToken(t);
+      if (category === 'negator') { negateNext = true; return; }
+      var polarity = category === 'positive' ? 1 : (category === 'negative' ? -1 : 0);
+      if (polarity !== 0) {
+        score += negateNext ? -polarity : polarity;
+        negateNext = false;
+      }
+    });
+    var label = score <= -1 ? 'negative' : (score >= 1 ? 'positive' : 'neutral');
+    return { score: score, label: label };
+  }
+  function applySentimentPrefix(text, sentiment) {
+    if (sentiment.label !== 'negative') return text;
+    return EMPATHY_RESPONSES[Math.floor(Math.random() * EMPATHY_RESPONSES.length)] + ' ' + text;
+  }
+  var STOPWORDS = ['in', 'a', 'the', 'at', 'for', 'near', 'on', 'of', 'and', 'me'];
+  function tokenize(s) { return s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean); }
+  function extractContext(q) {
+    var lower = q.toLowerCase(), tokens = tokenize(q), location = null, sector = null;
+    if (lower.indexOf('victoria island') !== -1) location = 'Victoria Island';
+    tokens.forEach(function (t) { if (!location && LOCATION_ALIASES[t]) location = LOCATION_ALIASES[t]; });
+    tokens.forEach(function (t) { if (!sector && SECTOR_KEYWORDS[t]) sector = SECTOR_KEYWORDS[t]; });
+    return { location: location, sector: sector };
+  }
+  function searchMock(query) {
+    var ctx = extractContext(query);
+    var tokens = tokenize(query).filter(function (t) { return STOPWORDS.indexOf(t) === -1; });
+    var scored = MOCK_LISTINGS.map(function (l) {
+      var hay = tokenize(l.title + ' ' + l.category + ' ' + l.sector + ' ' + l.location);
+      var score = 0;
+      tokens.forEach(function (t) { if (hay.indexOf(t) !== -1) score++; });
+      if (ctx.location && l.location === ctx.location) score += 3;
+      if (ctx.sector && l.sector === ctx.sector) score += 3;
+      return { listing: l, score: score };
+    }).filter(function (s) { return s.score > 0; }).sort(function (a, b) { return b.score - a.score; });
+    return { results: scored.map(function (s) { return s.listing; }), context: ctx };
+  }
+  function jaccard(a, b) {
+    var ta = tokenize(a), tb = tokenize(b);
+    if (!ta.length || !tb.length) return 0;
+    var setB = {}; tb.forEach(function (t) { setB[t] = true; });
+    var inter = 0; ta.forEach(function (t) { if (setB[t]) inter++; });
+    var union = {}; ta.concat(tb).forEach(function (t) { union[t] = true; });
+    return inter / Object.keys(union).length;
+  }
+  function recallFaqMock(query) {
+    var best = null, bestScore = 0;
+    MOCK_FAQ.forEach(function (f) { var s = jaccard(query, f.question); if (s > bestScore) { bestScore = s; best = f; } });
+    return (best && bestScore >= 0.5) ? best : null;
+  }
+
+  // ---- Chat rendering (ported from the real assets/js/killi.js) ----
+  function formatTimestamp(date) {
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+  // No per-reply reaction row — rating happens once, at the end of the
+  // session, via an inline card appended into the chat feed itself
+  // (matches the real app: asking on every single reply was too much
+  // friction, and a header icon read as chrome rather than conversation).
+  function addBubble(role, text, withReaction, opts) {
+    opts = opts || {};
+    var bubble = el('div', 'killi-bubble ' + role, opts.raw ? text : escapeHtml(text));
+    var meta = el('div', 'killi-bubble-meta');
+    meta.appendChild(el('span', 'killi-timestamp', formatTimestamp(new Date())));
+    if (role === 'user') {
+      meta.appendChild(el('span', 'killi-tick', '&#10003;'));
+      lastUserMessage = text;
+    }
+    bubble.appendChild(meta);
+    chat.appendChild(bubble);
+    if (role === 'ai' && withReaction) {
+      sessionTurns.push({ query: lastUserMessage, reply: text });
+      maybeShowInlineRating();
+    }
+    scrollToBottom();
+    return bubble;
+  }
+  function addTyping() {
+    var b = el('div', 'killi-bubble ai', '<span class="killi-typing"><span></span><span></span><span></span></span>');
+    chat.appendChild(b); scrollToBottom();
+    return b;
+  }
+  function addResultCard(container, listing) {
+    var card = el('div', 'killi-card');
+    var top = el('div', 'killi-card-top');
+    top.appendChild(el('div', 'killi-card-title', escapeHtml(listing.title)));
+    var topActions = el('div', 'killi-card-top-actions');
+    topActions.appendChild(buildSaveButton(listing));
+    topActions.appendChild(buildViewButton(listing));
+    top.appendChild(topActions);
+    card.appendChild(top);
+    var metaParts = [listing.category, listing.location].filter(Boolean);
+    var metaHtml = escapeHtml(metaParts.join(' · '));
+    if (listing.rating) metaHtml = starRating(listing.rating) + (metaHtml ? ' · ' + metaHtml : '');
+    card.appendChild(el('div', 'killi-card-meta', metaHtml));
+    var actions = el('div', 'killi-card-actions');
+    [
+      ['', ICONS.phone, 'Call', listing.phone ? 'tel:' + listing.phone : null, false],
+      ['', ICONS.pin, 'Directions', mapsLink(listing), true],
+      ['', ICONS.globe, 'Website', listing.website || null, true],
+      [' whatsapp', ICONS.whatsapp, 'WhatsApp', listing.whatsapp ? waLink(listing.whatsapp) : null, true],
+    ].forEach(function (entry) {
+      if (!entry[3]) return;
+      var a = document.createElement('a');
+      a.className = 'killi-card-action-icon-wrap' + entry[0];
+      a.href = entry[3];
+      if (entry[4]) { a.target = '_blank'; a.rel = 'noopener'; }
+      a.innerHTML = '<span class="killi-card-action-icon">' + entry[1] + '</span><span class="killi-card-action-label">' + entry[2] + '</span>';
+      actions.appendChild(a);
+    });
+    card.appendChild(actions);
+    container.appendChild(card);
+  }
+  function buildViewButton(listing) {
+    var btn = el('button', 'killi-view-btn', ICONS.eye);
+    btn.type = 'button';
+    btn.addEventListener('click', function () { openModal(listing); });
+    return btn;
+  }
+  function buildPhotoStrip(photos) {
+    if (!photos || !photos.length) return null;
+    var strip = el('div', 'killi-photo-strip');
+    photos.forEach(function (src) { var img = document.createElement('img'); img.src = src; img.alt = ''; strip.appendChild(img); });
+    return strip;
+  }
+  function buildRatingBars(breakdown) {
+    if (!breakdown) return null;
+    var max = Math.max.apply(null, breakdown) || 1;
+    var wrap = el('div', 'killi-rating-bars');
+    breakdown.forEach(function (c) { var bar = el('div', 'bar'); bar.style.height = Math.max(4, (c / max) * 100) + '%'; wrap.appendChild(bar); });
+    return wrap;
+  }
+  // Same four actions, same order, as the card's action row — a listing
+  // shouldn't offer WhatsApp on the card and lose it once you tap View.
+  function buildActionRow(listing) {
+    var row = el('div', 'killi-modal-actions');
+    [['phone', ICONS.phone, 'Call', listing.phone ? 'tel:' + listing.phone : null, false],
+     ['pin', ICONS.pin, 'Directions', mapsLink(listing), true],
+     ['globe', ICONS.globe, 'Website', listing.website || null, true],
+     ['whatsapp', ICONS.whatsapp, 'WhatsApp', listing.whatsapp ? 'https://wa.me/' + listing.whatsapp.replace(/[^0-9]/g, '') : null, true]].forEach(function (entry) {
+      if (!entry[3]) return;
+      var a = document.createElement('a');
+      if (entry[0] === 'whatsapp') a.classList.add('whatsapp');
+      a.innerHTML = '<span class="killi-modal-action-icon">' + entry[1] + '</span><span class="killi-modal-action-label">' + entry[2] + '</span>';
+      a.href = entry[3];
+      if (entry[4]) { a.target = '_blank'; a.rel = 'noopener'; }
+      row.appendChild(a);
+    });
+    return row;
+  }
+  function mapsLink(listing) {
+    var query = listing.address || listing.location;
+    return query ? 'https://maps.google.com/?q=' + encodeURIComponent(query) : null;
+  }
+  // "Menu" only makes sense for food/drink listings — everyone else gets
+  // "Services" instead. Derived from category/sector, not a separate
+  // field, so it can't drift out of sync with what the business is.
+  var FOOD_CATEGORY_KEYWORDS = ['restaurant', 'bar', 'cafe', 'café', 'catering', 'food', 'drink', 'bakery', 'diner', 'bistro'];
+  function itemsLabel(listing) {
+    var text = ((listing.category || '') + ' ' + (listing.sector || '')).toLowerCase();
+    for (var i = 0; i < FOOD_CATEGORY_KEYWORDS.length; i++) {
+      if (text.indexOf(FOOD_CATEGORY_KEYWORDS[i]) !== -1) return 'Menu';
+    }
+    return 'Services';
+  }
+  function buildMapThumb(listing) {
+    var link = mapsLink(listing);
+    if (!link) return null;
+    var a = document.createElement('a');
+    a.href = link;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.className = 'killi-map-thumb';
+    a.innerHTML = '<svg viewBox="0 0 72 72" aria-hidden="true">'
+      + '<rect width="72" height="72" fill="#e8eaed"/>'
+      + '<path d="M0 16h72M0 38h72M0 58h72" stroke="#d2d5da" stroke-width="2"/>'
+      + '<path d="M14 0v72M46 0v72M60 0v72" stroke="#d2d5da" stroke-width="2"/>'
+      + '<path d="M0 38h72" stroke="#c9dcf7" stroke-width="4"/>'
+      + '<rect x="20" y="20" width="12" height="12" fill="#dbe0e6"/>'
+      + '<rect x="50" y="44" width="10" height="10" fill="#dbe0e6"/>'
+      + '<path d="M36 22c-7.2 0-12 5.4-12 12 0 8 12 20 12 20s12-12 12-20c0-6.6-4.8-12-12-12Z" fill="#ea4335"/>'
+      + '<circle cx="36" cy="34" r="4.5" fill="#fff"/>'
+      + '</svg>';
+    return a;
+  }
+  function buildReviewsList(reviews) {
+    if (!reviews || !reviews.length) return null;
+    var wrap = el('div', 'killi-review-list');
+    reviews.forEach(function (r) {
+      var card = el('div', 'killi-review-card');
+      card.appendChild(el('div', 'killi-review-avatar', escapeHtml((r.author || '?').trim().charAt(0).toUpperCase())));
+      var body = el('div', 'killi-review-body');
+      body.appendChild(el('div', 'killi-review-author', escapeHtml(r.author || 'Anonymous')));
+      body.appendChild(el('div', 'killi-review-meta', starRowHtml(r.rating) + ' <span>' + escapeHtml(r.date || '') + '</span>'));
+      if (r.text) body.appendChild(el('p', 'killi-review-text', escapeHtml(r.text)));
+      card.appendChild(body);
+      wrap.appendChild(card);
+    });
+    return wrap;
+  }
+  function openModal(listing) {
+    var overlay = el('div', 'killi-modal-overlay');
+    var modal = el('div', 'killi-modal');
+    var closeBtn = el('button', 'killi-modal-close', '&times;');
+    closeBtn.type = 'button';
+    modal.appendChild(closeBtn);
+
+    var header = el('div', 'killi-modal-header');
+    header.appendChild(el('p', 'killi-modal-title', escapeHtml(listing.title)));
+    if (listing.rating) {
+      var ratingParts = [Number(listing.rating).toFixed(1), starRowHtml(listing.rating)];
+      if (listing.review_count) ratingParts.push('(' + listing.review_count + ')');
+      header.appendChild(el('p', 'killi-modal-subline', ratingParts.join(' ')));
+    }
+    var categoryLocation = listing.category && listing.location ? listing.category + ' business in ' + listing.location
+      : (listing.category || listing.location || null);
+    if (categoryLocation) header.appendChild(el('p', 'killi-modal-subline', escapeHtml(categoryLocation)));
+    if (listing.hours_today) {
+      header.appendChild(el('p', 'killi-modal-subline', '<span class="' + (listing.is_open_now ? 'killi-modal-status-open' : '') + '">' + escapeHtml(listing.hours_today) + '</span>'));
+    }
+    var modalSaveBtn = buildSaveButton(listing);
+    modalSaveBtn.classList.add('killi-modal-save-btn');
+    header.appendChild(modalSaveBtn);
+    modal.appendChild(header);
+
+    var itemsTabLabel = itemsLabel(listing);
+    var tabs = el('div', 'killi-modal-tabs');
+    var sections = {};
+    ['Overview', 'Reviews', 'Photos', itemsTabLabel].forEach(function (name, i) {
+      var tab = el('button', 'killi-modal-tab' + (i === 0 ? ' current' : ''), name);
+      tab.type = 'button';
+      tab.addEventListener('click', function () {
+        Array.prototype.forEach.call(tabs.querySelectorAll('.killi-modal-tab'), function (t) { t.classList.remove('current'); });
+        tab.classList.add('current');
+        Object.keys(sections).forEach(function (k) { sections[k].classList.toggle('current', k === name); });
+      });
+      tabs.appendChild(tab);
+    });
+    modal.appendChild(tabs);
+
+    var overview = el('div', 'killi-tab-section current');
+    var strip = buildPhotoStrip(listing.photos);
+    if (strip) overview.appendChild(strip);
+    overview.appendChild(buildActionRow(listing));
+    if (listing.description) {
+      var tagline = el('div', 'killi-modal-tagline');
+      tagline.innerHTML = '<span>' + escapeHtml(listing.description) + '</span>' + ICONS.chevron;
+      overview.appendChild(tagline);
+    }
+    var grid = el('div', 'killi-info-grid');
+    if (listing.rating) {
+      var reviewTile = el('div', 'killi-info-tile killi-info-tile-full');
+      reviewTile.appendChild(el('div', 'killi-info-tile-label', 'Reviews'));
+      reviewTile.appendChild(el('div', 'killi-rating-big', Number(listing.rating).toFixed(1) + ' ' + starRowHtml(listing.rating)));
+      var bars = buildRatingBars(listing.rating_breakdown);
+      if (bars) reviewTile.appendChild(bars);
+      grid.appendChild(reviewTile);
+    }
+    if (grid.children.length) overview.appendChild(grid);
+    if (listing.address || listing.location) {
+      var locationCard = el('div', 'killi-modal-location');
+      var locationText = el('div', 'killi-modal-location-text');
+      locationText.innerHTML = '<strong>' + escapeHtml(listing.title) + '</strong><br>' + escapeHtml(listing.address || listing.location);
+      locationCard.appendChild(locationText);
+      var mapThumb = buildMapThumb(listing);
+      if (mapThumb) locationCard.appendChild(mapThumb);
+      overview.appendChild(locationCard);
+    }
+    modal.appendChild(overview);
+    sections.Overview = overview;
+
+    var reviews = el('div', 'killi-tab-section');
+    var rTile = el('div', 'killi-info-tile');
+    rTile.appendChild(el('div', 'killi-rating-big', Number(listing.rating).toFixed(1) + ' ' + starRowHtml(listing.rating) + (listing.review_count ? ' <span style="font-size:13px;font-weight:400">(' + listing.review_count + ')</span>' : '')));
+    var rBars = buildRatingBars(listing.rating_breakdown);
+    if (rBars) rTile.appendChild(rBars);
+    reviews.appendChild(rTile);
+    var reviewsList = buildReviewsList(listing.reviews);
+    if (reviewsList) reviews.appendChild(reviewsList);
+    modal.appendChild(reviews);
+    sections.Reviews = reviews;
+
+    var photos = el('div', 'killi-tab-section');
+    var fullStrip = buildPhotoStrip(listing.photos);
+    if (fullStrip) { fullStrip.style.height = 'auto'; fullStrip.style.flexWrap = 'wrap'; Array.prototype.forEach.call(fullStrip.querySelectorAll('img'), function (img) { img.style.width = 'calc(50% - 2px)'; img.style.height = '110px'; }); photos.appendChild(fullStrip); }
+    modal.appendChild(photos);
+    sections.Photos = photos;
+
+    var menu = el('div', 'killi-tab-section');
+    if (listing.menu_items) {
+      listing.menu_items.forEach(function (it) {
+        var row = el('div', '', '');
+        row.style.display = 'flex'; row.style.gap = '10px'; row.style.alignItems = 'center'; row.style.padding = '0 18px 12px';
+        if (it.photo) {
+          var img = document.createElement('img'); img.src = it.photo; img.alt = ''; img.style.width = '48px'; img.style.height = '48px'; img.style.borderRadius = '8px'; img.style.objectFit = 'cover';
+          row.appendChild(img);
+        } else {
+          row.appendChild(el('div', 'killi-item-row-fallback', ICONS.cart));
+        }
+        row.appendChild(el('div', '', escapeHtml(it.name)));
+        menu.appendChild(row);
+      });
+    }
+    modal.appendChild(menu);
+    sections[itemsTabLabel] = menu;
+
+    // Keep header/tabs fixed; move the tab sections into a scrolling
+    // wrapper so switching tabs never resizes the modal itself.
+    var scrollBody = el('div', 'killi-modal-body');
+    Array.prototype.slice.call(modal.children).forEach(function (child) {
+      if (child === closeBtn || child.classList.contains('killi-modal-header') || child.classList.contains('killi-modal-tabs')) return;
+      scrollBody.appendChild(child);
+    });
+    modal.appendChild(scrollBody);
+
+    overlay.appendChild(modal);
+    function close() { overlay.remove(); }
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.getElementById('killi-app').appendChild(overlay);
+
+    // Lock height to fit content, measured once here — avoids resizing
+    // mid tab-switch without forcing a sparse listing (little to show in
+    // any tab) into the same tall box as a fully-populated one.
+    var tabSections = scrollBody.querySelectorAll('.killi-tab-section');
+    var contentHeight = 0;
+    Array.prototype.forEach.call(tabSections, function (sec) {
+      var wasCurrent = sec.classList.contains('current');
+      sec.classList.add('current');
+      contentHeight = Math.max(contentHeight, sec.scrollHeight);
+      if (!wasCurrent) sec.classList.remove('current');
+    });
+    var header = modal.querySelector('.killi-modal-header');
+    var tabsBar = modal.querySelector('.killi-modal-tabs');
+    var chromeHeight = (header ? header.offsetHeight : 0) + (tabsBar ? tabsBar.offsetHeight : 0);
+    var desired = chromeHeight + contentHeight + 4;
+    var phoneApp = document.getElementById('killi-app');
+    var ceiling = Math.min(phoneApp.clientHeight * 0.85, 560);
+    modal.style.height = Math.max(Math.min(desired, ceiling), 160) + 'px';
+  }
+
+  // A lighter-weight sibling of openModal — same overlay/sheet shell, no
+  // tabs, for content that isn't a business listing (Saved, Profile,
+  // Advanced search).
+  function openSimplePanel(title, bodyNode) {
+    var overlay = el('div', 'killi-modal-overlay');
+    var modal = el('div', 'killi-modal');
+    var closeBtn = el('button', 'killi-modal-close', '&times;');
+    closeBtn.type = 'button';
+    modal.appendChild(closeBtn);
+
+    var header = el('div', 'killi-modal-header');
+    header.appendChild(el('p', 'killi-modal-title', escapeHtml(title)));
+    modal.appendChild(header);
+
+    var scrollBody = el('div', 'killi-modal-body');
+    scrollBody.appendChild(bodyNode);
+    modal.appendChild(scrollBody);
+
+    overlay.appendChild(modal);
+    function close() { overlay.remove(); }
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.getElementById('killi-app').appendChild(overlay);
+
+    var phoneApp = document.getElementById('killi-app');
+    var ceiling = Math.min(phoneApp.clientHeight * 0.85, 560);
+    var desired = header.offsetHeight + scrollBody.scrollHeight + 4;
+    modal.style.height = Math.max(Math.min(desired, ceiling), 160) + 'px';
+
+    return { close: close };
+  }
+
+  function panelSectionEl(title, node) {
+    var wrap = el('div', 'killi-panel-section');
+    wrap.appendChild(el('div', 'killi-panel-section-title', escapeHtml(title)));
+    wrap.appendChild(node);
+    return wrap;
+  }
+
+  function buildSavedTabBar(sections) {
+    var names = Object.keys(sections);
+    var bar = el('div', 'killi-panel-tabs');
+    names.forEach(function (name, i) {
+      var tab = el('button', 'killi-panel-tab' + (i === 0 ? ' current' : ''), name);
+      tab.type = 'button';
+      tab.addEventListener('click', function () {
+        Array.prototype.forEach.call(bar.querySelectorAll('.killi-panel-tab'), function (t) { t.classList.remove('current'); });
+        tab.classList.add('current');
+        names.forEach(function (n) { sections[n].classList.toggle('current', n === name); });
+      });
+      bar.appendChild(tab);
+    });
+    return bar;
+  }
+
+  function buildSavedPage(handle) {
+    var wrap = el('div', 'killi-panel');
+
+    var savedSection = el('div', 'killi-panel-tab-section current');
+    var saved = getSaved();
+    var savedList = el('div', 'killi-panel-list');
+    function renderSavedEmptyIfNone() {
+      if (!savedList.children.length) savedList.appendChild(el('p', 'killi-empty', 'Nothing saved yet — tap the heart on a listing to save it.'));
+    }
+    if (saved.length) {
+      saved.forEach(function (r) {
+        var row = el('div', 'killi-panel-row');
+        row.appendChild(el('div', '', '<div class="killi-panel-row-title">' + escapeHtml(r.title) + '</div><div class="killi-panel-row-sub">' + escapeHtml([r.category, r.location].filter(Boolean).join(' · ')) + '</div>'));
+        var unsaveBtn = el('button', 'killi-save-btn saved', ICONS.heart);
+        unsaveBtn.type = 'button';
+        unsaveBtn.addEventListener('click', function () {
+          toggleSaved(r);
+          row.remove();
+          renderSavedEmptyIfNone();
+        });
+        row.appendChild(unsaveBtn);
+        savedList.appendChild(row);
+      });
+    } else {
+      renderSavedEmptyIfNone();
+    }
+    savedSection.appendChild(panelSectionEl('Saved businesses', savedList));
+
+    var recent = readJsonLS(RECENT_SEARCHES_KEY, []);
+    var recentWrap = el('div', 'killi-chips killi-panel-chips');
+    if (recent.length) {
+      recent.forEach(function (q) {
+        var chip = el('button', 'killi-chip', escapeHtml(q));
+        chip.type = 'button';
+        chip.addEventListener('click', function () {
+          if (handle.ref) handle.ref.close();
+          input.value = q;
+          form.requestSubmit();
+        });
+        recentWrap.appendChild(chip);
+      });
+    } else {
+      recentWrap.appendChild(el('p', 'killi-empty', 'No recent searches yet.'));
+    }
+    savedSection.appendChild(panelSectionEl('Recent searches', recentWrap));
+
+    var mediaSection = el('div', 'killi-panel-tab-section');
+    var mediaWrap = el('div', 'killi-panel-media');
+    if (sessionMedia.length) {
+      sessionMedia.forEach(function (f) {
+        if (f.img) {
+          var img = document.createElement('img');
+          img.src = f.src;
+          img.alt = '';
+          mediaWrap.appendChild(img);
+        } else if (f.audio) {
+          var audioRow = el('div', 'killi-panel-media-audio');
+          audioRow.appendChild(el('span', 'killi-panel-media-file', ICONS.mic));
+          var player = document.createElement('audio');
+          player.src = f.src;
+          player.controls = true;
+          audioRow.appendChild(player);
+          mediaWrap.appendChild(audioRow);
+        } else {
+          mediaWrap.appendChild(el('div', 'killi-panel-media-file', ICONS.document + ' ' + escapeHtml(f.label || 'file')));
+        }
+      });
+    } else {
+      mediaWrap.appendChild(el('p', 'killi-empty', 'Photos, files, and other attachments you share in chat show up here (this session only).'));
+    }
+    mediaSection.appendChild(panelSectionEl('Shared this session', mediaWrap));
+
+    wrap.appendChild(buildSavedTabBar({ Saved: savedSection, Media: mediaSection }));
+    wrap.appendChild(savedSection);
+    wrap.appendChild(mediaSection);
+
+    return wrap;
+  }
+
+  function buildProfilePage() {
+    var wrap = el('div', 'killi-panel');
+
+    var name = readJsonLS(PROFILE_NAME_KEY, '');
+    var head = el('div', 'killi-profile-head');
+    var avatar = el('div', 'killi-profile-avatar', escapeHtml((name || 'G').charAt(0).toUpperCase()));
+    head.appendChild(avatar);
+    var nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'killi-panel-input killi-profile-name-input';
+    nameInput.value = name;
+    nameInput.placeholder = 'Your name';
+    nameInput.addEventListener('change', function () {
+      var v = nameInput.value.trim();
+      writeJsonLS(PROFILE_NAME_KEY, v);
+      avatar.textContent = (v || 'G').charAt(0).toUpperCase();
+    });
+    head.appendChild(nameInput);
+    wrap.appendChild(head);
+
+    var stats = el('div', 'killi-profile-stats');
+    stats.appendChild(el('div', 'killi-profile-stat', '<strong>' + readJsonLS(RECENT_SEARCHES_KEY, []).length + '</strong><span>Searches</span>'));
+    stats.appendChild(el('div', 'killi-profile-stat', '<strong>' + getSaved().length + '</strong><span>Saved</span>'));
+    wrap.appendChild(stats);
+
+    var clearBtn = el('button', 'killi-panel-clear-btn', 'Clear saved data on this device');
+    clearBtn.type = 'button';
+    clearBtn.addEventListener('click', function () {
+      writeJsonLS(SAVED_KEY, []);
+      writeJsonLS(RECENT_SEARCHES_KEY, []);
+      writeJsonLS(PROFILE_NAME_KEY, '');
+      addBubble('ai', 'Cleared your saved data on this device.', false, {});
+    });
+    wrap.appendChild(clearBtn);
+
+    return wrap;
+  }
+
+  // Mock stand-in for the real product's structured search.php filters —
+  // sector/location/rating/open-now applied directly against the mock
+  // dataset, same idea as searchMock() above but for the filter panel.
+  function runAdvancedSearchMock(filters, minRating, openNow) {
+    var summary = [filters.category || filters.sector, filters.location, minRating ? minRating + '+ stars' : null, openNow ? 'open now' : null].filter(Boolean).join(', ') || 'all businesses';
+    addBubble('user', 'Advanced search: ' + summary);
+    var results = MOCK_LISTINGS.filter(function (l) {
+      if (filters.sector && l.sector !== filters.sector) return false;
+      if (filters.category && l.category !== filters.category) return false;
+      if (filters.location && (l.location || '').toLowerCase().indexOf(filters.location.toLowerCase()) === -1) return false;
+      if (minRating && (l.rating || 0) < minRating) return false;
+      if (openNow && !l.is_open_now) return false;
+      return true;
+    });
+    addBubble('ai', results.length ? 'Found ' + results.length + ' match' + (results.length === 1 ? '' : 'es') + ':' : 'No matches for those filters — try widening them.', true, {});
+    if (results.length) {
+      var resultsWrap = el('div', 'killi-results');
+      chat.appendChild(resultsWrap);
+      results.slice(0, 3).forEach(function (l) { addResultCard(resultsWrap, l); });
+      scrollToBottom();
+    }
+  }
+
+  // Wires a text input to a filtered dropdown of `names`, matched by
+  // substring — a mini version of the main search box's suggestion list,
+  // scoped to this one panel field.
+  function attachAutocomplete(inputEl, names) {
+    var box = el('div', 'killi-panel-autocomplete');
+    box.hidden = true;
+    inputEl.insertAdjacentElement('afterend', box);
+    function render() {
+      var q = inputEl.value.trim().toLowerCase();
+      box.innerHTML = '';
+      if (!q) { box.hidden = true; return; }
+      var matches = names.filter(function (n) { return n.toLowerCase().indexOf(q) !== -1; }).slice(0, 6);
+      if (!matches.length) { box.hidden = true; return; }
+      matches.forEach(function (n) {
+        var item = el('div', 'killi-panel-autocomplete-item', escapeHtml(n));
+        item.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          inputEl.value = n;
+          box.hidden = true;
+        });
+        box.appendChild(item);
+      });
+      box.hidden = false;
+    }
+    inputEl.addEventListener('input', render);
+    inputEl.addEventListener('blur', function () { setTimeout(function () { box.hidden = true; }, 100); });
+  }
+
+  function buildAdvancedSearchPanel(handle) {
+    var wrap = el('div', 'killi-panel killi-advanced-search');
+
+    // Derived straight from the mock dataset (sector -> categories) rather
+    // than a taxonomy API, since this demo has no backend to fetch from.
+    var bySector = {};
+    MOCK_LISTINGS.forEach(function (l) {
+      if (!l.sector) return;
+      var node = bySector[l.sector] || (bySector[l.sector] = {});
+      if (l.category) node[l.category] = true;
+    });
+
+    var sectorSel = document.createElement('select');
+    sectorSel.className = 'killi-panel-select';
+    sectorSel.appendChild(new Option('Any', ''));
+    Object.keys(bySector).forEach(function (s) { sectorSel.appendChild(new Option(s, s)); });
+    wrap.appendChild(panelSectionEl('Main categories', sectorSel));
+
+    var categorySel = document.createElement('select');
+    categorySel.className = 'killi-panel-select';
+    categorySel.appendChild(new Option('Any', ''));
+    var categorySection = panelSectionEl('Categories', categorySel);
+    categorySection.hidden = true;
+    wrap.appendChild(categorySection);
+
+    sectorSel.addEventListener('change', function () {
+      categorySel.innerHTML = '';
+      categorySel.appendChild(new Option('Any', ''));
+      var cats = bySector[sectorSel.value];
+      if (sectorSel.value && cats) {
+        Object.keys(cats).forEach(function (c) { categorySel.appendChild(new Option('— ' + c, c)); });
+        categorySection.hidden = false;
+      } else {
+        categorySection.hidden = true;
+      }
+    });
+
+    var locationInput = document.createElement('input');
+    locationInput.type = 'text';
+    locationInput.className = 'killi-panel-input';
+    locationInput.placeholder = 'e.g. Lekki, Victoria Island';
+    locationInput.autocomplete = 'off';
+    wrap.appendChild(panelSectionEl('Location', locationInput));
+    var locationNames = Array.from(new Set(MOCK_LISTINGS.map(function (l) { return l.location; }).filter(Boolean)));
+    attachAutocomplete(locationInput, locationNames);
+
+    var ratingSel = document.createElement('select');
+    ratingSel.className = 'killi-panel-select';
+    [['Any rating', ''], ['4.5+ stars', '4.5'], ['4+ stars', '4'], ['3+ stars', '3']].forEach(function (o) {
+      ratingSel.appendChild(new Option(o[0], o[1]));
+    });
+    wrap.appendChild(panelSectionEl('Minimum rating', ratingSel));
+
+    var openNowLabel = el('label', 'killi-panel-checkbox');
+    var openNowCheck = document.createElement('input');
+    openNowCheck.type = 'checkbox';
+    openNowLabel.appendChild(openNowCheck);
+    openNowLabel.appendChild(document.createTextNode(' Open now only'));
+    wrap.appendChild(openNowLabel);
+
+    var submitBtn = el('button', 'killi-panel-submit-btn', 'Search');
+    submitBtn.type = 'button';
+    submitBtn.addEventListener('click', function () {
+      var filters = { sector: sectorSel.value, category: categorySel.value, location: locationInput.value.trim() };
+      var minRating = ratingSel.value ? Number(ratingSel.value) : 0;
+      var openNow = openNowCheck.checked;
+      if (handle.ref) handle.ref.close();
+      runAdvancedSearchMock(filters, minRating, openNow);
+    });
+    wrap.appendChild(submitBtn);
+
+    return wrap;
+  }
+
+  // ---- Reply logic ----
+  function replyTo(message) {
+    var lower = message.toLowerCase();
+    if (/^(hi|hello|hey)\b/.test(lower)) return { text: 'Hi! What are you looking for today?', reaction: true };
+    var faqMatch = recallFaqMock(message);
+    if (faqMatch) return { text: faqMatch.answer, reaction: true, recalled: true };
+    if (/(hour|open|close|weekend)/.test(lower) && lastListing) return { text: lastListing.title + ' is ' + (lastListing.hours_today || 'usually open — ask them directly for exact hours') + '.', reaction: true };
+    var result = searchMock(message);
+    if (result.results.length) {
+      lastListing = result.results[0];
+      return { text: null, results: result.results, context: result.context };
+    }
+    return { text: "I couldn't find anything for \"" + message + "\" — want me to log it as a request instead?", reaction: false, quickReply: 'Raise a request' };
+  }
+
+  async function sendMessage(message) {
+    if (!message) return;
+    addBubble('user', message);
+    var typing = addTyping();
+    await sleep(500 + Math.random() * 300);
+    typing.remove();
+    var sentiment = analyzeSentiment(message);
+    var reply = replyTo(message);
+    if (reply.results) {
+      var detected = [];
+      if (reply.context.location) detected.push('Location: ' + reply.context.location);
+      if (reply.context.sector) detected.push('Sector: ' + reply.context.sector);
+      var breadcrumb = detected.length ? detected.join(' · ') + ' — ' : '';
+      var foundText = applySentimentPrefix(breadcrumb + 'Found ' + reply.results.length + ' match' + (reply.results.length === 1 ? '' : 'es') + ':', sentiment);
+      addBubble('ai', foundText, false, {});
+      var resultsWrap = el('div', 'killi-results');
+      chat.appendChild(resultsWrap);
+      reply.results.slice(0, 3).forEach(function (l) { addResultCard(resultsWrap, l); });
+      scrollToBottom();
+      sessionTurns.push({ query: message, reply: 'Found ' + reply.results.length + ' results.' });
+      maybeShowInlineRating();
+      if (sentiment.label === 'negative') addNegativeSentimentQuickReplies();
+    } else {
+      var bubble = addBubble('ai', applySentimentPrefix(reply.text, sentiment), reply.reaction, { recalled: false });
+      if (reply.recalled) {
+        var tag = el('div', '', 'Recalled instantly');
+        tag.style.fontSize = '10px'; tag.style.fontWeight = '700'; tag.style.color = '#b8860b'; tag.style.marginBottom = '3px'; tag.style.textTransform = 'uppercase';
+        bubble.insertBefore(tag, bubble.firstChild);
+      }
+      if (sentiment.label === 'negative') {
+        addNegativeSentimentQuickReplies();
+      } else if (reply.quickReply) {
+        var qr = el('div', 'killi-quick-replies');
+        var chipBtn = el('button', 'killi-quick-reply', reply.quickReply);
+        chipBtn.type = 'button';
+        chipBtn.addEventListener('click', async function () {
+          qr.remove();
+          addBubble('user', reply.quickReply);
+          var t2 = addTyping(); await sleep(500); t2.remove();
+          addBubble('ai', "Got it — what's your email so we can follow up?", false);
+        });
+        qr.appendChild(chipBtn);
+        chat.appendChild(qr);
+        scrollToBottom();
+      }
+    }
+  }
+
+  // A negative-reading message gets real next steps, not just the
+  // empathy line already baked into the reply text — same idea as the
+  // zero-result "Raise a request" chip above, just triggered by tone.
+  function addNegativeSentimentQuickReplies() {
+    var qr = el('div', 'killi-quick-replies');
+    var raiseBtn = el('button', 'killi-quick-reply', 'Raise a request');
+    raiseBtn.type = 'button';
+    raiseBtn.addEventListener('click', async function () {
+      qr.remove();
+      addBubble('user', 'Raise a request');
+      var t2 = addTyping(); await sleep(500); t2.remove();
+      addBubble('ai', "Got it — what's your email so we can follow up?", false);
+    });
+    var againBtn = el('button', 'killi-quick-reply', 'Try again');
+    againBtn.type = 'button';
+    againBtn.addEventListener('click', function () { qr.remove(); input.focus(); });
+    qr.appendChild(raiseBtn);
+    qr.appendChild(againBtn);
+    chat.appendChild(qr);
+    scrollToBottom();
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var val = input.value.trim();
+    if (!val) return;
+    input.value = '';
+    pushRecentSearch(val);
+    sendMessage(val);
+  });
+
+  chips.addEventListener('click', function (e) {
+    var chip = e.target.closest('.killi-chip');
+    if (!chip) return;
+    input.value = chip.getAttribute('data-chip') + ' ';
+    input.focus();
+  });
+
+  var attachSheet = document.getElementById('killi-attach-sheet');
+  var ATTACH_CANNED = {
+    photo: { bubble: '<span class="killi-inline-icon">' + ICONS.camera + '</span> photo.jpg', img: true },
+    video: { bubble: '<span class="killi-inline-icon">' + ICONS.video + '</span> clip.mp4', video: true },
+    file: { bubble: '<span class="killi-inline-icon">' + ICONS.document + '</span> receipt.pdf', img: false },
+  };
+  attachBtn.addEventListener('click', function () { attachSheet.hidden = false; });
+  attachSheet.addEventListener('click', function (e) { if (e.target === attachSheet) attachSheet.hidden = true; });
+  document.getElementById('killi-attach-cancel').addEventListener('click', function () { attachSheet.hidden = true; });
+  Array.prototype.forEach.call(attachSheet.querySelectorAll('.killi-attach-option[data-kind]'), function (btn) {
+    btn.addEventListener('click', function () {
+      attachSheet.hidden = true;
+      var kind = ATTACH_CANNED[btn.getAttribute('data-kind')];
+      var bubble = addBubble('user', kind.bubble, false, { raw: true });
+      bubble.classList.add('killi-attachment');
+      var metaRow = bubble.querySelector('.killi-bubble-meta');
+      if (kind.img) {
+        var imgSrc = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="140"><rect width="200" height="140" fill="hsl(206,60%,88%)"/><text x="100" y="74" font-family="Arial" font-size="14" fill="hsl(206,40%,40%)" text-anchor="middle">Sample photo</text></svg>');
+        var img = document.createElement('img');
+        img.src = imgSrc;
+        img.className = 'killi-attachment-img';
+        bubble.insertBefore(img, metaRow);
+        sessionMedia.unshift({ img: true, src: imgSrc, label: kind.bubble });
+      } else if (kind.video) {
+        var vidPlaceholder = el('div', 'killi-attachment-video', '&#9654; 0:07 clip');
+        vidPlaceholder.style.cssText = 'display:flex;align-items:center;justify-content:center;height:120px;background:rgba(127,127,127,0.15);color:var(--killi-muted,#5f6368);font-size:13px';
+        bubble.insertBefore(vidPlaceholder, metaRow);
+        sessionMedia.unshift({ img: false, label: kind.bubble });
+      } else {
+        sessionMedia.unshift({ img: false, label: kind.bubble });
+      }
+      setTimeout(async function () {
+        var t = addTyping(); await sleep(500); t.remove();
+        addBubble('ai', "Got it — I'll pass this along.", false);
+      }, 300);
+    });
+  });
+
+  // Voice notes: real MediaRecorder, not canned — this is fully
+  // client-side already so there's no reason to fake it. Recording
+  // replaces the searchbar in place (same row) with a live timer and
+  // stop/cancel controls, WhatsApp-style. Separate from the mic button
+  // below, which is speech-to-text into the search box, not a message.
+  var voiceBtn = document.getElementById('killi-attach-voice');
+  var voiceBar = document.getElementById('killi-voice-record-bar');
+  var voiceTimerEl = document.getElementById('killi-voice-timer');
+  var voiceStopBtn = document.getElementById('killi-voice-stop');
+  var voiceCancelBtn = document.getElementById('killi-voice-cancel');
+  var canRecordVoice = voiceBtn && voiceBar && navigator.mediaDevices && window.MediaRecorder;
+  if (voiceBtn && !canRecordVoice) voiceBtn.hidden = true;
+
+  if (canRecordVoice) {
+    var voiceRecorder = null;
+    var voiceStream = null;
+    var voiceChunks = [];
+    var voiceStartedAt = 0;
+    var voiceTimerHandle = null;
+
+    function formatVoiceDuration(ms) {
+      var totalSeconds = Math.floor(ms / 1000);
+      var m = Math.floor(totalSeconds / 60);
+      var s = totalSeconds % 60;
+      return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function stopVoiceStream() {
+      if (voiceStream) voiceStream.getTracks().forEach(function (t) { t.stop(); });
+      voiceStream = null;
+      voiceRecorder = null;
+      clearInterval(voiceTimerHandle);
+      voiceBar.hidden = true;
+      form.hidden = false;
+    }
+
+    function startVoiceRecording() {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function (stream) {
+          voiceStream = stream;
+          voiceChunks = [];
+          voiceRecorder = new MediaRecorder(stream);
+          voiceRecorder.addEventListener('dataavailable', function (e) {
+            if (e.data && e.data.size > 0) voiceChunks.push(e.data);
+          });
+          voiceRecorder.addEventListener('stop', function () {
+            var wasCancelled = voiceRecorder._cancelled;
+            var blob = new Blob(voiceChunks, { type: voiceRecorder.mimeType || 'audio/webm' });
+            stopVoiceStream();
+            if (!wasCancelled && blob.size > 0) {
+              var url = URL.createObjectURL(blob);
+              var bubble = addBubble('user', '<audio controls src="' + url + '" class="killi-attachment-audio"></audio>', false, { raw: true });
+              bubble.classList.add('killi-attachment');
+              sessionMedia.unshift({ audio: true, src: url, label: 'voice-note' });
+              setTimeout(async function () {
+                var t = addTyping(); await sleep(500); t.remove();
+                addBubble('ai', "Got it — I'll pass this along.", false);
+              }, 300);
+            }
+          });
+          voiceRecorder.start();
+          voiceStartedAt = Date.now();
+          form.hidden = true;
+          voiceBar.hidden = false;
+          voiceTimerEl.textContent = '0:00';
+          voiceTimerHandle = setInterval(function () {
+            voiceTimerEl.textContent = formatVoiceDuration(Date.now() - voiceStartedAt);
+          }, 500);
+        })
+        .catch(function () {
+          addBubble('ai', 'I couldn’t access your microphone — please allow microphone access and try again.', false, {});
+        });
+    }
+
+    voiceBtn.addEventListener('click', function () {
+      attachSheet.hidden = true;
+      startVoiceRecording();
+    });
+    voiceStopBtn.addEventListener('click', function () {
+      if (voiceRecorder && voiceRecorder.state !== 'inactive') voiceRecorder.stop();
+    });
+    voiceCancelBtn.addEventListener('click', function () {
+      if (voiceRecorder && voiceRecorder.state !== 'inactive') {
+        voiceRecorder._cancelled = true;
+        voiceRecorder.stop();
+      }
+    });
+  }
+
+  micBtn.addEventListener('click', function () {
+    if (micBtn.classList.contains('listening')) return;
+    micBtn.classList.add('listening');
+    setTimeout(function () {
+      micBtn.classList.remove('listening');
+      input.value = 'dentist in ikoyi';
+      input.focus();
+    }, 1100);
+  });
+
+  // theme toggle
+  var THEME_KEY = 'killi-demo-theme';
+  function isDarkActive() {
+    var explicit = document.documentElement.getAttribute('data-theme');
+    if (explicit === 'dark') return true;
+    if (explicit === 'light') return false;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  function applyTheme(theme) {
+    if (theme === 'dark' || theme === 'light') document.documentElement.setAttribute('data-theme', theme);
+    else document.documentElement.removeAttribute('data-theme');
+    themeToggle.textContent = isDarkActive() ? '☀️' : '🌙';
+  }
+  applyTheme(localStorage.getItem(THEME_KEY));
+  themeToggle.addEventListener('click', function () {
+    var next = isDarkActive() ? 'light' : 'dark';
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme(next);
+  });
+
+  // Rate this conversation: appended into the chat feed itself once
+  // there's a finished exchange worth rating, rather than a floating
+  // panel behind a header icon — reviewing reads as part of the
+  // conversation instead of chrome.
+  var inlineRatingShown = false;
+  function maybeShowInlineRating() {
+    if (inlineRatingShown) return;
+    inlineRatingShown = true;
+    chat.appendChild(buildInlineRatingCard());
+    scrollToBottom();
+  }
+
+  function buildInlineRatingCard() {
+    var card = el('div', 'killi-inline-rate');
+    card.appendChild(el('div', 'killi-inline-rate-title', 'How did this conversation go?'));
+
+    var starsWrap = el('div', 'killi-rate-stars');
+    var stars = [];
+    for (var i = 1; i <= 5; i++) {
+      var star = el('button', 'killi-star', ICONS.star);
+      star.type = 'button';
+      star.setAttribute('data-value', i);
+      starsWrap.appendChild(star);
+      stars.push(star);
+    }
+    card.appendChild(starsWrap);
+
+    var comment = document.createElement('textarea');
+    comment.className = 'killi-rate-comment';
+    comment.placeholder = 'Anything we should know? (optional)';
+    comment.rows = 2;
+    card.appendChild(comment);
+
+    var actions = el('div', 'killi-rate-actions');
+    var cancelBtn = el('button', 'killi-rate-cancel', 'Dismiss');
+    cancelBtn.type = 'button';
+    var submitBtn = el('button', 'killi-rate-submit', 'Submit');
+    submitBtn.type = 'button';
+    submitBtn.disabled = true;
+    actions.appendChild(cancelBtn);
+    actions.appendChild(submitBtn);
+    card.appendChild(actions);
+
+    var selected = 0;
+    function paintStars() {
+      stars.forEach(function (s) { s.classList.toggle('filled', Number(s.getAttribute('data-value')) <= selected); });
+      submitBtn.disabled = selected === 0;
+    }
+    stars.forEach(function (s) { s.addEventListener('click', function () { selected = Number(s.getAttribute('data-value')); paintStars(); }); });
+
+    cancelBtn.addEventListener('click', function () { card.remove(); });
+    submitBtn.addEventListener('click', function () {
+      if (!selected) return;
+      submitBtn.disabled = true;
+      card.innerHTML = '';
+      card.appendChild(el('div', 'killi-rate-thanks', 'Thanks for the feedback!'));
+    });
+
+    return card;
+  }
+
+  // Bottom icon nav — Home/Search are real actions; Saved and Profile
+  // open real panels backed by localStorage (this browser only, no
+  // accounts in this preview).
+  (function () {
+    var nav = document.getElementById('killi-bottom-nav');
+    if (!nav) return;
+    var navItems = nav.querySelectorAll('.killi-nav-item');
+    nav.addEventListener('click', function (e) {
+      var btn = e.target.closest('.killi-nav-item');
+      if (!btn) return;
+      Array.prototype.forEach.call(navItems, function (item) { item.classList.toggle('active', item === btn); });
+      var target = btn.getAttribute('data-nav');
+      if (target === 'home') {
+        chat.scrollTop = 0;
+      } else if (target === 'search') {
+        input.focus();
+      } else if (target === 'filters') {
+        var searchHandle = {};
+        searchHandle.ref = openSimplePanel('Advanced search', buildAdvancedSearchPanel(searchHandle));
+      } else if (target === 'saved') {
+        var savedHandle = {};
+        savedHandle.ref = openSimplePanel('Saved', buildSavedPage(savedHandle));
+      } else if (target === 'profile') {
+        openSimplePanel('Profile', buildProfilePage());
+      }
+    });
+  })();
+
+  // ---- Auto-play a representative conversation, then leave it open ----
+  async function autoplay() {
+    addBubble('ai', "Hi, what are you looking for today?");
+    await sleep(1400);
+    await sendMessage('mechanic near vi');
+    await sleep(2200);
+    await sendMessage('what about weekend hours');
+    await sleep(2000);
+    await sendMessage('do you accept returns');
+    await sleep(1600);
+    input.placeholder = 'Try: dentist in ikoyi, or tap 🎤';
+  }
+  autoplay();
+})();
+</script>
+
+</body>
+</html>
